@@ -202,6 +202,9 @@
                                             <tr>
                                                 <td>
                                                     <div class="fw-semibold">{{ row.item.item_code or loop.index }}. {{ row.item.title }}</div>
+                                                {% if row.table_render_html %}
+                                                <div class="mt-2">{{ row.table_render_html|safe }}</div>
+                                                {% endif %}
                                                     <div class="small text-muted">{{ row.submitted_count }}/{{ row.total_count }} lượt giao đã nộp</div>
                                                 </td>
                                                 {% for cell in row.cells %}
@@ -525,6 +528,9 @@
                                                 <div class="fw-semibold">{{ row.item.item_code }}. {{ row.item.title }}</div>
                                                 {% if row.secondary_text %}
                                                 <div class="small text-muted mt-1">{{ row.secondary_text }}</div>
+                                                {% endif %}
+                                                {% if row.table_render_html %}
+                                                <div class="mt-2">{{ row.table_render_html|safe }}</div>
                                                 {% endif %}
                                             </div>
                                             <div class="d-flex flex-wrap gap-2 justify-content-end">
@@ -1172,6 +1178,15 @@
         margin-left: 42px;
         border-left: 3px solid rgba(37, 99, 235, 0.25) !important;
         background: rgba(248, 250, 252, 0.85);
+    }
+
+    .outline-table-render th {
+        background: #f1f5f9;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+    .outline-table-render td {
+        font-size: 0.85rem;
     }
 
     .wizard-outline-row-main {

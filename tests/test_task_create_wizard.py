@@ -559,6 +559,113 @@ class TaskCreateWizardTests(unittest.TestCase):
         self.assertNotIn("[...]", merged)
         self.assertNotIn("54.105/57.417", merged)
 
+    def test_outline_table_parse_and_persist_schema_cells(self):
+        """Bảng nhiệm vụ trong Word: quét đủ cột (table_schema) + ô (table_cells),
+        tự nhận diện cột đơn vị chủ trì; khi tạo task phải lưu schema + cells để
+        tài khoản đơn vị tái hiện bảng chỉ các cột được tích."""
+        admin = self._admin()
+        self._login(admin.id)
+        unit_a_id = self._create_user("Đội A", "a")
+        self._create_user("Đội B", "b")
+        with app.app_context():
+            group = CategoryGroup.query.filter_by(name="Đơn vị").first()
+            if not group:
+                group = CategoryGroup(name="Đơn vị", code="don-vi")
+                db.session.add(group)
+                db.session.flush()
+            item = CategoryItem.query.filter_by(group_id=group.id, name="Đội A").first()
+            if not item:
+                item = CategoryItem(group_id=group.id, name="Đội A", code="doia", is_active=True)
+                db.session.add(item)
+            db.session.commit()
+            self.created_category_ids = [group.id, item.id]
+
+        document = Document()
+        table = document.add_table(rows=3, cols=4)
+        headers = ["Stt", "Nội dung nhiệm vụ", "Cơ quan, đơn vị chủ trì", "Thời gian"]
+        for j, header in enumerate(headers):
+            table.rows[0].cells[j].text = header
+        table.rows[1].cells[0].text = "1"
+        table.rows[1].cells[1].text = "Triển khai quy định pháp luật"
+        table.rows[1].cells[2].text = "Đội A"
+        table.rows[1].cells[3].text = "30/9"
+        table.rows[2].cells[0].text = "2"
+        table.rows[2].cells[1].text = "Đào tạo kỹ năng số"
+        table.rows[2].cells[2].text = "Đội B"
+        table.rows[2].cells[3].text = "31/12"
+        buffer = io.BytesIO()
+        document.save(buffer)
+
+        response = self.client.post(
+            "/tasks/outline-parse",
+            data={"outline_file": (io.BytesIO(buffer.getvalue()), "bang-nhiem-vu.docx"), "csrf_token": "wizard-test-csrf"},
+            content_type="multipart/form-data",
+        )
+        payload = response.get_json()
+        self.assertTrue(payload["ok"])
+        rows = payload["rows"]
+        self.assertEqual(len(rows), 2)
+        self.assertTrue(all(r.get("table_cells") for r in rows))
+        schema = rows[0]["table_schema"]
+        roles = {col["role"]: col["index"] for col in schema}
+        self.assertEqual(roles.get("content"), 1)
+        self.assertEqual(roles.get("lead"), 2)
+        self.assertEqual(roles.get("deadline"), 3)
+        self.assertFalse(next(col for col in schema if col["role"] == "stt")["visible"])
+        self.assertEqual(rows[0]["table_cells"]["1"], "Triển khai quy định pháp luật")
+        self.assertEqual(rows[0]["table_cells"]["2"], "Đội A")
+        self.assertIn("doia", rows[0]["unit_domains"])
+
+        # Tạo task: lưu schema cấp task + cells cấp đầu mục
+        schema_json = json.dumps(schema, ensure_ascii=False)
+        cells_json_0 = json.dumps(rows[0]["table_cells"], ensure_ascii=False)
+        cells_json_1 = json.dumps(rows[1]["table_cells"], ensure_ascii=False)
+        create_response = self.client.post(
+            "/tasks",
+            data={
+                "task_mode": "OUTLINE",
+                "title": "Wizard bảng nhiệm vụ",
+                "description": "Tạo từ bảng",
+                "csrf_token": "wizard-test-csrf",
+                "item_table_schema": schema_json,
+                "item_title": [rows[0]["title"], rows[1]["title"]],
+                "item_content": [rows[0]["content"], rows[1]["content"]],
+                "item_report_kind": ["narrative", "narrative"],
+                "item_table_cells": [cells_json_0, cells_json_1],
+                "item_assign_type": ["unit", "unit"],
+                "item_domains": ["doi-a", "doi-b"],
+                "item_role_ids": ["", ""],
+                "item_user_ids": ["", ""],
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(create_response.status_code, 200)
+        with app.app_context():
+            task = (
+                Task.query.filter_by(title="Wizard bảng nhiệm vụ")
+                .order_by(Task.id.desc())
+                .first()
+            )
+            self.assertIsNotNone(task)
+            self.created_task_ids.append(task.id)
+            self.assertTrue(task.outline_table_schema_json)
+            stored_schema = json.loads(task.outline_table_schema_json)
+            self.assertEqual(stored_schema[0]["header"], "Stt")
+            # Cột index 0 (Stt/Nội dung) không được rơi khỏi bản đồ cột khi render
+            from routes.tasks import _outline_table_schema_map, _outline_item_table_cells, _render_outline_table_html
+            schema_map = _outline_table_schema_map(task)
+            self.assertIn("0", schema_map)
+            items = TaskItem.query.filter_by(task_id=task.id).order_by(TaskItem.sort_order.asc()).all()
+            self.assertEqual(len(items), 2)
+            self.assertTrue(items[0].table_cells_json)
+            stored_cells = json.loads(items[0].table_cells_json)
+            self.assertEqual(stored_cells["2"], "Đội A")
+            render_html = _render_outline_table_html(schema_map, _outline_item_table_cells(items[0]), items[0].content or "")
+            self.assertIn("Nội dung nhiệm vụ", render_html)
+            self.assertIn("Triển khai quy định pháp luật", render_html)
+            self.assertNotIn("Sản phẩm, kết quả", render_html)
+            self.assertEqual([a.user_id for a in TaskAssignment.query.filter_by(task_id=task.id, task_item_id=items[0].id).all()], [unit_a_id])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2095,6 +2095,44 @@ def _split_outline_paragraphs_into_blocks(paragraphs, is_docx=False):
         })
     return blocks
 
+OUTLINE_TABLE_ROLE_LABELS = {
+    "stt": "Số thứ tự",
+    "content": "Nội dung nhiệm vụ",
+    "lead": "Đơn vị chủ trì",
+    "coordinate": "Đơn vị phối hợp",
+    "deadline": "Thời gian",
+    "product": "Sản phẩm, kết quả",
+    "note": "Ghi chú",
+    "other": "Cột khác",
+}
+
+
+def _table_build_schema(header_cells):
+    """Dựng cấu trúc cột bảng từ dòng tiêu đề: mỗi cột có index/header/role/visible.
+
+    - role: tự nhận diện qua _table_column_role (content/lead/coordinate/deadline/...)
+    - visible: cột có hiển thị cho đơn vị nhận hay không (mặc định hiện content/lead/
+      coordinate/deadline; cột Stt, Sản phẩm, Ghi chú, cột khác mặc định ẩn — quản trị
+      có thể tích/bỏ tích trong wizard).
+    """
+    roles = _table_column_role(header_cells)
+    schema = []
+    for idx, header in enumerate(header_cells):
+        role = next((role for role, col_idx in roles.items() if col_idx == idx), "other")
+        if role == "index":
+            role = "stt"
+        visible = role in ("content", "lead", "coordinate", "deadline")
+        schema.append(
+            {
+                "index": idx,
+                "header": re.sub(r"\s+", " ", str(header or "").strip())[:200],
+                "role": role,
+                "visible": visible,
+            }
+        )
+    return schema
+
+
 def _table_column_role(cells):
     """Dò vai trò từng cột của bảng theo dòng tiêu đề (bảng không có cột Stt).
     Trả về {vai_trò: chỉ_số_cột} (vd: {"content": 0, "lead": 1, "deadline": 2})."""
@@ -2131,6 +2169,7 @@ def _table_header_based_rows(table, catalog=None, seen=None):
         return rows
     first_cells = [re.sub(r"\s+", " ", (c.text or "").strip().replace("\n", " ")) for c in data_rows[0].cells]
     roles = _table_column_role(first_cells)
+    schema = _table_build_schema(first_cells)
     start = 1 if roles else 0
     for row in data_rows[start:]:
         cells = [re.sub(r"\s+", " ", (c.text or "").strip().replace("\n", " ")) for c in row.cells]
@@ -2186,6 +2225,8 @@ def _table_header_based_rows(table, catalog=None, seen=None):
                 "user_ids": [],
                 "assignee_hint": f"Cơ quan chủ trì: {lead}" if lead else "",
                 "assignee_detected": bool(unit_domains),
+                "table_schema": schema,
+                "table_cells": {str(idx): cell for idx, cell in enumerate(cells)},
             }
         )
     return rows
@@ -2205,9 +2246,11 @@ def _table_rows_to_outline_rows(document, catalog=None):
     for table in document.tables:
         current_heading = ""
         table_had_numeric = False
+        header_cells = [re.sub(r"\s+", " ", (c.text or "").strip().replace("\n", " ")) for c in table.rows[0].cells] if table.rows else []
+        schema = _table_build_schema(header_cells)
+        roles = _table_column_role(header_cells)
         for row in table.rows:
             cells = [re.sub(r"\s+", " ", (c.text or "").strip().replace("\n", " ")) for c in row.cells]
-            cells = [c for c in cells]
             if not cells or not cells[0]:
                 continue
             first = cells[0].strip()
@@ -2221,11 +2264,18 @@ def _table_rows_to_outline_rows(document, catalog=None):
                 continue
             # Dòng nhiệm vụ: ô đầu là số thứ tự
             if re.match(r"^\d{1,3}$", first):
-                content = cells[1].strip() if len(cells) > 1 else ""
-                lead = cells[2].strip() if len(cells) > 2 else ""
-                coordinate = cells[3].strip() if len(cells) > 3 else ""
-                deadline = cells[4].strip() if len(cells) > 4 else ""
-                product = cells[5].strip() if len(cells) > 5 else ""
+                content_index = roles.get("content")
+                lead_index = roles.get("lead")
+                coordinate_index = roles.get("coordinate")
+                deadline_index = roles.get("deadline")
+                product_index = roles.get("product")
+                if content_index is None:
+                    content_index = 1 if len(cells) > 1 else 0
+                content = cells[content_index].strip() if content_index < len(cells) else ""
+                lead = cells[lead_index].strip() if lead_index is not None and lead_index < len(cells) else ""
+                coordinate = cells[coordinate_index].strip() if coordinate_index is not None and coordinate_index < len(cells) else ""
+                deadline = cells[deadline_index].strip() if deadline_index is not None and deadline_index < len(cells) else ""
+                product = cells[product_index].strip() if product_index is not None and product_index < len(cells) else ""
                 if not content:
                     continue
                 # Gán sẵn đơn vị chủ trì (chỉ cột Chủ trì, không lấy cột Phối hợp)
@@ -2266,6 +2316,8 @@ def _table_rows_to_outline_rows(document, catalog=None):
                         "user_ids": [],
                         "assignee_hint": f"Cơ quan chủ trì: {lead}",
                         "assignee_detected": bool(unit_domains),
+                        "table_schema": schema,
+                        "table_cells": {str(idx): cell for idx, cell in enumerate(cells)},
                     }
                 )
         # Bảng không có dòng số thứ tự nào -> thử dò cột theo tiêu đề
@@ -2318,6 +2370,7 @@ def _parse_outline_pdf_rows(file_storage):
                         continue
                     headers = [re.sub(r"\s+", " ", str(c or "").strip().replace("\n", " ")) for c in data[0]]
                     roles = _table_column_role(headers)
+                    schema = _table_build_schema(headers)
                     seen = {_normalize_outline_match_text(str(r.get("title") or "")) for r in rows}
                     for data_row in data[1:]:
                         cells = [re.sub(r"\s+", " ", str(c or "").strip().replace("\n", " ")) for c in data_row]
@@ -2364,6 +2417,8 @@ def _parse_outline_pdf_rows(file_storage):
                                 "user_ids": [],
                                 "assignee_hint": f"Cơ quan chủ trì: {lead}" if lead else "",
                                 "assignee_detected": bool(unit_domains),
+                                "table_schema": schema,
+                                "table_cells": {str(idx): cell for idx, cell in enumerate(cells)},
                             }
                         )
             except Exception:
@@ -4695,6 +4750,12 @@ def _publish_task_import_draft(draft):
             )
             db.session.add(task_item)
             db.session.flush()
+            table_cells = item.get("table_cells") or {}
+            if table_cells:
+                task_item.table_cells_json = _json_dump(table_cells)
+                schema = item.get("table_schema")
+                if schema and not new_task.outline_table_schema_json:
+                    new_task.outline_table_schema_json = _json_dump(schema)
             if item.get("report_secondary") and item_content:
                 linked_item = _find_report_secondary_linked_item(item_content, item.get("unit_domains") or [], new_task.id)
                 if linked_item:
@@ -7469,6 +7530,70 @@ def _task_detail_context(task, summary, mode, can_manage_task_view, can_submit, 
         outline_groups=outline_groups,
     )
 
+def _outline_table_schema_map(task):
+    """Đọc cấu trúc cột bảng của task (đã lưu khi tạo từ đề cương dạng bảng)."""
+    if not task:
+        return None
+    raw = str(getattr(task, "outline_table_schema_json", "") or "").strip()
+    if not raw:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        return None
+    if not isinstance(parsed, list):
+        return None
+    schema_map = {}
+    for col in parsed:
+        if not isinstance(col, dict):
+            continue
+        index_value = col.get("index")
+        if index_value is not None:
+            schema_map[str(index_value)] = col
+    return schema_map or None
+
+
+def _outline_item_table_cells(item):
+    """Đọc ô dữ liệu theo cột của đầu mục (nếu đầu mục được tạo từ bảng)."""
+    if not item:
+        return {}
+    raw = str(getattr(item, "table_cells_json", "") or "").strip()
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _render_outline_table_html(schema_map, cells, fallback_content=""):
+    """Dựng bảng tái hiện (chỉ các cột được tích hiển thị) cho tài khoản đơn vị nhận.
+
+    schema_map: {chỉ_số_cột: {index, header, role, visible}} từ task.
+    cells: {chỉ_số_cột: giá trị} của đầu mục.
+    """
+    if not schema_map or not cells:
+        return ""
+    columns = sorted(schema_map.values(), key=lambda col: int(col.get("index") or 0))
+    columns = [col for col in columns if col.get("visible")]
+    if not columns:
+        return ""
+    header_cells = "".join(
+        f"<th class='text-nowrap'>{html.escape(str(col.get('header') or ''))}</th>" for col in columns
+    )
+    body_cells = []
+    for col in columns:
+        value = str(cells.get(str(col.get("index")), "") or "").strip()
+        if not value and col.get("role") == "content":
+            value = str(fallback_content or "").strip()
+        body_cells.append(f"<td>{html.escape(value)}</td>")
+    return (
+        "<div class='table-responsive'><table class='table table-sm table-bordered outline-table-render mb-0'>"
+        f"<thead><tr>{header_cells}</tr></thead><tbody><tr>{''.join(body_cells)}</tr></tbody></table></div>"
+    )
+
+
 def _parse_outline_item_rows(task, current_uid):
     rows = []
     for item in _task_items_for_task(task):
@@ -7497,6 +7622,13 @@ def _parse_outline_item_rows(task, current_uid):
         if not isinstance(values, dict):
             values = {}
         content = str(getattr(item, "content", "") or "")
+        table_cells = _outline_item_table_cells(item)
+        table_render_html = ""
+        if table_cells:
+            table_render_html = _render_outline_table_html(_outline_table_schema_map(task), table_cells, content)
+        if table_render_html:
+            # Bảng đã tái hiện đầy đủ các cột -> không lặp lại nội dung gộp ở secondary_text
+            secondary_text = ""
         rows.append(
             {
                 "item": item,
@@ -7510,6 +7642,7 @@ def _parse_outline_item_rows(task, current_uid):
                 "total_count": len(assignments),
                 "latest_submissions": latest_submissions,
                 "secondary_text": secondary_text,
+                "table_render_html": table_render_html,
             }
         )
     return rows
@@ -7555,6 +7688,25 @@ def _parse_outline_item_configs_from_request(form):
     report_secondary_values = form.getlist("item_report_secondary")
     sources_values = form.getlist("item_sources")
     heading_values = form.getlist("item_heading")
+    table_cells_values = form.getlist("item_table_cells")
+    table_schema = []
+    try:
+        raw_schema = str(form.get("item_table_schema") or "").strip()
+        if raw_schema:
+            parsed_schema = json.loads(raw_schema)
+            if isinstance(parsed_schema, list):
+                table_schema = [
+                    {
+                        "index": int(col.get("index", 0)),
+                        "header": str(col.get("header") or "")[:200],
+                        "role": str(col.get("role") or "other").strip() or "other",
+                        "visible": bool(col.get("visible")),
+                    }
+                    for col in parsed_schema
+                    if isinstance(col, dict)
+                ]
+    except Exception:
+        table_schema = []
     configs = []
     seen = set()
 
@@ -7594,6 +7746,13 @@ def _parse_outline_item_configs_from_request(form):
             number_fields = json.loads(raw_number_fields) if raw_number_fields else []
         except Exception:
             number_fields = []
+        raw_table_cells = str(table_cells_values[index] if index < len(table_cells_values) else "").strip()
+        try:
+            table_cells = json.loads(raw_table_cells) if raw_table_cells else {}
+            if not isinstance(table_cells, dict):
+                table_cells = {}
+        except Exception:
+            table_cells = {}
         parent_index = int(raw_parent) if raw_parent.isdigit() else None
         configs.append(
             {
@@ -7619,6 +7778,8 @@ def _parse_outline_item_configs_from_request(form):
                     for source in str(sources_values[index] if index < len(sources_values) else "").split(",")
                     if source.strip()
                 ],
+                "table_schema": table_schema if table_cells else [],
+                "table_cells": table_cells,
             }
         )
     return configs
@@ -8017,6 +8178,12 @@ def _tasks_page_v2():
                     )
                     db.session.add(task_item)
                     db.session.flush()
+                    table_cells = item_config.get("table_cells") or {}
+                    if table_cells:
+                        task_item.table_cells_json = json.dumps(table_cells, ensure_ascii=False)
+                        schema = item_config.get("table_schema") or []
+                        if schema and not new_task.outline_table_schema_json:
+                            new_task.outline_table_schema_json = json.dumps(schema, ensure_ascii=False)
                     if item_config.get("report_secondary") and item_content:
                         linked_item = _find_report_secondary_linked_item(
                             item_content,
@@ -9007,6 +9174,7 @@ def _export_outline_word_v2(tid):
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
     rows = _parse_outline_item_rows(task, session["uid"])
+    table_schema_map = _outline_table_schema_map(task)
     document = DocxDocument()
     document.add_heading(str(task.title or f"Công việc #{task.id}"), level=0)
 
@@ -9029,11 +9197,25 @@ def _export_outline_word_v2(tid):
     for index, row in enumerate(rows, start=1):
         item = row["item"]
         item_code = str(getattr(item, "item_code", None) or index)
+        content = str(getattr(item, "content", "") or "")
         document.add_heading(f"{item_code}. {item.title}", level=1)
+        # Tái hiện bảng (chỉ các cột được tích hiển thị) nếu đầu mục từ đề cương dạng bảng
+        item_table_cells = _outline_item_table_cells(item)
+        if table_schema_map and item_table_cells:
+            columns = sorted(table_schema_map.values(), key=lambda col: int(col.get("index") or 0))
+            columns = [col for col in columns if col.get("visible")]
+            if columns:
+                outline_table = document.add_table(rows=2, cols=len(columns))
+                outline_table.style = "Table Grid"
+                for col_index, col in enumerate(columns):
+                    outline_table.rows[0].cells[col_index].text = str(col.get("header") or "")
+                    value = str(item_table_cells.get(str(col.get("index")), "") or "").strip()
+                    if not value and col.get("role") == "content":
+                        value = content
+                    outline_table.rows[1].cells[col_index].text = value
         if not row["assignments"]:
             document.add_paragraph("Chưa giao đơn vị nào cho đầu mục này.")
         number_fields = _outline_item_number_fields(item)
-        content = str(getattr(item, "content", "") or "")
         submitted_with_values = []
         for assignment in row["assignments"]:
             submission = row["latest_submissions"].get(assignment.id)
