@@ -764,7 +764,7 @@
     }
     .wizard-outline-table th {
         background: #f1f5f9;
-        font-size: 0.78rem;
+        font-size: 0.85rem;
         vertical-align: middle;
         white-space: normal;
         word-wrap: break-word;
@@ -794,8 +794,16 @@
         min-width: 300px;
     }
     .wizard-outline-table .wz-col-lead {
-        width: 180px;
-        min-width: 160px;
+        width: 200px;
+        min-width: 170px;
+    }
+    .wizard-outline-table .wz-lead-units {
+        font-size: 0.82rem;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        min-height: 24px;
+        line-height: 1.35;
     }
     .wizard-outline-table .wz-col-other {
         width: 140px;
@@ -1803,11 +1811,10 @@
         if (wizardSubmitBtn) wizardSubmitBtn.classList.toggle('d-none', step !== 4);
         if (step === 3) {
             // Pane vừa hiển thị -> tính lại kích thước textarea cho khớp nội dung
-            requestAnimationFrame(() => {
-                outlineRowsBox?.querySelectorAll('textarea[name="item_content"]').forEach(autoGrowOutlineTextarea);
-                const tv = document.getElementById('wizardOutlineTableView');
-                tv?.querySelectorAll('.wizard-table-cell-ta').forEach(growWizardTableCell);
-            });
+            const growCards = () => outlineRowsBox?.querySelectorAll('textarea[name="item_content"]').forEach(autoGrowOutlineTextarea);
+            requestAnimationFrame(growCards);
+            setTimeout(growCards, 80);
+            scheduleGrowWizardTableTextareas(document.getElementById('wizardOutlineTableView'));
         }
         syncWizardSummary();
     }
@@ -2365,20 +2372,16 @@
             '<th class="text-center" style="width:34px;"><input class="form-check-input mt-0" type="checkbox" data-wz-table-view-check-all title="Tích tất cả dòng"></th>',
         ].concat(
             visibleCols.map((col) => {
-                const roleLabel = (WIZARD_TABLE_ROLES.find((r) => r.value === col.role) || {}).label || 'Cột';
                 const colClass = col.role === 'content' ? 'wz-col-content' : col.role === 'lead' ? 'wz-col-lead' : 'wz-col-other';
                 const savedW = wizardTableUserColWidths[col.index];
                 return `<th class="${colClass}" data-col-index="${col.index}" ${savedW ? `style="width:${savedW}px;"` : ''}>
-                    <div class="d-flex flex-wrap align-items-center gap-1 mb-0 small fw-semibold">
-                        <span>${escapeHtml(col.header || '')}</span>
-                        <span class="badge bg-light text-muted">${escapeHtml(roleLabel)}</span>
-                    </div>
+                    <div class="text-center fw-semibold" style="font-size: 0.85rem;">${escapeHtml(col.header || '')}</div>
                     <span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span>
                 </th>`;
             })
         ).concat([
-            '<th class="wz-col-report" data-col-index="report" ' + (wizardTableUserColWidths.report ? `style="width:${wizardTableUserColWidths.report}px;"` : '') + '><div class="small fw-semibold">Hình thức báo cáo</div><span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span></th>',
-            '<th class="wz-col-assign" data-col-index="assign" ' + (wizardTableUserColWidths.assign ? `style="width:${wizardTableUserColWidths.assign}px;"` : '') + '><div class="small fw-semibold">Gán cho ai</div><span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span></th>',
+            '<th class="wz-col-report" data-col-index="report" ' + (wizardTableUserColWidths.report ? `style="width:${wizardTableUserColWidths.report}px;"` : '') + '><div class="text-center fw-semibold" style="font-size: 0.85rem;">Hình thức báo cáo</div><span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span></th>',
+            '<th class="wz-col-assign" data-col-index="assign" ' + (wizardTableUserColWidths.assign ? `style="width:${wizardTableUserColWidths.assign}px;"` : '') + '><div class="text-center fw-semibold" style="font-size: 0.85rem;">Gán cho ai</div><span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span></th>',
         ]);
 
         let bodyHtml = '';
@@ -2394,20 +2397,19 @@
                 }
                 if (col.role === 'lead') {
                     const assigned = (card.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean);
-                    const firstAssigned = assigned.length ? String(assigned[0]) : '';
-                    const selected = card._wzLeadUnit || firstAssigned || '';
-                    const options = [`<option value="">— Không gán —</option>`]
-                        .concat((WIZARD_UNITS || []).map((u) => `<option value="${escapeHtml(String(u.value))}" ${String(u.value) === selected ? 'selected' : ''}>${escapeHtml(u.name)}</option>`))
-                        .join('');
-                    const leadChecked = assigned.length ? 'checked' : '';
+                    const names = assigned.map((v) => unitNameMap.get(String(v)) || String(v)).filter(Boolean);
+                    const display = names.join(', ');
+                    // Đồng bộ ô bảng (xuất tổng hợp) với danh sách đơn vị đã gán
+                    if (names.length && card._wzTableCells && card._wzTableCells[String(col.index)] !== display) {
+                        card._wzTableCells[String(col.index)] = display;
+                        const cellsInput = card.querySelector('input[name="item_table_cells"]');
+                        if (cellsInput) cellsInput.value = JSON.stringify(card._wzTableCells);
+                    }
                     return `<td class="p-1 wz-col-lead">
-                        <div class="d-flex align-items-center gap-1">
-                            <input type="checkbox" class="form-check-input mt-0 flex-shrink-0" data-wz-table-lead-check ${leadChecked} title="Tích để gán cho đơn vị được chọn bên cạnh (hoặc dùng nút Gán cuối dòng)">
-                            <select class="form-select form-select-sm" data-wz-table-lead-select data-col="${col.index}">${options}</select>
-                        </div>
+                        <div class="wz-lead-units ${names.length ? '' : 'text-muted'}">${escapeHtml(display || 'Chưa gán')}</div>
                     </td>`;
                 }
-                return `<td class="p-1 wz-col-other"><input class="form-control form-control-sm" type="text" data-wz-table-cell data-col="${col.index}" value="${escapeHtml(value)}"></td>`;
+                return `<td class="p-1 wz-col-other"><textarea class="form-control form-control-sm wizard-table-cell-ta" data-wz-table-cell data-col="${col.index}" rows="1">${escapeHtml(value)}</textarea></td>`;
             });
             const reportKind = card.querySelector('[name="item_report_kind"]')?.value || 'narrative';
             const secondaryBadge = card.querySelector('[data-wz-report-secondary]')
@@ -2445,9 +2447,7 @@
             </div>
         `;
         // Đợi layout xong rồi mới đo — nếu đo ngay sau innerHTML, scrollHeight chưa phản ánh nội dung
-        requestAnimationFrame(() => {
-            container.querySelectorAll('.wizard-table-cell-ta').forEach(growWizardTableCell);
-        });
+        scheduleGrowWizardTableTextareas(container);
         wireWizardTableView(container);
     }
 
@@ -2472,67 +2472,7 @@
                 syncWizardSummary();
             });
         });
-        // Cột đơn vị chủ trì: droplist -> gán việc + cập nhật ô bảng
-        container.querySelectorAll('[data-wz-table-lead-select]').forEach((select) => {
-            select.addEventListener('change', () => {
-                const card = wizardTableViewCardFor(select);
-                if (!card) return;
-                const value = select.value;
-                card._wzLeadUnit = value;
-                const cb = select.closest('td').querySelector('[data-wz-table-lead-check]');
-                if (cb) cb.checked = Boolean(value);
-                const leadCol = wizardTableSchema.find((c) => c.role === 'lead');
-                if (leadCol && card._wzTableCells) {
-                    card._wzTableCells[String(leadCol.index)] = value ? (unitNameOf(value) || value) : '';
-                    syncWizardTableCellsJson(card);
-                }
-                updateWizardOutlineRowAssignment(card, {
-                    assignType: value ? 'unit' : '',
-                    domain: '',
-                    unitDomains: value ? [value] : [],
-                    roleIds: [],
-                    userIds: [],
-                });
-            });
-        });
-        // Ô tích ở cột đơn vị chủ trì: tích = gán cho đơn vị đang chọn; bỏ tích = xóa gán
-        container.querySelectorAll('[data-wz-table-lead-check]').forEach((cb) => {
-            cb.addEventListener('change', () => {
-                const card = wizardTableViewCardFor(cb);
-                if (!card) return;
-                const select = cb.closest('td').querySelector('[data-wz-table-lead-select]');
-                const value = select ? select.value : '';
-                const leadCol = wizardTableSchema.find((c) => c.role === 'lead');
-                if (cb.checked) {
-                    if (!value) { cb.checked = false; return; }
-                    card._wzLeadUnit = value;
-                    if (leadCol && card._wzTableCells) {
-                        card._wzTableCells[String(leadCol.index)] = unitNameOf(value) || value;
-                        syncWizardTableCellsJson(card);
-                    }
-                    updateWizardOutlineRowAssignment(card, {
-                        assignType: 'unit',
-                        domain: '',
-                        unitDomains: [value],
-                        roleIds: [],
-                        userIds: [],
-                    });
-                } else {
-                    // Bỏ tích = xóa gán nhưng giữ nguyên đơn vị đã chọn để tích lại là gán lại
-                    if (leadCol && card._wzTableCells) {
-                        card._wzTableCells[String(leadCol.index)] = '';
-                        syncWizardTableCellsJson(card);
-                    }
-                    updateWizardOutlineRowAssignment(card, {
-                        assignType: '',
-                        domain: '',
-                        unitDomains: [],
-                        roleIds: [],
-                        userIds: [],
-                    });
-                }
-            });
-        });
+        // Cột đơn vị chủ trì: ô text hiển thị tất cả đơn vị đã gán (gán qua nút Gán cuối dòng)
         // Hình thức báo cáo
         container.querySelectorAll('[data-wz-table-view-kind]').forEach((select) => {
             select.addEventListener('change', () => {
@@ -2970,6 +2910,14 @@
             ta.style.height = '160px';
             ta.style.overflowY = 'auto';
         }
+    }
+
+    function scheduleGrowWizardTableTextareas(container) {
+        if (!container) return;
+        const grow = () => container.querySelectorAll('.wizard-table-cell-ta').forEach(growWizardTableCell);
+        requestAnimationFrame(grow);
+        // Phòng khi môi trường không chạy rAF (webview/headless) — chạy lại sau 80ms
+        setTimeout(grow, 80);
     }
 
     function setWizardRowInherit(row, on) {
