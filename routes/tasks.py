@@ -1544,8 +1544,187 @@ def _split_outline_paragraphs_into_blocks(paragraphs, is_docx=False):
         })
     return blocks
 
+def _table_column_role(cells):
+    """Dò vai trò từng cột của bảng theo dòng tiêu đề (bảng không có cột Stt).
+    Trả về {vai_trò: chỉ_số_cột} (vd: {"content": 0, "lead": 1, "deadline": 2})."""
+    roles = {}
+    for idx, header in enumerate(cells):
+        key = remove_accents(str(header or "").strip().lower())
+        key = re.sub(r"[^a-z0-9 ]", " ", key)
+        key = re.sub(r"\s+", " ", key).strip()
+        if key in ("stt", "tt", "so", "so thu tu"):
+            roles.setdefault("index", idx)
+        elif key == "noi dung" or "noi dung" in key or "nhiem vu" in key or "cong viec" in key or key == "viec":
+            roles.setdefault("content", idx)
+        elif "chu tri" in key or key in ("don vi", "on vi") or ("thuc hien" in key and ("don vi" in key or "on vi" in key)):
+            roles.setdefault("lead", idx)
+        elif "phoi hop" in key:
+            roles.setdefault("coordinate", idx)
+        elif "thoi gian" in key or "thoi han" in key or "thoi diem" in key:
+            roles.setdefault("deadline", idx)
+        elif "san pham" in key or "ket qua" in key:
+            roles.setdefault("product", idx)
+        elif "ghi chu" in key:
+            roles.setdefault("note", idx)
+    return roles
+
+
+def _table_header_based_rows(table, catalog=None, seen=None):
+    """Xử lý bảng KHÔNG có cột số thứ tự (Stt/La Mã): dò vai trò cột theo tiêu đề
+    (vd: Nhiệm vụ | Đơn vị | Thời hạn) và biến mỗi dòng dữ liệu thành 1 nội dung gán.
+    """
+    seen = seen if seen is not None else set()
+    rows = []
+    data_rows = list(table.rows)
+    if not data_rows:
+        return rows
+    first_cells = [re.sub(r"\s+", " ", (c.text or "").strip().replace("\n", " ")) for c in data_rows[0].cells]
+    roles = _table_column_role(first_cells)
+    start = 1 if roles else 0
+    for row in data_rows[start:]:
+        cells = [re.sub(r"\s+", " ", (c.text or "").strip().replace("\n", " ")) for c in row.cells]
+        if not any(cells):
+            continue
+        if roles:
+            content = cells[roles["content"]] if roles.get("content", -1) >= 0 else ""
+            lead = cells[roles["lead"]] if roles.get("lead", -1) >= 0 else ""
+            coordinate = cells[roles["coordinate"]] if roles.get("coordinate", -1) >= 0 else ""
+            deadline = cells[roles["deadline"]] if roles.get("deadline", -1) >= 0 else ""
+            product = cells[roles["product"]] if roles.get("product", -1) >= 0 else ""
+            if not content:
+                # Không tìm thấy cột nội dung rõ ràng -> lấy ô có nội dung dài nhất
+                content = max(cells, key=len) if cells else ""
+        else:
+            content = max(cells, key=len) if cells else ""
+            lead = coordinate = deadline = product = ""
+        if not content:
+            continue
+        unit_domains = []
+        if catalog and lead:
+            assignment = _resolve_outline_assignee_hint(f"Cơ quan chủ trì: {lead}", catalog)
+            if assignment:
+                unit_domains = assignment.get("unit_domains") or []
+        content_parts = [content]
+        if lead:
+            content_parts.append(f"Cơ quan chủ trì: {lead}")
+        if coordinate:
+            content_parts.append(f"Cơ quan phối hợp: {coordinate}")
+        if deadline:
+            content_parts.append(f"Thời gian: {deadline}")
+        if product:
+            content_parts.append(f"Sản phẩm, kết quả: {product}")
+        raw = f"- {' | '.join(content_parts)}"
+        dedupe = _normalize_outline_match_text(f" {content}")
+        if dedupe in seen:
+            continue
+        seen.add(dedupe)
+        rows.append(
+            {
+                "title": content[:255],
+                "content": raw[:3000],
+                "heading": "",
+                "level": 2,
+                "number": "",
+                "parent_row_index": None,
+                "has_numbers": False,
+                "number_fields": [],
+                "assign_type": "unit" if unit_domains else "",
+                "domain": "",
+                "unit_domains": unit_domains,
+                "role_ids": [],
+                "user_ids": [],
+                "assignee_hint": f"Cơ quan chủ trì: {lead}" if lead else "",
+                "assignee_detected": bool(unit_domains),
+            }
+        )
+    return rows
+
+
+def _table_rows_to_outline_rows(document, catalog=None):
+    """Chuyển các BẢNG nhiệm vụ trong đề cương (cột: Stt | Nội dung nhiệm vụ |
+    Cơ quan, đơn vị chủ trì | Cơ quan, đơn vị phối hợp | Thời gian | Sản phẩm, kết quả | Ghi chú)
+    thành các dòng gán việc:
+    - Dòng mục (ô đầu là số La Mã I, II, III...) -> tiêu đề mục (heading).
+    - Dòng nhiệm vụ (ô đầu là số 1, 2, 3...) -> 1 nội dung để gán, ĐƠN VỊ CHỦ TRÌ
+      được gán sẵn từ cột "Cơ quan, đơn vị chủ trì" (khớp với danh mục đơn vị).
+    - Bảng không có cột Stt -> dò vai trò cột theo tiêu đề (fallback).
+    """
+    rows = []
+    seen = set()
+    for table in document.tables:
+        current_heading = ""
+        table_had_numeric = False
+        for row in table.rows:
+            cells = [re.sub(r"\s+", " ", (c.text or "").strip().replace("\n", " ")) for c in row.cells]
+            cells = [c for c in cells]
+            if not cells or not cells[0]:
+                continue
+            first = cells[0].strip()
+            if first.lower().startswith("stt") or first.lower() == "tt":
+                continue
+            # Dòng mục: ô đầu là số La Mã
+            if re.match(r"^[IVXLCDM]+$", first):
+                title = next((c for c in cells[1:] if c and c.strip() and c.strip() != first), "")
+                if title:
+                    current_heading = f"{first}. {title.strip()}"[:255]
+                continue
+            # Dòng nhiệm vụ: ô đầu là số thứ tự
+            if re.match(r"^\d{1,3}$", first):
+                content = cells[1].strip() if len(cells) > 1 else ""
+                lead = cells[2].strip() if len(cells) > 2 else ""
+                coordinate = cells[3].strip() if len(cells) > 3 else ""
+                deadline = cells[4].strip() if len(cells) > 4 else ""
+                product = cells[5].strip() if len(cells) > 5 else ""
+                if not content:
+                    continue
+                # Gán sẵn đơn vị chủ trì (chỉ cột Chủ trì, không lấy cột Phối hợp)
+                unit_domains = []
+                if catalog and lead:
+                    assignment = _resolve_outline_assignee_hint(f"Cơ quan chủ trì: {lead}", catalog)
+                    if assignment:
+                        unit_domains = assignment.get("unit_domains") or []
+                content_parts = [content]
+                if lead:
+                    content_parts.append(f"Cơ quan chủ trì: {lead}")
+                if coordinate:
+                    content_parts.append(f"Cơ quan phối hợp: {coordinate}")
+                if deadline:
+                    content_parts.append(f"Thời gian: {deadline}")
+                if product:
+                    content_parts.append(f"Sản phẩm, kết quả: {product}")
+                raw = f"- {' | '.join(content_parts)}"
+                dedupe = _normalize_outline_match_text(f"{current_heading} {content}")
+                if dedupe in seen:
+                    continue
+                seen.add(dedupe)
+                table_had_numeric = True
+                rows.append(
+                    {
+                        "title": content[:255],
+                        "content": raw[:3000],
+                        "heading": current_heading[:255],
+                        "level": 2,
+                        "number": first,
+                        "parent_row_index": None,
+                        "has_numbers": False,
+                        "number_fields": [],
+                        "assign_type": "unit" if unit_domains else "",
+                        "domain": "",
+                        "unit_domains": unit_domains,
+                        "role_ids": [],
+                        "user_ids": [],
+                        "assignee_hint": f"Cơ quan chủ trì: {lead}",
+                        "assignee_detected": bool(unit_domains),
+                    }
+                )
+        # Bảng không có dòng số thứ tự nào -> thử dò cột theo tiêu đề
+        if not table_had_numeric:
+            rows.extend(_table_header_based_rows(table, catalog=catalog, seen=seen))
+    return rows
+
+
 def _parse_outline_docx_rows(file_storage):
-    """Parse Word docx với hierarchy awareness."""
+    """Parse Word docx với hierarchy awareness (đoạn văn + bảng nhiệm vụ)."""
     if DocxDocument is None:
         raise ValueError("Máy chủ chưa cài thư viện đọc file Word (.docx).")
 
@@ -1556,11 +1735,15 @@ def _parse_outline_docx_rows(file_storage):
     except Exception:
         raise ValueError("Không đọc được file đề cương Word. Hãy thử lại với file .docx rõ nội dung đầu mục.")
 
-    paragraphs = list(document.paragraphs)
-    # Parse với hierarchy
-    hierarchy_items = _parse_outline_with_hierarchy(paragraphs, is_docx=True)
     catalog = _task_assignment_catalog()
-    return _flatten_hierarchy_to_rows(hierarchy_items, catalog=catalog)
+    paragraphs = list(document.paragraphs)
+    hierarchy_items = _parse_outline_with_hierarchy(paragraphs, is_docx=True)
+    rows = _flatten_hierarchy_to_rows(hierarchy_items, catalog=catalog)
+    # Gộp thêm các dòng từ BẢNG nhiệm vụ (nếu file Word có bảng)
+    if getattr(document, "tables", None):
+        table_rows = _table_rows_to_outline_rows(document, catalog=catalog)
+        rows.extend(table_rows)
+    return rows
 
 
 def _blocks_to_outline_rows(blocks):

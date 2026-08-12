@@ -1153,6 +1153,22 @@
         background: rgba(248, 250, 252, 0.85);
     }
 
+    .wizard-outline-row-main {
+        min-width: 0;
+    }
+
+    .wizard-outline-row-main textarea.wizard-row-textarea {
+        flex: 1 1 auto;
+        min-width: 0;
+        width: auto;
+        resize: none;
+        overflow: hidden;
+    }
+
+    .wizard-outline-row-actions {
+        min-width: 0;
+    }
+
     .wizard-outline-group {
         border: 1px solid rgba(148, 163, 184, 0.22);
         border-radius: 12px;
@@ -1836,27 +1852,17 @@
         const headingValue = String(rowData.heading || '').replace(/"/g, '&quot;');
         const inherited = isChild && !(rowData.assign_type || (rowData.unit_domains || []).length || (rowData.role_ids || []).length || (rowData.user_ids || []).length);
         wrapper.innerHTML = `
-            <div class="row g-2 align-items-center">
-                <div class="col-auto">
-                    <div class="form-check m-0">
+            <div class="wizard-outline-row-grid">
+                <div class="d-flex align-items-center gap-2">
+                    <label class="form-label small fw-semibold mb-0">Nội dung đề cương</label>
+                    ${isChild ? '<span class="badge bg-info-subtle text-info-emphasis"><i class="fa-solid fa-level-down fa-rotate-90 me-1"></i>Nội dung con</span>' : ''}
+                </div>
+                <div class="d-flex gap-2 align-items-center wizard-outline-row-main">
+                    <div class="flex-shrink-0 d-flex align-items-center">
                         <input class="form-check-input" type="checkbox" data-import-row-check>
                     </div>
-                </div>
-                <div class="col">
-                    <div class="d-flex align-items-center gap-2 mb-1">
-                        <label class="form-label small fw-semibold mb-0">Nội dung đề cương</label>
-                        ${isChild ? '<span class="badge bg-info-subtle text-info-emphasis"><i class="fa-solid fa-level-down fa-rotate-90 me-1"></i>Nội dung con</span>' : ''}
-                    </div>
-                    <textarea class="form-control form-control-sm" name="item_content" rows="2" readonly style="background-color: var(--bs-secondary-bg); word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap;">${contentValue}</textarea>
-                    <div class="small fw-medium mt-1" data-import-assignment-summary></div>
-                    <div class="small text-muted" data-import-assignment-hint></div>
-                    <input type="hidden" name="item_title" value="${titleValue}">
-                    <input type="hidden" name="item_heading" value="${headingValue}">
-                    <input type="hidden" name="item_parent">
-                    <input type="hidden" name="item_inherit" value="${isChild ? (inherited ? '1' : '0') : '0'}">
-                </div>
-                <div class="col-auto">
-                    <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
+                    <textarea class="form-control form-control-sm wizard-row-textarea" name="item_content" rows="1" readonly style="background-color: var(--bs-secondary-bg); word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap;">${contentValue}</textarea>
+                    <div class="flex-shrink-0 d-flex gap-2 align-items-center flex-wrap justify-content-end wizard-row-actions">
                         <select class="form-select form-select-sm" name="item_report_kind" aria-label="Hình thức báo cáo" style="width: 132px;">
                             <option value="narrative" ${rowData.report_kind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
                             <option value="number" ${rowData.report_kind === 'number' ? 'selected' : ''}>Báo cáo số</option>
@@ -1870,12 +1876,18 @@
                         <button class="btn btn-sm btn-outline-secondary text-nowrap" type="button" data-row-assign-btn title="Gán cho ai" ${inherited ? 'disabled' : ''}><i class="fa-solid fa-user-plus"></i></button>
                         <button class="btn btn-outline-danger btn-sm" type="button" data-remove-import-row title="Xóa"><i class="fa-solid fa-trash"></i></button>
                     </div>
-                    <input type="hidden" name="item_assign_type">
-                    <input type="hidden" name="item_domain">
-                    <input type="hidden" name="item_domains">
-                    <input type="hidden" name="item_role_ids">
-                    <input type="hidden" name="item_user_ids">
                 </div>
+                <div class="small fw-medium" data-import-assignment-summary></div>
+                <div class="small text-muted" data-import-assignment-hint></div>
+                <input type="hidden" name="item_title" value="${titleValue}">
+                <input type="hidden" name="item_heading" value="${headingValue}">
+                <input type="hidden" name="item_parent">
+                <input type="hidden" name="item_inherit" value="${isChild ? (inherited ? '1' : '0') : '0'}">
+                <input type="hidden" name="item_assign_type">
+                <input type="hidden" name="item_domain">
+                <input type="hidden" name="item_domains">
+                <input type="hidden" name="item_role_ids">
+                <input type="hidden" name="item_user_ids">
             </div>
         `;
         updateImportRowAssignment(wrapper, {
@@ -1954,7 +1966,17 @@
         if (parentRowEl) {
             propagateImportInheritedChildren(parentRowEl);
         }
+        autoGrowOutlineTextarea(wrapper.querySelector('textarea[name="item_content"]'));
         syncImportRowIndexes();
+    }
+
+    function autoGrowOutlineTextarea(ta) {
+        if (!ta) return;
+        ta.style.height = 'auto';
+        const maxHeight = 520;
+        const height = Math.min(ta.scrollHeight, maxHeight);
+        ta.style.height = height + 'px';
+        ta.style.overflowY = ta.scrollHeight > maxHeight ? 'auto' : 'hidden';
     }
 
     function getCurrentImportAssignmentPayload() {

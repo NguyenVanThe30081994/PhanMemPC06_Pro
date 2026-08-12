@@ -6,6 +6,8 @@ from datetime import datetime
 
 from app import app
 from models import (
+    CategoryGroup,
+    CategoryItem,
     Task,
     TaskAssignment,
     TaskComment,
@@ -34,6 +36,12 @@ class TaskCreateWizardTests(unittest.TestCase):
 
     def tearDown(self):
         with app.app_context():
+            created_category_ids = getattr(self, "created_category_ids", []) or []
+            if created_category_ids:
+                for cid in created_category_ids:
+                    CategoryItem.query.filter_by(group_id=cid).delete()
+                    CategoryGroup.query.filter_by(id=cid).delete()
+                db.session.commit()
             for task_id in self.created_task_ids:
                 TaskComment.query.filter_by(task_id=task_id).delete()
                 TaskSubmission.query.filter_by(task_id=task_id).delete()
@@ -137,6 +145,53 @@ class TaskCreateWizardTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertIn("tập huấn, đào tạo chuyển đổi số", rows[0]["title"])
         self.assertIn("7.2", rows[0]["heading"])
+
+    def test_outline_parse_table_without_stt_column(self):
+        """Bảng nhiệm vụ KHÔNG có cột số thứ tự (vd: Nhiệm vụ | Đơn vị | Thời hạn)
+        vẫn phải tách được từng dòng thành nội dung gán, dò vai trò cột theo tiêu đề
+        và gợi ý đơn vị từ cột 'Đơn vị'."""
+        admin = self._admin()
+        self._login(admin.id)
+        with app.app_context():
+            group = CategoryGroup.query.filter_by(name="Đơn vị").first()
+            if not group:
+                group = CategoryGroup(name="Đơn vị", code="don-vi")
+                db.session.add(group)
+                db.session.flush()
+            item = CategoryItem.query.filter_by(group_id=group.id, name="Sở Tư pháp").first()
+            if not item:
+                item = CategoryItem(group_id=group.id, name="Sở Tư pháp", code="sotuphap", is_active=True)
+                db.session.add(item)
+            db.session.commit()
+            self.created_category_ids = [group.id, item.id]
+
+        document = Document()
+        table = document.add_table(rows=3, cols=3)
+        for j, header in enumerate(["Nhiệm vụ", "Đơn vị", "Thời hạn"]):
+            table.rows[0].cells[j].text = header
+        table.rows[1].cells[0].text = "Xây dựng kế hoạch"
+        table.rows[1].cells[1].text = "Sở Tư pháp"
+        table.rows[1].cells[2].text = "31/7"
+        table.rows[2].cells[0].text = "Đào tạo kỹ năng số"
+        table.rows[2].cells[1].text = "Sở Khoa học và Công nghệ"
+        table.rows[2].cells[2].text = "30/9"
+        buffer = io.BytesIO()
+        document.save(buffer)
+
+        response = self.client.post(
+            "/tasks/outline-parse",
+            data={"outline_file": (io.BytesIO(buffer.getvalue()), "bang-khong-stt.docx"), "csrf_token": "wizard-test-csrf"},
+            content_type="multipart/form-data",
+        )
+        payload = response.get_json()
+        self.assertTrue(payload["ok"])
+        rows = payload["rows"]
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]["title"], "Xây dựng kế hoạch")
+        self.assertIn("Cơ quan chủ trì: Sở Tư pháp", rows[0]["content"])
+        self.assertIn("Thời gian: 31/7", rows[0]["content"])
+        # Cột "Đơn vị" (bỏ dấu -> 'on vi') vẫn phải gợi ý đơn vị
+        self.assertIn("sotuphap", rows[0]["unit_domains"])
 
     def test_delete_task_with_assignments_and_submissions(self):
         """Xóa công việc OUTLINE đã có assignment + submission (draft) phải sạch."""

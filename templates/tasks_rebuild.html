@@ -719,6 +719,22 @@
         white-space: normal;
     }
 
+    .wizard-outline-row-main {
+        min-width: 0;
+    }
+
+    .wizard-outline-row-main textarea.wizard-row-textarea {
+        flex: 1 1 auto;
+        min-width: 0;
+        width: auto;
+        resize: none;
+        overflow: hidden;
+    }
+
+    .wizard-outline-row-actions {
+        min-width: 0;
+    }
+
     .wizard-outline-row .badge {
         max-width: 100%;
         white-space: normal;
@@ -1656,6 +1672,12 @@
         if (wizardBackBtn) wizardBackBtn.disabled = step === 1;
         if (wizardNextBtn) wizardNextBtn.classList.toggle('d-none', step === 4);
         if (wizardSubmitBtn) wizardSubmitBtn.classList.toggle('d-none', step !== 4);
+        if (step === 3) {
+            // Pane vừa hiển thị -> tính lại chiều cao textarea cho khớp nội dung
+            requestAnimationFrame(() => {
+                outlineRowsBox?.querySelectorAll('textarea[name="item_content"]').forEach(autoGrowOutlineTextarea);
+            });
+        }
         syncWizardSummary();
     }
 
@@ -2005,20 +2027,17 @@
         const numberFieldsJson = JSON.stringify(numberFields).replace(/"/g, '&quot;');
         const inherited = isChild && !(rowData.assign_type || (rowData.unit_domains || []).length || (rowData.role_ids || []).length || (rowData.user_ids || []).length);
         row.innerHTML = `
-            <div class="row g-2 align-items-start">
-                <div class="col-auto d-flex align-items-center mt-3">
-                    <input class="form-check-input" type="checkbox" data-wz-row-check title="Tích dòng để gán hàng loạt">
+            <div class="wizard-outline-row-grid">
+                <div class="d-flex align-items-center gap-2">
+                    <label class="form-label small fw-semibold mb-0">Nội dung đề cương</label>
+                    ${isChild ? '<span class="badge bg-info-subtle text-info-emphasis"><i class="fa-solid fa-level-down fa-rotate-90 me-1"></i>Nội dung con</span>' : ''}
                 </div>
-                <div class="col">
-                    <div class="d-flex align-items-center gap-2 mb-1">
-                        <label class="form-label small fw-semibold mb-0">Nội dung đề cương</label>
-                        ${isChild ? '<span class="badge bg-info-subtle text-info-emphasis"><i class="fa-solid fa-level-down fa-rotate-90 me-1"></i>Nội dung con</span>' : ''}
+                <div class="d-flex gap-2 align-items-center wizard-outline-row-main">
+                    <div class="flex-shrink-0 d-flex align-items-center">
+                        <input class="form-check-input" type="checkbox" data-wz-row-check title="Tích dòng để gán hàng loạt">
                     </div>
-                    <textarea class="form-control form-control-sm" name="item_content" rows="2" ${isManual ? '' : 'readonly'} placeholder="Nội dung đề cương" style="word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; ${isManual ? '' : 'background-color: var(--bs-secondary-bg);'}">${contentValue}</textarea>
-                    <div class="small fw-medium text-primary mt-1" data-wz-row-summary></div>
-                </div>
-                <div class="col-auto">
-                    <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
+                    <textarea class="form-control form-control-sm wizard-row-textarea" name="item_content" rows="1" ${isManual ? '' : 'readonly'} placeholder="Nội dung đề cương" style="word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; ${isManual ? '' : 'background-color: var(--bs-secondary-bg);'}">${contentValue}</textarea>
+                    <div class="flex-shrink-0 d-flex gap-2 align-items-center flex-wrap justify-content-end wizard-row-actions">
                         <select class="form-select form-select-sm" name="item_report_kind" data-report-kind-toggle aria-label="Hình thức báo cáo" style="width: 132px;">
                             <option value="narrative" ${reportKind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
                             <option value="number" ${reportKind === 'number' ? 'selected' : ''}>Báo cáo số</option>
@@ -2033,6 +2052,7 @@
                         <button type="button" class="btn btn-sm btn-outline-danger" data-wz-row-remove title="Xóa"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
+                <div class="small fw-medium text-primary" data-wz-row-summary></div>
                 <input type="hidden" name="item_title" value="${titleValue}">
                 <input type="hidden" name="item_heading" value="${headingValue}">
                 <input type="hidden" name="item_assign_type">
@@ -2084,6 +2104,7 @@
                     const hiddenTitle = row.querySelector('input[name="item_title"]');
                     if (hiddenTitle) hiddenTitle.value = contentTextarea.value;
                 }
+                autoGrowOutlineTextarea(contentTextarea);
                 syncWizardSummary();
             });
         }
@@ -2131,9 +2152,19 @@
         if (isChild) {
             propagateWizardInheritedChildren(parentRowEl);
         }
+        autoGrowOutlineTextarea(row.querySelector('textarea[name="item_content"]'));
         syncWizardOutlineRowIndexes();
         syncWizardSummary();
         return row;
+    }
+
+    function autoGrowOutlineTextarea(ta) {
+        if (!ta) return;
+        ta.style.height = 'auto';
+        const maxHeight = 520;
+        const height = Math.min(ta.scrollHeight, maxHeight);
+        ta.style.height = height + 'px';
+        ta.style.overflowY = ta.scrollHeight > maxHeight ? 'auto' : 'hidden';
     }
 
     function setWizardRowInherit(row, on) {
