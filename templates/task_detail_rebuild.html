@@ -403,7 +403,7 @@
                                             <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
                                                 <div>
                                                     <div class="fw-semibold"><span class="step-pill me-2">Bước 2</span>Cấu hình sau khi nạp đề cương</div>
-                                                    <div class="small text-muted">Đề cương được gom nội dung theo từng mục ở bên dưới. Kết quả phân tích tự động chỉ là gợi ý: bấm <b>Gán</b> ở từng dòng để gán mục cho đơn vị, hoặc tích nhiều dòng rồi gán hàng loạt ở khung phía trên. Toàn bộ quyết định giao việc do quản trị quyết định trước khi bấm Tạo.</div>
+                                                    <div class="small text-muted">Các gạch đầu dòng được gom theo từng mục trong đề cương. Mỗi nội dung gán cho đơn vị và chọn hình thức báo cáo; nội dung con (+) mặc định kế thừa mục cha. Bấm <b>Gán</b> ở từng dòng hoặc tích nhiều dòng rồi gán hàng loạt ở khung phía trên.</div>
                                                 </div>
                                                 <button class="btn btn-outline-primary btn-sm" type="button" id="addImportOutlineRowBtn">Thêm dòng</button>
                                             </div>
@@ -444,15 +444,6 @@
                                             </div>
 
                                             <div class="border rounded-3 overflow-hidden">
-                                                <div class="d-none d-lg-block px-3 py-2 border-bottom small fw-semibold text-muted bg-light">
-                                                    <div class="row g-2">
-                                                        <div class="col-lg-1">Chọn</div>
-                                                        <div class="col-lg-5">Tiêu đề mục</div>
-                                                        <div class="col-lg-3">Hình thức</div>
-                                                        <div class="col-lg-2">Người nhận</div>
-                                                        <div class="col-lg-1">Xóa</div>
-                                                    </div>
-                                                </div>
                                                 <div id="outlineImportRows" class="bg-white"></div>
                                                 <div id="outlineImportEmpty" class="px-3 py-4 text-muted d-none">Chưa có dòng nào trong cấu hình import.</div>
                                             </div>
@@ -1163,6 +1154,65 @@
         background: rgba(248, 250, 252, 0.85);
     }
 
+    .wizard-outline-group {
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 12px;
+        background: #fff;
+        overflow: hidden;
+    }
+
+    .wizard-outline-group-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        background: #f6f8fa;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+    }
+
+    .wizard-outline-group-marker {
+        flex: 0 0 28px;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #2563eb;
+        color: #fff;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 13px;
+        margin-top: 2px;
+    }
+
+    .wizard-outline-group-titles {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .wizard-outline-group-breadcrumb {
+        font-size: 11px;
+        color: var(--bs-secondary-color);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+
+    .wizard-outline-group-title {
+        font-weight: 600;
+        font-size: 14px;
+        color: #1f2937;
+        line-height: 1.45;
+    }
+
+    .wizard-outline-group-body {
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
     /* Step pill phẳng cho luồng import đề cương */
     .step-pill {
         display: inline-flex;
@@ -1415,6 +1465,7 @@
     const importUserClearAllBtn = document.getElementById('importUserClearAllBtn');
     const importUserCheckboxes = Array.from(document.querySelectorAll('[data-import-user-checkbox]'));
     const importRows = document.getElementById('outlineImportRows');
+    const importGroups = new Map(); // heading -> { block, body }
     const importEmpty = document.getElementById('outlineImportEmpty');
     const addImportOutlineRowBtn = document.getElementById('addImportOutlineRowBtn');
     const importSelectAllRowsBtn = document.getElementById('importSelectAllRowsBtn');
@@ -1769,6 +1820,10 @@
 
     document.getElementById('applyRowAssignBtn')?.addEventListener('click', applyRowAssign);
 
+    function importRowGroupBody(row) {
+        return (row && typeof row._importGroupBody !== 'undefined') ? row._importGroupBody : null;
+    }
+
     function makeImportRow(rowData = {}, parentRowEl = null) {
         const wrapper = document.createElement('div');
         const isChild = Boolean(parentRowEl);
@@ -1776,6 +1831,8 @@
         wrapper.dataset.importConfigRow = '1';
         wrapper._importParentEl = parentRowEl || null;
         const titleValue = String(rowData.title || '').replace(/"/g, '&quot;');
+        const contentValue = String(rowData.content || rowData.title || '').replace(/"/g, '&quot;');
+        const headingValue = String(rowData.heading || '').replace(/"/g, '&quot;');
         const inherited = isChild && !(rowData.assign_type || (rowData.unit_domains || []).length || (rowData.role_ids || []).length || (rowData.user_ids || []).length);
         wrapper.innerHTML = `
             <div class="row g-2 align-items-center">
@@ -1785,18 +1842,25 @@
                     </div>
                 </div>
                 <div class="col-lg-5">
-                    ${isChild ? '<span class="badge bg-info-subtle text-info-emphasis mb-1"><i class="fa-solid fa-level-down fa-rotate-90 me-1"></i>Nội dung con</span>' : ''}
-                    <input class="form-control" type="text" name="item_title" placeholder="Tiêu đề mục (vd: 1.1. Các Sở, ban, ngành...)" value="${titleValue}">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <label class="form-label small fw-semibold mb-0">Nội dung đề cương</label>
+                        ${isChild ? '<span class="badge bg-info-subtle text-info-emphasis"><i class="fa-solid fa-level-down fa-rotate-90 me-1"></i>Nội dung con</span>' : ''}
+                    </div>
+                    <textarea class="form-control form-control-sm" name="item_content" rows="2" readonly style="background-color: var(--bs-secondary-bg); word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap;">${contentValue}</textarea>
+                    <input type="hidden" name="item_title" value="${titleValue}">
+                    <input type="hidden" name="item_heading" value="${headingValue}">
                     <input type="hidden" name="item_parent">
                     <input type="hidden" name="item_inherit" value="${isChild ? (inherited ? '1' : '0') : '0'}">
                 </div>
                 <div class="col-lg-3">
-                    <select class="form-select" name="item_report_kind">
+                    <label class="form-label small fw-semibold mb-1">Hình thức báo cáo</label>
+                    <select class="form-select form-select-sm" name="item_report_kind">
                         <option value="narrative" ${rowData.report_kind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
                         <option value="number" ${rowData.report_kind === 'number' ? 'selected' : ''}>Báo cáo số</option>
                     </select>
                 </div>
                 <div class="col-lg-2">
+                    <label class="form-label small fw-semibold mb-1">Gán cho ai</label>
                     <div class="d-flex align-items-start gap-2">
                         ${isChild ? `
                             <div class="form-check mb-1">
@@ -1842,8 +1906,13 @@
             });
         }
         wrapper.querySelector('[data-remove-import-row]')?.addEventListener('click', () => {
+            const groupBody = importRowGroupBody(wrapper);
             wrapper.remove();
             syncImportRowIndexes();
+            if (groupBody && !groupBody.querySelector('[data-import-config-row]')) {
+                const block = groupBody.parentElement;
+                if (block && block.classList.contains('wizard-outline-group')) block.remove();
+            }
         });
         wrapper.querySelector('[data-row-assign-btn]')?.addEventListener('click', () => openRowAssignModal(wrapper));
         return wrapper;
@@ -1852,7 +1921,43 @@
     function addImportRow(rowData = {}, parentRowEl = null) {
         if (!importRows) return;
         const wrapper = makeImportRow(rowData, parentRowEl);
-        importRows.appendChild(wrapper);
+        const headingValue = String(rowData.heading || '');
+        const headingParts = headingValue.split(' » ').map((part) => part.trim()).filter(Boolean);
+        const section = headingParts.length ? headingParts[headingParts.length - 1] : '';
+        const breadcrumb = headingParts.slice(0, -1).join(' » ');
+        const standalone = Boolean(section) && String(rowData.title || '').trim() === section;
+        const isChild = Boolean(parentRowEl);
+        if (isChild && parentRowEl && importRowGroupBody(parentRowEl)) {
+            importRowGroupBody(parentRowEl).appendChild(wrapper);
+            wrapper._importGroupBody = importRowGroupBody(parentRowEl);
+        } else if (!isChild && section && !standalone) {
+            let group = importGroups.get(headingValue);
+            if (!group) {
+                const block = document.createElement('div');
+                block.className = 'wizard-outline-group';
+                const header = document.createElement('div');
+                header.className = 'wizard-outline-group-header';
+                header.innerHTML = `
+                    <div class="wizard-outline-group-marker">${importGroups.size + 1}</div>
+                    <div class="wizard-outline-group-titles">
+                        ${breadcrumb ? `<div class="wizard-outline-group-breadcrumb" title="${breadcrumb.replace(/"/g, '&quot;')}">${breadcrumb}</div>` : ''}
+                        <div class="wizard-outline-group-title">${section}</div>
+                    </div>
+                `;
+                const body = document.createElement('div');
+                body.className = 'wizard-outline-group-body';
+                block.appendChild(header);
+                block.appendChild(body);
+                importRows.appendChild(block);
+                group = { block, body };
+                importGroups.set(headingValue, group);
+            }
+            group.body.appendChild(wrapper);
+            wrapper._importGroupBody = group.body;
+        } else {
+            importRows.appendChild(wrapper);
+            wrapper._importGroupBody = null;
+        }
         if (parentRowEl) {
             propagateImportInheritedChildren(parentRowEl);
         }

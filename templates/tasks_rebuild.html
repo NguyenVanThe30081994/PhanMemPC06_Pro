@@ -180,6 +180,65 @@
 </div>
 
 <style>
+    .wizard-outline-group {
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 12px;
+        background: #fff;
+        overflow: hidden;
+    }
+
+    .wizard-outline-group-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        background: #f6f8fa;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+    }
+
+    .wizard-outline-group-marker {
+        flex: 0 0 28px;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #2563eb;
+        color: #fff;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 13px;
+        margin-top: 2px;
+    }
+
+    .wizard-outline-group-titles {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .wizard-outline-group-breadcrumb {
+        font-size: 11px;
+        color: var(--bs-secondary-color);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+
+    .wizard-outline-group-title {
+        font-weight: 600;
+        font-size: 14px;
+        color: #1f2937;
+        line-height: 1.45;
+    }
+
+    .wizard-outline-group-body {
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
     .wizard-outline-row-child {
         margin-left: 42px;
         border-left: 3px solid rgba(37, 99, 235, 0.25) !important;
@@ -1138,10 +1197,10 @@
                             <div class="border rounded-3 p-3 bg-light-subtle">
                                 <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
                                     <div>
-                                        <div class="fw-bold">Danh sách mục</div>
-                                        <div class="small text-muted">Mỗi mục là một đầu mục báo cáo; gán cho đơn vị nào do quản trị quyết định. Kết quả phân tích từ đề cương chỉ là gợi ý, có thể sửa.</div>
+                                        <div class="fw-bold">Danh sách nội dung</div>
+                                        <div class="small text-muted">Các gạch đầu dòng được gom theo từng mục trong đề cương (vd: 1.1. Các Sở, ban, ngành...). Mỗi nội dung gán cho đơn vị và chọn hình thức báo cáo; nội dung con (+) mặc định kế thừa mục cha, có thể bỏ kế thừa để gán riêng.</div>
                                     </div>
-                                    <button class="btn btn-outline-primary btn-sm" type="button" id="wizardAddOutlineRowBtn">+ Thêm mục</button>
+                                    <button class="btn btn-outline-primary btn-sm" type="button" id="wizardAddOutlineRowBtn">+ Thêm nội dung</button>
                                 </div>
                                 <div id="wizardOutlineRows" class="d-grid gap-2"></div>
                                 <div class="border rounded-3 p-3 mt-3 bg-white">
@@ -1566,6 +1625,7 @@
     const wizardNextBtn = document.getElementById('wizardNextBtn');
     const wizardSubmitBtn = document.getElementById('wizardSubmitBtn');
     const outlineRowsBox = document.getElementById('wizardOutlineRows');
+    const wizardOutlineGroups = new Map(); // heading -> { block, body }
     const formFieldList = document.getElementById('formFieldList');
     const formFieldTemplate = document.getElementById('formFieldTemplate');
     const addFormFieldBtn = document.getElementById('addFormFieldBtn');
@@ -1691,7 +1751,7 @@
                 const parentEl = parentIndex !== null ? createdRowEls[parentIndex] : null;
                 createdRowEls.push(addWizardOutlineRow(row, parentEl));
             });
-            wizardOutlineStatus.textContent = `Đã tách ${(payload.rows || []).length} nội dung từ đề cương (gạch đầu dòng '-' là mục gán, dòng '+' là nội dung con kế thừa mục cha). Kiểm tra, gán đơn vị và chọn hình thức báo cáo ở bước 3 rồi Tiếp tục.`;
+            wizardOutlineStatus.textContent = `Đã tách ${(payload.rows || []).length} nội dung từ đề cương, gom theo ${wizardOutlineGroups.size} mục. Kiểm tra, gán đơn vị và chọn hình thức báo cáo ở bước 3 rồi Tiếp tục.`;
             wizardOutlineStatus.classList.add('text-success');
             syncWizardSummary();
         } catch (error) {
@@ -1918,6 +1978,10 @@
         container.appendChild(hiddenIsHeading);
     }
 
+    function wizardRowGroupBody(row) {
+        return (row && typeof row._wzGroupBody !== 'undefined') ? row._wzGroupBody : null;
+    }
+
     function addWizardOutlineRow(rowData = {}, parentRowEl = null) {
         if (!outlineRowsBox) return;
         const row = document.createElement('div');
@@ -1927,8 +1991,13 @@
         row._wzParentEl = parentRowEl || null;
 
         const titleValue = String(rowData.title || '').replace(/"/g, '&quot;');
-        const contentValue = String(rowData.content || '').replace(/"/g, '&quot;');
+        const contentValue = String(rowData.content || rowData.title || '').replace(/"/g, '&quot;');
         const headingValue = String(rowData.heading || '').replace(/"/g, '&quot;');
+        const headingParts = String(rowData.heading || '').split(' » ').map((part) => part.trim()).filter(Boolean);
+        const section = headingParts.length ? headingParts[headingParts.length - 1] : '';
+        const breadcrumb = headingParts.slice(0, -1).join(' » ');
+        const standalone = Boolean(section) && String(rowData.title || '').trim() === section;
+        const isManual = !headingValue && !parentRowEl;
         const numberFields = Array.isArray(rowData.number_fields) ? rowData.number_fields : [];
         const hasNumbers = numberFields.length > 0 || Boolean(rowData.has_numbers);
         const reportKind = rowData.report_kind === 'number' ? 'number' : 'narrative';
@@ -1936,62 +2005,53 @@
         const inherited = isChild && !(rowData.assign_type || (rowData.unit_domains || []).length || (rowData.role_ids || []).length || (rowData.user_ids || []).length);
         row.innerHTML = `
             <div class="row g-2 align-items-start">
-                <div class="col-12 mb-1">
-                    ${headingValue ? `<span class="badge bg-secondary">${headingValue}</span>` : ''}
-                    ${isChild ? '<span class="badge bg-info-subtle text-info-emphasis"><i class="fa-solid fa-level-down fa-rotate-90 me-1"></i>Nội dung con</span>' : ''}
-                    <input type="hidden" name="item_heading" value="${headingValue}">
-                </div>
                 <div class="col-md-1 d-flex align-items-center mt-2">
                     <input class="form-check-input" type="checkbox" data-wz-row-check title="Tích dòng để gán hàng loạt">
                 </div>
-                <div class="col-md-11">
-                    <div class="row g-2">
-                        <div class="col-md-8">
-                            <label class="form-label small fw-semibold mb-1">Tiêu đề mục</label>
-                            <input class="form-control form-control-sm" type="text" name="item_title" placeholder="Tiêu đề mục (vd: 1.1. Các Sở, ban, ngành...)" value="${titleValue}" style="word-break: break-word; white-space: normal;">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-semibold mb-1">Hình thức báo cáo</label>
-                            <select class="form-select form-select-sm" name="item_report_kind" data-report-kind-toggle>
-                                <option value="narrative" ${reportKind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
-                                <option value="number" ${reportKind === 'number' ? 'selected' : ''}>Báo cáo số</option>
-                            </select>
-                        </div>
+                <div class="col-md-7">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <label class="form-label small fw-semibold mb-0">Nội dung đề cương</label>
+                        ${isChild ? '<span class="badge bg-info-subtle text-info-emphasis"><i class="fa-solid fa-level-down fa-rotate-90 me-1"></i>Nội dung con</span>' : ''}
                     </div>
-                    <div class="row g-2 mt-2">
-                        <div class="col-12">
-                            <label class="form-label small fw-semibold mb-1">Nội dung từ đề cương</label>
-                            <textarea class="form-control form-control-sm" name="item_content" rows="3" readonly placeholder="Nội dung từ đề cương" style="word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; background-color: var(--bs-secondary-bg);">${contentValue}</textarea>
-                        </div>
+                    <textarea class="form-control form-control-sm" name="item_content" rows="3" ${isManual ? '' : 'readonly'} placeholder="Nội dung đề cương" style="word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; ${isManual ? '' : 'background-color: var(--bs-secondary-bg);'}">${contentValue}</textarea>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold mb-1">Hình thức báo cáo</label>
+                        <select class="form-select form-select-sm" name="item_report_kind" data-report-kind-toggle>
+                            <option value="narrative" ${reportKind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
+                            <option value="number" ${reportKind === 'number' ? 'selected' : ''}>Báo cáo số</option>
+                        </select>
                     </div>
-                    <div class="row g-2 mt-2">
-                        <div class="col-md-8">
-                            <div class="d-flex gap-2 align-items-center flex-wrap">
-                                ${isChild ? `
-                                    <div class="form-check form-check-inline mb-0">
-                                        <input class="form-check-input" type="checkbox" data-wz-inherit ${inherited ? 'checked' : ''}>
-                                        <label class="form-check-label small">Kế thừa gán từ mục cha</label>
-                                    </div>
-                                ` : ''}
-                                <button type="button" class="btn btn-sm btn-outline-secondary" data-wz-row-assign ${inherited ? 'disabled' : ''}><i class="fa-solid fa-user-plus me-1"></i>Gán đơn vị</button>
-                                <button type="button" class="btn btn-sm btn-outline-danger" data-wz-row-remove><i class="fa-solid fa-trash me-1"></i>Xóa</button>
-                                <span class="small fw-medium text-primary" data-wz-row-summary></span>
-                            </div>
+                    <div class="mb-1">
+                        <label class="form-label small fw-semibold mb-1">Gán cho ai</label>
+                        <div class="d-flex gap-2 align-items-center flex-wrap">
+                            ${isChild ? `
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="checkbox" data-wz-inherit ${inherited ? 'checked' : ''}>
+                                    <label class="form-check-label small">Kế thừa mục cha</label>
+                                </div>
+                            ` : ''}
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-wz-row-assign ${inherited ? 'disabled' : ''}><i class="fa-solid fa-user-plus me-1"></i>Gán đơn vị</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-wz-row-remove><i class="fa-solid fa-trash me-1"></i>Xóa</button>
                         </div>
-                    </div>
-                    <input type="hidden" name="item_assign_type">
-                    <input type="hidden" name="item_domain">
-                    <input type="hidden" name="item_domains">
-                    <input type="hidden" name="item_role_ids">
-                    <input type="hidden" name="item_user_ids">
-                    <input type="hidden" name="item_number_fields" value="${numberFieldsJson}">
-                    <input type="hidden" name="item_parent">
-                    <input type="hidden" name="item_inherit" value="${isChild ? (inherited ? '1' : '0') : '0'}">
-                    <div class="number-fields-preview ${reportKind === 'number' ? '' : 'd-none'} mt-2 p-2 bg-light rounded" data-number-preview>
-                        ${numberFields.length > 0 ? numberFields.map((field, idx) => `<div class="small text-muted mb-1">${idx + 1}. <strong>${field.label}</strong>: <span class="text-primary">${field.value}</span> ${field.unit || ''}</div>`).join('') : ''}
-                        ${hasNumbers && numberFields.length === 0 ? `<div class="small text-muted"><i class="fa-solid fa-circle-info me-1"></i>Đã phát hiện số liệu trong nội dung. Chọn "Báo cáo số" để nhập các trường số.</div>` : ''}
+                        <div class="small fw-medium text-primary mt-1" data-wz-row-summary></div>
                     </div>
                 </div>
+                <input type="hidden" name="item_title" value="${titleValue}">
+                <input type="hidden" name="item_heading" value="${headingValue}">
+                <input type="hidden" name="item_assign_type">
+                <input type="hidden" name="item_domain">
+                <input type="hidden" name="item_domains">
+                <input type="hidden" name="item_role_ids">
+                <input type="hidden" name="item_user_ids">
+                <input type="hidden" name="item_number_fields" value="${numberFieldsJson}">
+                <input type="hidden" name="item_parent">
+                <input type="hidden" name="item_inherit" value="${isChild ? (inherited ? '1' : '0') : '0'}">
+            </div>
+            <div class="number-fields-preview ${reportKind === 'number' ? '' : 'd-none'} mt-2 p-2 bg-light rounded" data-number-preview>
+                ${numberFields.length > 0 ? numberFields.map((field, idx) => `<div class="small text-muted mb-1">${idx + 1}. <strong>${field.label}</strong>: <span class="text-primary">${field.value}</span> ${field.unit || ''}</div>`).join('') : ''}
+                ${hasNumbers && numberFields.length === 0 ? `<div class="small text-muted"><i class="fa-solid fa-circle-info me-1"></i>Đã phát hiện số liệu trong nội dung. Chọn "Báo cáo số" để nhập các trường số.</div>` : ''}
             </div>
         `;
         updateWizardOutlineRowAssignment(row, {
@@ -2012,12 +2072,26 @@
             });
         }
         row.querySelector('[data-wz-row-remove]')?.addEventListener('click', () => {
+            const groupBody = wizardRowGroupBody(row);
             row.remove();
             syncWizardOutlineRowIndexes();
             syncWizardSummary();
+            if (groupBody && !groupBody.querySelector('[data-wz-row]')) {
+                const block = groupBody.parentElement;
+                if (block && block.classList.contains('wizard-outline-group')) block.remove();
+            }
         });
         row.querySelector('[data-wz-row-assign]')?.addEventListener('click', () => openWizardRowAssign(row));
-        row.querySelector('input[name="item_title"]')?.addEventListener('input', syncWizardSummary);
+        const contentTextarea = row.querySelector('textarea[name="item_content"]');
+        if (contentTextarea) {
+            contentTextarea.addEventListener('input', () => {
+                if (isManual) {
+                    const hiddenTitle = row.querySelector('input[name="item_title"]');
+                    if (hiddenTitle) hiddenTitle.value = contentTextarea.value;
+                }
+                syncWizardSummary();
+            });
+        }
         const reportKindSelect = row.querySelector('[data-report-kind-toggle]');
         if (reportKindSelect) {
             reportKindSelect.addEventListener('change', () => {
@@ -2027,7 +2101,38 @@
                 }
             });
         }
-        outlineRowsBox.appendChild(row);
+        // Đặt dòng vào nhóm mục tương ứng (hoặc đứng độc lập nếu là mục tự thân / thêm tay)
+        if (isChild && parentRowEl && wizardRowGroupBody(parentRowEl)) {
+            wizardRowGroupBody(parentRowEl).appendChild(row);
+            row._wzGroupBody = wizardRowGroupBody(parentRowEl);
+        } else if (!isChild && section && !standalone && !isManual) {
+            let group = wizardOutlineGroups.get(headingValue);
+            if (!group) {
+                const block = document.createElement('div');
+                block.className = 'wizard-outline-group';
+                const header = document.createElement('div');
+                header.className = 'wizard-outline-group-header';
+                header.innerHTML = `
+                    <div class="wizard-outline-group-marker">${wizardOutlineGroups.size + 1}</div>
+                    <div class="wizard-outline-group-titles">
+                        ${breadcrumb ? `<div class="wizard-outline-group-breadcrumb" title="${breadcrumb.replace(/"/g, '&quot;')}">${breadcrumb}</div>` : ''}
+                        <div class="wizard-outline-group-title">${section}</div>
+                    </div>
+                `;
+                const body = document.createElement('div');
+                body.className = 'wizard-outline-group-body';
+                block.appendChild(header);
+                block.appendChild(body);
+                outlineRowsBox.appendChild(block);
+                group = { block, body };
+                wizardOutlineGroups.set(headingValue, group);
+            }
+            group.body.appendChild(row);
+            row._wzGroupBody = group.body;
+        } else {
+            outlineRowsBox.appendChild(row);
+            row._wzGroupBody = null;
+        }
         if (isChild) {
             propagateWizardInheritedChildren(parentRowEl);
         }
@@ -2066,6 +2171,7 @@
     function clearWizardOutlineRows() {
         if (!outlineRowsBox) return;
         outlineRowsBox.innerHTML = '';
+        wizardOutlineGroups.clear();
     }
 
     // ---------- per-row assign modal (chỉ gán theo đơn vị) ----------
@@ -2221,9 +2327,9 @@
         }
         if (wizardMode === 'OUTLINE') {
             const rows = Array.from(outlineRowsBox?.querySelectorAll('[data-wz-row]') || []);
-            const blank = rows.findIndex((row) => !(row.querySelector('input[name="item_title"]')?.value || '').trim());
+            const blank = rows.findIndex((row) => !((row.querySelector('input[name="item_title"]')?.value || '').trim() || (row.querySelector('textarea[name="item_content"]')?.value || '').trim()));
             if (blank !== -1) {
-                window.alert(`Dòng ${blank + 1} chưa có tiêu đề mục.`);
+                window.alert(`Dòng ${blank + 1} chưa có nội dung.`);
                 setStep(3);
                 return;
             }
