@@ -759,7 +759,7 @@
     }
 
     .wizard-outline-table {
-        table-layout: auto;
+        table-layout: fixed;
         width: 100%;
     }
     .wizard-outline-table th {
@@ -767,6 +767,8 @@
         font-size: 0.78rem;
         vertical-align: middle;
         white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .wizard-outline-table td {
         vertical-align: middle;
@@ -774,15 +776,29 @@
         word-wrap: break-word;
         overflow-wrap: break-word;
     }
+    /* Cột nội dung tự chiếm phần còn lại -> bảng luôn vừa màn hình */
     .wizard-outline-table .wz-col-content {
-        width: 60%;
-        min-width: 420px;
+        width: auto;
+        min-width: 0;
     }
     .wizard-outline-table .wz-col-lead {
-        width: 200px;
-        min-width: 180px;
+        width: 170px;
+        min-width: 150px;
+    }
+    .wizard-outline-table .wz-col-other {
+        width: 96px;
+        min-width: 80px;
+    }
+    .wizard-outline-table .wz-col-report {
+        width: 120px;
+        min-width: 96px;
+    }
+    .wizard-outline-table .wz-col-assign {
+        width: 150px;
+        min-width: 120px;
     }
     .wizard-table-cell-ta {
+        width: 100%;
         resize: none;
         overflow: hidden;
         font-size: 0.85rem;
@@ -2332,7 +2348,7 @@
         ].concat(
             visibleCols.map((col) => {
                 const roleLabel = (WIZARD_TABLE_ROLES.find((r) => r.value === col.role) || {}).label || 'Cột';
-                const colClass = col.role === 'content' ? 'wz-col-content' : col.role === 'lead' ? 'wz-col-lead' : '';
+                const colClass = col.role === 'content' ? 'wz-col-content' : col.role === 'lead' ? 'wz-col-lead' : 'wz-col-other';
                 return `<th class="${colClass}">
                     <div class="d-flex align-items-center gap-1 mb-0 small fw-semibold">
                         <span>${escapeHtml(col.header || '')}</span>
@@ -2341,8 +2357,8 @@
                 </th>`;
             })
         ).concat([
-            '<th class="text-nowrap">Hình thức báo cáo</th>',
-            '<th class="text-nowrap">Gán cho ai</th>',
+            '<th class="text-nowrap wz-col-report">Hình thức báo cáo</th>',
+            '<th class="text-nowrap wz-col-assign">Gán cho ai</th>',
         ]);
 
         let bodyHtml = '';
@@ -2367,7 +2383,7 @@
                         <select class="form-select form-select-sm" data-wz-table-lead-select data-col="${col.index}">${options}</select>
                     </td>`;
                 }
-                return `<td class="p-1"><input class="form-control form-control-sm" type="text" data-wz-table-cell data-col="${col.index}" value="${escapeHtml(value)}"></td>`;
+                return `<td class="p-1 wz-col-other"><input class="form-control form-control-sm" type="text" data-wz-table-cell data-col="${col.index}" value="${escapeHtml(value)}"></td>`;
             });
             const summary = card.querySelector('[data-wz-row-summary]')?.textContent || '';
             const reportKind = card.querySelector('[name="item_report_kind"]')?.value || 'narrative';
@@ -2377,7 +2393,7 @@
                 <td class="text-center">${rowCheck ? '<input class="form-check-input mt-0" type="checkbox" data-wz-table-view-check>' : ''}</td>
                 ${cellEls.join('')}
                 <td class="p-1">
-                    <select class="form-select form-select-sm" data-wz-table-view-kind style="width:132px;">
+                    <select class="form-select form-select-sm" data-wz-table-view-kind style="width:100%;">
                         <option value="narrative" ${reportKind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
                         <option value="number" ${reportKind === 'number' ? 'selected' : ''}>Báo cáo số</option>
                     </select>
@@ -2851,26 +2867,11 @@
     }
 
     function autoGrowWizardTableCellWidth(ta) {
+        // Bảng dùng table-layout: fixed + width 100% -> cột nội dung tự chiếm phần còn lại,
+        // các cột khác luôn nằm gọn trong màn hình. Ô text chỉ cần lấp đầy cột — nội dung
+        // hiển thị trọn vẹn nhờ wrap + tự tăng chiều cao.
         if (!ta || !ta.isConnected) return;
-        const cell = ta.closest('td');
-        const cellWidth = cell ? cell.clientWidth : 0;
-        const base = Math.max(cellWidth, 260);
-        const cap = Math.max(base, Math.min(window.innerWidth * 0.5, 1100));
-        let ideal = base;
-        const val = ta.value || '';
-        if (val) {
-            let m = ta._wzMeasureSpan;
-            if (!m) {
-                m = document.createElement('span');
-                m.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;left:-9999px;top:0;';
-                document.body.appendChild(m);
-                ta._wzMeasureSpan = m;
-            }
-            m.style.font = window.getComputedStyle(ta).font;
-            m.textContent = val;
-            if (m.offsetWidth > 0) ideal = Math.max(ideal, m.offsetWidth + 24);
-        }
-        ta.style.width = Math.min(ideal, cap) + 'px';
+        ta.style.width = '100%';
     }
 
     function setWizardRowInherit(row, on) {
