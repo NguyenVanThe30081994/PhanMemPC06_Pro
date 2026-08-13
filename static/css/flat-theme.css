@@ -1,0 +1,586 @@
+/* ============================================================
+   FLAT THEME (PC06) — thuần phẳng, nhanh, gọn, nhẹ
+   Windows-11-like: flat surfaces, 1px borders, soft 10-14px
+   corners, no gradients / glass blur / heavy shadows.
+   Loaded LAST in <head> so it overrides style.css + layout.
+   ============================================================ */
+
+/* ---------- 1. Design tokens (flat) ---------- */
+:root,
+[data-theme="light"] {
+    --primary-gradient: linear-gradient(180deg, #0066FF 0%, #0066FF 100%);
+    --primary: #0066FF;
+    --primary-light: #2f7dff;
+    --primary-soft: rgba(0, 102, 255, 0.07);
+    --bg-body: #f3f4f6;
+    --bg-surface: #ffffff;
+    --bg-sidebar: #ffffff;
+    --text-main: #1f2937;
+    --text-muted: #6b7280;
+    --border: #e5e7eb;
+    --border-light: #f3f4f6;
+    --glass-bg: #ffffff;
+    --glass-border: transparent;
+    --glass-border-bottom: transparent;
+    --glass-blur: 0px;
+    --glass-saturate: 100%;
+
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-lg: none;
+    --shadow-lvl1: none;
+    --shadow-lvl2: none;
+    --shadow-lvl3: none;
+    --shadow-primary: none;
+    --liquid-shadow-ambient: none;
+    --liquid-shadow-contact: none;
+    --glass-shadow: none;
+
+    --radius-sm: 10px;
+    --radius-md: 12px;
+    --radius-lg: 14px;
+    --corner-card: 14px;
+
+    --transition: all 0.12s ease-out;
+}
+
+[data-theme="dark"] {
+    --primary-gradient: linear-gradient(180deg, #3b82f6 0%, #3b82f6 100%);
+    --primary: #3b82f6;
+    --primary-light: #60a5fa;
+    --bg-body: #111827;
+    --bg-surface: #1f2937;
+    --bg-sidebar: #1f2937;
+    --text-main: #f3f4f6;
+    --text-muted: #9ca3af;
+    --border: #374151;
+    --border-light: #2b3648;
+    --glass-bg: #1f2937;
+    --glass-border: transparent;
+    --glass-border-bottom: transparent;
+    --glass-blur: 0px;
+    --glass-saturate: 100%;
+
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-lg: none;
+    --shadow-lvl1: none;
+    --shadow-lvl2: none;
+    --shadow-lvl3: none;
+    --shadow-primary: none;
+    --liquid-shadow-ambient: none;
+    --liquid-shadow-contact: none;
+    --glass-shadow: none;
+
+    --radius-sm: 10px;
+    --radius-md: 12px;
+    --radius-lg: 14px;
+    --corner-card: 14px;
+
+    --transition: all 0.12s ease-out;
+}
+
+/* ---------- 2. Global animation & motion diet ---------- */
+/* Kill decorative keyframe animations; keep 0.12s micro feedback */
+.animate__animated,
+.animate__fadeIn,
+.animate__fadeInUp,
+[class*="animate__"] {
+    animation: none !important;
+}
+
+.modal.show .modal-dialog {
+    animation: none !important;
+}
+
+.offcanvas.show {
+    animation: none !important;
+}
+
+*,
+*::before,
+*::after {
+    animation-duration: 0.12s !important;
+    animation-delay: 0s !important;
+    transition-timing-function: ease-out !important;
+}
+
+body,
+.main-content,
+.top-navbar,
+.app-grid-v2,
+.app-split-col-ops,
+.app-split-col-main {
+    transition: background-color 0.12s ease-out, color 0.12s ease-out, border-color 0.12s ease-out !important;
+}
+
+.btn,
+.btn-circle,
+.card,
+.bento-card,
+.glass-card,
+.nav-link-top,
+.desktop-nav-link,
+.mobile-nav-link,
+.filter-pill,
+.picker-chip,
+.segmented-control .btn-seg {
+    transition: background-color 0.12s ease-out, color 0.12s ease-out, border-color 0.12s ease-out !important;
+}
+
+/* Kill all hover transforms / floats */
+.desktop-nav-link:hover,
+.nav-link.py-2.ps-4.border-start:hover,
+.btn-circle:hover,
+.btn-circle:active,
+.mobile-nav-link:hover {
+    transform: none !important;
+}
+
+/* ---------- 3. Body & shell ---------- */
+body {
+    background:
+        var(--bg-body) !important;
+    background-attachment: scroll !important;
+}
+
+/* Sidebar: flat, full-height, no floating card, no heavy shadow */
+.desktop-sidebar-inner {
+    background: var(--bg-sidebar) !important;
+    border: none !important;
+    border-right: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    gap: 8px;
+    padding: 16px 12px 12px;
+}
+
+.desktop-brand {
+    padding: 6px 10px 14px;
+}
+
+.desktop-brand-badge {
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    background: var(--primary) !important;
+    box-shadow: none !important;
+}
+
+.desktop-nav-link {
+    border-radius: 10px;
+    padding: 9px 10px;
+    font-weight: 600;
+    transition: background-color 0.12s ease-out, color 0.12s ease-out;
+}
+
+.desktop-nav-link:hover {
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+.desktop-nav-link.active {
+    background: var(--primary) !important;
+    color: #fff !important;
+    box-shadow: none !important;
+}
+
+.desktop-nav-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: transparent;
+}
+
+.desktop-nav-link.active .desktop-nav-icon {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.desktop-subnav-link {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 9px;
+    padding: 7px 10px;
+}
+
+.desktop-subnav-link:hover {
+    background: var(--primary-soft) !important;
+}
+
+/* Top navbar: flat */
+.top-navbar {
+    background: var(--bg-surface) !important;
+    border-bottom: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+.top-status-pill {
+    background: var(--bg-body) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: none !important;
+    min-height: 34px;
+    padding: 6px 12px;
+    border-radius: 999px;
+}
+
+/* ---------- 4. Cards & panels ---------- */
+.card,
+.bento-card,
+.glass-card,
+.glass-panel,
+.elevated-card,
+.action-panel,
+.data-panel,
+.task-card,
+.task-col-right,
+.report-card,
+.compact-news-card,
+.chat-container,
+.filter-bar-unified,
+.overview-panel,
+.overview-metric-card {
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 14px !important;
+    box-shadow: none !important;
+}
+
+.card:hover,
+.bento-card:hover,
+.glass-card:hover,
+.glass-panel:hover,
+.elevated-card:hover,
+.action-panel:hover,
+.data-panel:hover,
+.report-card:hover,
+.compact-news-card:hover {
+    box-shadow: none !important;
+    border-color: var(--border) !important;
+    transform: none !important;
+}
+
+.card-header,
+.card-footer,
+.action-header,
+.data-header,
+.report-card-footer {
+    background: var(--bg-body) !important;
+    border-color: var(--border) !important;
+}
+
+/* Dashboard overview shell (admin_dashboard) */
+.overview-panel,
+.overview-metric-card {
+    background: rgba(255, 255, 255, 0.94);
+}
+
+/* ---------- 5. Buttons ---------- */
+.btn {
+    border-radius: 10px !important;
+    box-shadow: none !important;
+    font-weight: 600 !important;
+    transition: background-color 0.12s ease-out, border-color 0.12s ease-out, color 0.12s ease-out !important;
+}
+
+.btn-primary {
+    background: var(--primary) !important;
+    border: 1px solid var(--primary) !important;
+    box-shadow: none !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background: var(--primary-light) !important;
+    box-shadow: none !important;
+}
+
+.btn-primary.shadow-sm,
+.btn-success.shadow-sm {
+    box-shadow: none !important;
+}
+
+.btn-light,
+.btn-white {
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: none !important;
+}
+
+.btn-light:hover {
+    background: var(--bg-body) !important;
+}
+
+.btn-circle {
+    border-radius: 50% !important;
+    box-shadow: none !important;
+    border: 1px solid var(--border) !important;
+}
+
+.btn-circle:hover {
+    background: var(--bg-body) !important;
+}
+
+/* ---------- 6. Forms ---------- */
+.form-control,
+.form-select {
+    border-radius: 10px !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: none !important;
+    padding: 9px 14px !important;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.10) !important;
+}
+
+/* ---------- 7. Tables ---------- */
+.table {
+    border-radius: 12px !important;
+}
+
+.table thead th,
+.table-custom thead th,
+.pill-thead th {
+    background: var(--bg-body) !important;
+    border: none !important;
+    border-bottom: 1px solid var(--border) !important;
+    color: var(--text-muted) !important;
+    font-weight: 700 !important;
+    text-transform: none !important;
+    letter-spacing: 0.02em !important;
+}
+
+.table-responsive,
+.table-freeze {
+    border-radius: 12px !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: none !important;
+    background: var(--bg-surface) !important;
+}
+
+.table tbody tr:hover {
+    background: var(--primary-soft) !important;
+}
+
+/* ---------- 8. Modals & dropdowns ---------- */
+.modal-content {
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 8px 30px rgba(15, 23, 42, 0.12) !important;
+}
+
+/* Fullscreen modals (wizard) stay edge-to-edge */
+.modal-fullscreen .modal-content {
+    border-radius: 0 !important;
+    border: none !important;
+}
+
+.modal-header .modal-title,
+.offcanvas-header .offcanvas-title {
+    background: transparent !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    color: var(--text-main) !important;
+    font-weight: 700 !important;
+    font-size: 1rem !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    box-shadow: none !important;
+}
+
+.modal-header,
+.modal-footer {
+    border-color: var(--border) !important;
+    background: transparent !important;
+}
+
+.dropdown-menu {
+    border-radius: 12px !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10) !important;
+}
+
+.dropdown-item {
+    border-radius: 8px !important;
+}
+
+/* ---------- 9. Header pills / breadcrumb ---------- */
+.header-title-pill {
+    background: var(--primary) !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 10px !important;
+}
+
+.breadcrumb-nav,
+.picker-chip {
+    background: var(--bg-body) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: none !important;
+}
+
+.picker-chip:hover {
+    background: var(--primary-soft) !important;
+}
+
+.segmented-control {
+    background: var(--bg-body) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+}
+
+.segmented-control .btn-seg.active {
+    background: var(--primary) !important;
+    box-shadow: none !important;
+}
+
+/* ---------- 10. Filters / search ---------- */
+.filter-bar-unified {
+    box-shadow: none !important;
+}
+
+.search-box-modern {
+    background: var(--bg-body) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+}
+
+.search-box-modern:focus-within {
+    background: var(--bg-surface) !important;
+}
+
+.filter-pill {
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: none !important;
+}
+
+.filter-pill:hover {
+    background: var(--bg-body) !important;
+}
+
+.filter-pill.active {
+    background: var(--primary) !important;
+    box-shadow: none !important;
+}
+
+/* ---------- 11. Badges & pills ---------- */
+.badge {
+    border-radius: 999px !important;
+    padding: 0.35rem 0.7rem !important;
+    font-weight: 600 !important;
+}
+
+/* ---------- 12. Scrollbars (flat, thin) ---------- */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: #4b5563;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #9ca3af;
+}
+
+/* ---------- 13. Mobile (offcanvas + bottom nav) ---------- */
+.offcanvas {
+    box-shadow: none !important;
+    border-right: 1px solid var(--border) !important;
+}
+
+.mobile-bottom-nav {
+    background: var(--bg-surface) !important;
+    box-shadow: none !important;
+    border-top: 1px solid var(--border) !important;
+}
+
+.mobile-bottom-nav .nav-item.active {
+    background: transparent !important;
+}
+
+/* Notification bell: flat */
+.notif-icon-wrap {
+    background: var(--primary) !important;
+    box-shadow: none !important;
+}
+
+.notif-bell-icon {
+    text-shadow: none !important;
+}
+
+.notif-badge {
+    box-shadow: none !important;
+    border-color: var(--bg-surface) !important;
+}
+
+/* ---------- 14. Misc flatness catch-all ---------- */
+.glass-header,
+.glass-panel {
+    background: var(--bg-surface) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+[class*="glass-"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* Remove leftover gradient overrides on colored headers */
+.page-header,
+.navbar {
+    background: var(--bg-surface) !important;
+    border-bottom: 1px solid var(--border) !important;
+    box-shadow: none !important;
+}
+
+hr {
+    border-color: var(--border) !important;
+    opacity: 1 !important;
+}
+
+/* ---------- 15. Desktop shell geometry (flat, edge-to-edge) ---------- */
+@media (min-width: 992px) {
+    body.pc06-bdhvs-body {
+        padding-left: var(--desktop-sidebar-width);
+    }
+
+    .desktop-sidebar {
+        inset: 0 auto 0 0;
+        width: var(--desktop-sidebar-width);
+        min-width: var(--desktop-sidebar-width);
+        box-shadow: none !important;
+    }
+
+    .top-navbar {
+        top: 0;
+        left: var(--desktop-sidebar-width);
+        right: 0;
+        height: var(--nav-height);
+        border-radius: 0;
+    }
+
+    .main-content {
+        padding-top: calc(var(--nav-height) + 24px) !important;
+    }
+}

@@ -17,7 +17,6 @@ Chức năng: **upload file .docx/.txt bất kỳ → tự động quét cấu t
 | `routes/outline.py` | Blueprint: trang giao diện + API (quét, danh sách cán bộ, tạo công việc) |
 | `templates/outline_assign.html` | Trang **giao việc theo đề cương** (mục + nội dung liệt kê bên dưới + nút Gán việc bên cạnh) |
 | `app.py` | Đã đăng ký `outline_bp` |
-| `demo_outline_giao_viec.html` | Demo tĩnh giao việc (mở bằng trình duyệt, không cần server) |
 
 ## 2. URL truy cập (sau khi chạy app)
 
