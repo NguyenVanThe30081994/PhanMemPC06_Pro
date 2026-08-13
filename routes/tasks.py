@@ -76,6 +76,18 @@ from task_workspace import (
     task_deadline_display,
     task_workspace_tone,
 )
+from report_cycles import (
+    KIND_LABELS as REPORT_KIND_LABELS,
+    PERIOD_LABELS as REPORT_PERIOD_LABELS,
+    WEEKDAY_LABELS as REPORT_WEEKDAY_LABELS,
+    config_to_json as report_config_to_json,
+    current_cycle as report_current_cycle,
+    cycle_summary_text as report_cycle_summary_text,
+    deadline_for as report_deadline_for,
+    normalize_config as report_normalize_config,
+    parse_config as report_parse_config,
+    task_config as report_task_config,
+)
 from task_import_ai import (
     analyze_task_import_config,
     apply_ai_analysis_to_config,
@@ -506,6 +518,48 @@ def _parse_deadline(form):
             return datetime(now.year, month_of_period, 28).date()
 
     return None
+
+def _task_report_period(task):
+    """Cấu hình cách báo cáo của công việc (dict chuẩn hóa)."""
+    try:
+        return report_task_config(task)
+    except Exception:
+        return report_normalize_config({})
+
+def _parse_task_report_period_from_request(form, task_type=""):
+    """Đọc cấu hình 'cách báo cáo' từ form tạo / sửa công việc."""
+    data = dict(form or {})
+    if task_type and not data.get("task_type"):
+        data["task_type"] = task_type
+    try:
+        return report_parse_config(data)
+    except Exception:
+        return report_normalize_config({})
+
+def _task_current_cycle(task, today=None):
+    try:
+        return report_current_cycle(_task_report_period(task), today=today)
+    except Exception:
+        return None
+
+def _task_report_kind_label(task):
+    cfg = _task_report_period(task)
+    kind = str(cfg.get("kind") or "one_time").strip()
+    label = REPORT_KIND_LABELS.get(kind)
+    if not label:
+        return "Báo cáo đột xuất / một lần"
+    period = cfg.get("period")
+    if kind == "periodic" and period in REPORT_PERIOD_LABELS:
+        label = f"{label} — {REPORT_PERIOD_LABELS[period]}"
+    return label
+
+def _computed_task_deadline(form, task_type=""):
+    """Hạn nộp theo 'cách báo cáo' — hạn của chu kỳ hiện tại khi tạo công việc."""
+    try:
+        cfg = _parse_task_report_period_from_request(form, task_type=task_type)
+        return report_deadline_for(cfg)
+    except Exception:
+        return None
 
 def _dedupe_users(users):
     unique_users = []
@@ -4542,6 +4596,7 @@ def _task_import_publish_payload(config):
         "priority": canonicalize_category_value(config.get("priority") or "Trung bình", _task_priority_options(), prefer_stable=True),
         "task_type": canonicalize_category_value(config.get("task_type") or "Công việc thường xuyên", _task_type_options(), prefer_stable=True),
         "deadline": _parse_deadline(MultiDict([("deadline", config.get("deadline") or "")])),
+        "report_period_json": None,
         "assign_type": _task_import_working_assign_type(config.get("assign_type"), "unit"),
         "unit_domains": _requested_unit_domains(
             MultiDict([("child_domains", value) for value in (config.get("unit_domains") or [])] + ([("child_domain", domain)] if domain else []))
@@ -4561,6 +4616,26 @@ def _task_import_publish_payload(config):
         "report_schema": None,
         "assignees": [],
     }
+
+    try:
+        report_period = report_parse_config(
+            {
+                "task_type": payload["task_type"],
+                "report_deadline": config.get("deadline") or "",
+                "report_period_kind": config.get("report_period_kind") or "",
+                "report_period": config.get("report_period") or "",
+                "report_weekday": config.get("report_weekday") or "",
+                "report_day_of_month": config.get("report_day_of_month") or "",
+                "report_month_of_year": config.get("report_month_of_year") or "",
+                "report_start_date": config.get("report_start_date") or "",
+                "report_end_date": config.get("report_end_date") or "",
+                "report_milestones": config.get("report_milestones") or [],
+            }
+        )
+        if report_period:
+            payload["report_period_json"] = report_config_to_json(report_period)
+    except Exception:
+        payload["report_period_json"] = None
 
     manager_form = MultiDict(
         [("manager_scope_mode", payload["manager_scope_mode"])]
@@ -4692,6 +4767,8 @@ def _publish_task_import_draft(draft):
         initial_status="Chưa tiếp nhận",
         task_mode=payload["task_mode"],
     )
+    if payload.get("report_period_json"):
+        new_task.report_period_json = payload["report_period_json"]
     if payload["report_schema"]:
         new_task.report_schema_json = _json_dump(payload["report_schema"])
 
@@ -8072,7 +8149,7 @@ def _tasks_page_v2():
             domain=domain,
             title=title,
             content=content,
-            deadline=_parse_deadline(request.form),
+            deadline=_computed_task_deadline(request.form, task_type=task_type) or _parse_deadline(request.form),
             file_path=attachment_name,
             author_id=session["uid"],
             author_name=session.get("fullname", "Quản trị"),
@@ -8081,7 +8158,10 @@ def _tasks_page_v2():
             initial_status="Chưa tiếp nhận",
             task_mode=task_mode,
             form_provider=form_provider if task_mode == "FORM" else "internal",
-                    )
+        )
+        report_period = _parse_task_report_period_from_request(request.form, task_type=task_type)
+        if report_period:
+            new_task.report_period_json = report_config_to_json(report_period)
         if report_schema:
             new_task.report_schema_json = json.dumps(report_schema, ensure_ascii=False)
         if task_mode == "FORM" and form_provider == "google":
@@ -8577,6 +8657,9 @@ def _task_detail_v2(tid):
         summary=detail_page_context["summary"],
         detail_context=detail_page_context["detail_context"],
         status_labels=TASK_ASSIGNMENT_STATUS_LABELS,
+        report_period=_task_report_period(task),
+        report_kind_label=_task_report_kind_label(task),
+        current_cycle=_task_current_cycle(task),
     )
 
 def _create_outline_items_v2(tid):
@@ -8922,6 +9005,10 @@ def _submit_task_report_v2(tid):
         payload_json=json.dumps(payload, ensure_ascii=False) if payload else None,
         submitted_at=datetime.now(),
     )
+    current_cycle = _task_current_cycle(task)
+    if current_cycle:
+        submission.cycle_key = str(current_cycle.get("key") or "")[:50] or None
+        submission.cycle_label = str(current_cycle.get("label") or "")[:100] or None
     db.session.add(submission)
     db.session.flush()
 
@@ -10875,6 +10962,19 @@ def edit_task_config(tid):
     if priority:
         task.priority = priority
     task.content = description
+
+    # Cách báo cáo (loại công việc + chu kỳ / hạn nộp) — chỉ cập nhật khi form
+    # gửi lên một cấu hình JSON rõ ràng (modal sửa cấu hình hiện chưa prefill
+    # dữ liệu công việc, nên không được ghi đè cấu hình đang có)
+    if request.form.get("report_period_json"):
+        report_period = _parse_task_report_period_from_request(request.form, task_type=task_type or task.task_type)
+        if report_period:
+            task.report_period_json = report_config_to_json(report_period)
+            computed_deadline = report_deadline_for(report_period)
+            if computed_deadline:
+                task.deadline = computed_deadline
+            elif report_period.get("kind") == "ongoing":
+                task.deadline = None
 
     # Cập nhật scope nếu có
     viewer_scope_mode = request.form.get("viewer_scope_mode", "").strip()

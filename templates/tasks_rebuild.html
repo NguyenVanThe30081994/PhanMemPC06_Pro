@@ -1461,8 +1461,57 @@
                                 <input class="form-control" type="text" name="title" id="wizardTitle" required placeholder="Ví dụ: Tổng hợp báo cáo tuần ...">
                             </div>
                             <div class="col-lg-4">
-                                <label class="form-label fw-bold">Hạn xử lý</label>
-                                <input class="form-control" type="date" name="deadline">
+                                <label class="form-label fw-bold">Hạn nộp / chu kỳ báo cáo</label>
+                                <select class="form-select mb-2" name="report_period_kind">
+                                    <option value="one_time">Báo cáo đột xuất / một lần</option>
+                                    <option value="periodic">Báo cáo định kỳ</option>
+                                    <option value="milestone">Báo cáo theo mốc / giai đoạn</option>
+                                    <option value="ongoing">Công việc thường xuyên (duy trì)</option>
+                                </select>
+                                <div data-report-deadline-panel>
+                                    <input class="form-control" type="date" name="deadline">
+                                    <div class="form-text">Hạn nộp báo cáo đột xuất / một lần.</div>
+                                </div>
+                                <div class="d-none" data-report-period-panel>
+                                    <select class="form-select form-select-sm mb-2" name="report_period">
+                                        <option value="week">Hàng tuần</option>
+                                        <option value="month" selected>Hàng tháng</option>
+                                        <option value="quarter">Hàng quý</option>
+                                        <option value="year">Hàng năm</option>
+                                    </select>
+                                    <div class="d-flex gap-2 mb-2" data-report-week-anchor>
+                                        <span class="small text-muted align-self-center text-nowrap">Hạn nộp</span>
+                                        <select class="form-select form-select-sm" name="report_weekday">
+                                            <option value="0">Thứ 2</option>
+                                            <option value="1">Thứ 3</option>
+                                            <option value="2">Thứ 4</option>
+                                            <option value="3">Thứ 5</option>
+                                            <option value="4" selected>Thứ 6</option>
+                                            <option value="5">Thứ 7</option>
+                                            <option value="6">Chủ nhật</option>
+                                        </select>
+                                    </div>
+                                    <div class="d-flex gap-2 mb-2" data-report-day-anchor>
+                                        <span class="small text-muted align-self-center text-nowrap">Hạn nộp</span>
+                                        <input class="form-control form-control-sm" type="number" name="report_day_of_month" min="1" max="28" value="5" title="Ngày hạn nộp trong kỳ">
+                                        <select class="form-select form-select-sm d-none" name="report_month_of_year">
+                                            {% for m in range(1, 13) %}
+                                            <option value="{{ m }}" {% if m == 12 %}selected{% endif %}>Tháng {{ m }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <span class="small text-muted align-self-center text-nowrap d-none" data-report-day-suffix>hàng kỳ</span>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <input class="form-control form-control-sm" type="date" name="report_start_date" title="Bắt đầu áp dụng (tùy chọn)">
+                                        <input class="form-control form-control-sm" type="date" name="report_end_date" title="Kết thúc (tùy chọn)">
+                                    </div>
+                                    <div class="form-text">Báo cáo lặp lại theo kỳ; hạn nộp từng kỳ tự tính.</div>
+                                </div>
+                                <div class="d-none" data-report-milestone-panel>
+                                    <textarea class="form-control form-control-sm" name="report_milestones" rows="2" placeholder="Mỗi dòng một ngày (vd: 30/08/2026)&#10;15/09/2026&#10;31/12/2026"></textarea>
+                                    <div class="form-text">Mỗi mốc thời gian là một lần báo cáo.</div>
+                                </div>
+                                <div class="d-none text-muted small" data-report-ongoing-panel>Không đặt hạn — theo dõi liên tục.</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">Lĩnh vực</label>
@@ -1592,8 +1641,57 @@
                             <input class="form-control" type="text" name="title" placeholder="Ví dụ: Tổng hợp báo cáo tuần ...">
                         </div>
                         <div class="col-lg-4">
-                            <label class="form-label fw-bold">Hạn xử lý</label>
-                            <input class="form-control" type="date" name="deadline">
+                            <label class="form-label fw-bold">Hạn nộp / chu kỳ báo cáo</label>
+                            <select class="form-select mb-2" name="report_period_kind">
+                                <option value="one_time">Báo cáo đột xuất / một lần</option>
+                                <option value="periodic">Báo cáo định kỳ</option>
+                                <option value="milestone">Báo cáo theo mốc / giai đoạn</option>
+                                <option value="ongoing">Công việc thường xuyên (duy trì)</option>
+                            </select>
+                            <div data-report-deadline-panel>
+                                <input class="form-control" type="date" name="deadline">
+                                <div class="form-text">Hạn nộp báo cáo đột xuất / một lần.</div>
+                            </div>
+                            <div class="d-none" data-report-period-panel>
+                                <select class="form-select form-select-sm mb-2" name="report_period">
+                                    <option value="week">Hàng tuần</option>
+                                    <option value="month" selected>Hàng tháng</option>
+                                    <option value="quarter">Hàng quý</option>
+                                    <option value="year">Hàng năm</option>
+                                </select>
+                                <div class="d-flex gap-2 mb-2" data-report-week-anchor>
+                                    <span class="small text-muted align-self-center text-nowrap">Hạn nộp</span>
+                                    <select class="form-select form-select-sm" name="report_weekday">
+                                        <option value="0">Thứ 2</option>
+                                        <option value="1">Thứ 3</option>
+                                        <option value="2">Thứ 4</option>
+                                        <option value="3">Thứ 5</option>
+                                        <option value="4" selected>Thứ 6</option>
+                                        <option value="5">Thứ 7</option>
+                                        <option value="6">Chủ nhật</option>
+                                    </select>
+                                </div>
+                                <div class="d-flex gap-2 mb-2" data-report-day-anchor>
+                                    <span class="small text-muted align-self-center text-nowrap">Hạn nộp</span>
+                                    <input class="form-control form-control-sm" type="number" name="report_day_of_month" min="1" max="28" value="5" title="Ngày hạn nộp trong kỳ">
+                                    <select class="form-select form-select-sm d-none" name="report_month_of_year">
+                                        {% for m in range(1, 13) %}
+                                        <option value="{{ m }}" {% if m == 12 %}selected{% endif %}>Tháng {{ m }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <span class="small text-muted align-self-center text-nowrap d-none" data-report-day-suffix>hàng kỳ</span>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <input class="form-control form-control-sm" type="date" name="report_start_date" title="Bắt đầu áp dụng (tùy chọn)">
+                                    <input class="form-control form-control-sm" type="date" name="report_end_date" title="Kết thúc (tùy chọn)">
+                                </div>
+                                <div class="form-text">Báo cáo lặp lại theo kỳ; hạn nộp từng kỳ tự tính.</div>
+                            </div>
+                            <div class="d-none" data-report-milestone-panel>
+                                <textarea class="form-control form-control-sm" name="report_milestones" rows="2" placeholder="Mỗi dòng một ngày (vd: 30/08/2026)&#10;15/09/2026&#10;31/12/2026"></textarea>
+                                <div class="form-text">Mỗi mốc thời gian là một lần báo cáo.</div>
+                            </div>
+                            <div class="d-none text-muted small" data-report-ongoing-panel>Không đặt hạn — theo dõi liên tục.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Lĩnh vực</label>
@@ -3275,6 +3373,61 @@
             editConfigModalInstance.show();
         }
     };
+
+    // ---------- cách báo cáo theo loại công việc ----------
+    const REPORT_KIND_FROM_TYPE = (label, value) => {
+        const s = (label || '').toLowerCase();
+        if (s.includes('định kỳ') || s.includes('đinh ky') || s.includes('dinh ky')) return 'periodic';
+        if (s.includes('mốc') || s.includes('giai đoạn') || s.includes('gai doan')) return 'milestone';
+        if ((value || '') !== '' && (s.includes('thường xuyên') || s.includes('duy trì') || s.includes('thuong xuyen'))) return 'ongoing';
+        return 'one_time';
+    };
+
+    function syncReportPeriodPanel(formEl) {
+        const kindSelect = formEl.querySelector('select[name="report_period_kind"]');
+        if (!kindSelect) return;
+        const kind = kindSelect.value || 'one_time';
+        const panels = {
+            one_time: formEl.querySelector('[data-report-deadline-panel]'),
+            periodic: formEl.querySelector('[data-report-period-panel]'),
+            milestone: formEl.querySelector('[data-report-milestone-panel]'),
+            ongoing: formEl.querySelector('[data-report-ongoing-panel]'),
+        };
+        Object.entries(panels).forEach(([key, el]) => {
+            if (el) el.classList.toggle('d-none', key !== kind);
+        });
+        const period = formEl.querySelector('select[name="report_period"]')?.value || 'month';
+        const weekAnchor = formEl.querySelector('[data-report-week-anchor]');
+        const dayAnchor = formEl.querySelector('[data-report-day-anchor]');
+        const monthOfYear = formEl.querySelector('select[name="report_month_of_year"]');
+        const daySuffix = formEl.querySelector('[data-report-day-suffix]');
+        if (weekAnchor) weekAnchor.classList.toggle('d-none', period !== 'week');
+        if (dayAnchor) dayAnchor.classList.toggle('d-none', period === 'week');
+        if (monthOfYear) monthOfYear.classList.toggle('d-none', period !== 'year');
+        if (daySuffix) daySuffix.classList.toggle('d-none', period !== 'year');
+    }
+
+    function setupReportPeriodPanel(formEl) {
+        const kindSelect = formEl.querySelector('select[name="report_period_kind"]');
+        if (!kindSelect) return;
+        let userTouched = false;
+        kindSelect.addEventListener('change', () => { userTouched = true; syncReportPeriodPanel(formEl); });
+        const typeSelect = formEl.querySelector('select[name="task_type"]');
+        typeSelect?.addEventListener('change', () => {
+            if (userTouched) return;
+            const label = typeSelect.selectedOptions[0] ? typeSelect.selectedOptions[0].textContent : typeSelect.value;
+            kindSelect.value = REPORT_KIND_FROM_TYPE(label, typeSelect.value);
+            syncReportPeriodPanel(formEl);
+        });
+        formEl.querySelectorAll('select[name="report_period"]').forEach((sel) => {
+            sel.addEventListener('change', () => syncReportPeriodPanel(formEl));
+        });
+        const label = typeSelect && typeSelect.selectedOptions[0] ? typeSelect.selectedOptions[0].textContent : '';
+        if (label) kindSelect.value = REPORT_KIND_FROM_TYPE(label, typeSelect ? typeSelect.value : '');
+        syncReportPeriodPanel(formEl);
+    }
+    setupReportPeriodPanel(document.getElementById('createTaskForm'));
+    setupReportPeriodPanel(document.getElementById('editConfigForm'));
 </script>
 
 {% endif %}

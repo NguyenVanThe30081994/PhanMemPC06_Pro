@@ -10,6 +10,9 @@
             <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
                 <a href="{{ url_for('tasks_bp.tasks') }}" class="btn btn-light btn-sm">Quay lại danh sách</a>
                 <span class="task-detail-pill task-detail-pill-info">{{ task.task_mode_label }}</span>
+                {% if report_kind_label %}
+                <span class="task-detail-pill task-detail-pill-info">{{ report_kind_label }}</span>
+                {% endif %}
                 {% if task.task_mode == 'FORM' %}
                 <span class="task-detail-pill task-detail-pill-info">{{ task.form_provider_label }}</span>
                 {% endif %}
@@ -19,7 +22,9 @@
             <p>{{ task.task_mode_description }}</p>
             <div class="task-detail-meta">
                 <span>Người giao: <strong>{{ task.author_name }}</strong></span>
-                {% if task.deadline %}<span>Hạn: <strong>{{ task.deadline.strftime('%d/%m/%Y') }}</strong></span>{% endif %}
+                {% if current_cycle and current_cycle.label and report_period and report_period.kind != 'one_time' %}
+                <span>Chu kỳ: <strong>{{ current_cycle.label }}</strong>{% if current_cycle.due %} — hạn nộp <strong>{{ current_cycle.due[8:10] }}/{{ current_cycle.due[5:7] }}/{{ current_cycle.due[0:4] }}</strong>{% endif %}{% if current_cycle.overdue %} <span class="text-danger">(quá hạn)</span>{% endif %}</span>
+                {% elif task.deadline %}<span>Hạn: <strong>{{ task.deadline.strftime('%d/%m/%Y') }}</strong></span>{% endif %}
                 <span>Tiến độ: <strong>{{ detail_context.progress_percent }}%</strong></span>
                 {% if task.task_mode == 'FORM' and task.form_provider == 'google' and task.google_form_sync_state.last_sync_at %}
                 <span>Đồng bộ cuối: <strong>{{ task.google_form_sync_state.last_sync_at[:16]|replace('T', ' ') }}</strong></span>

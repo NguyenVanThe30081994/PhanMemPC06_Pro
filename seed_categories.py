@@ -82,6 +82,7 @@ DEFAULT_CATEGORIES = {
         "aliases": ["Loai cong viec"],
         "bindings": [{"module": "tasks", "field": "task_type", "label": "Loại công việc", "required": False}],
         "items": [
+            "Báo cáo đột xuất / một lần", "Báo cáo định kỳ", "Báo cáo theo mốc / giai đoạn", "Công việc thường xuyên (duy trì)",
             "Công việc thường xuyên", "Công việc đột xuất", "Chỉ đạo điều hành", "Đề án dự án", "Kế hoạch",
             "Báo cáo", "Tổng kết", "Kiểm tra", "Thanh tra", "Phối hợp liên ngành", "Hội nghị", "Tập huấn", "Học tập"
         ]
