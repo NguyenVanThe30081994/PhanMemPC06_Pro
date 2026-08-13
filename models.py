@@ -259,6 +259,8 @@ class TaskItem(db.Model):
     allow_aggregate = db.Column(db.Boolean, default=False)
     report_sources_json = db.Column(db.Text)
     table_cells_json = db.Column(db.Text)
+    synthesis_content = db.Column(db.Text)
+    synthesis_updated_at = db.Column(db.DateTime)
     status = db.Column(db.String(50), default='Chưa tiếp nhận')
     deadline = db.Column(db.Date)
     sort_order = db.Column(db.Integer, default=0)

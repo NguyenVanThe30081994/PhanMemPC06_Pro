@@ -434,6 +434,8 @@ def apply_migrations(app):
         ("task_item", "allow_aggregate", "BOOLEAN DEFAULT 0"),
         ("task_item", "report_sources_json", "TEXT"),
         ("task_item", "table_cells_json", "TEXT"),
+        ("task_item", "synthesis_content", "TEXT"),
+        ("task_item", "synthesis_updated_at", "DATETIME"),
         ("task_item", "is_required", "BOOLEAN DEFAULT 1"),
         ("task_item", "output_type", "VARCHAR(30) DEFAULT 'OUTLINE'"),
         ("task_assignment", "task_item_id", "INTEGER"),

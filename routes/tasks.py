@@ -7724,6 +7724,13 @@ def _parse_outline_item_rows(task, current_uid):
         )
     return rows
 
+def _task_item_synthesis_text(item):
+    """Văn bản tổng hợp của đầu mục (quản trị soạn) — rỗng nếu chưa tổng hợp."""
+    if not item:
+        return ""
+    return str(getattr(item, "synthesis_content", None) or "").strip()
+
+
 def _outline_item_number_fields(item):
     """Lấy danh sách trường số liệu của đầu mục (từ guide_text JSON, hoặc dò lại từ nội dung)."""
     if not item:
@@ -9302,6 +9309,9 @@ def _export_outline_word_v2(tid):
                     outline_table.rows[1].cells[col_index].text = value
         if not row["assignments"]:
             document.add_paragraph("Chưa giao đơn vị nào cho đầu mục này.")
+        synthesis = _task_item_synthesis_text(item)
+        if synthesis:
+            document.add_paragraph(synthesis)
         number_fields = _outline_item_number_fields(item)
         submitted_with_values = []
         for assignment in row["assignments"]:
@@ -9334,6 +9344,9 @@ def _export_outline_word_v2(tid):
                         f"Tổng cộng: {sum(numeric_values):,.0f}".replace(",", ".")
                     )
                     aggregate_run.bold = True
+        # Đã có văn bản tổng hợp của quản trị -> không lặp lại nội dung từng đơn vị.
+        if synthesis:
+            continue
         for assignment in row["assignments"]:
             user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
             unit_name = _task_assignee_unit_name(user)
@@ -9408,6 +9421,112 @@ def toggle_task_item_aggregate(tid, item_id):
     item.updated_at = datetime.now()
     db.session.commit()
     flash("Đã bật cộng gộp số liệu cho đầu mục." if item.allow_aggregate else "Đã tắt cộng gộp số liệu.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid) + "#pane-outline-matrix")
+
+@tasks_bp.route("/tasks/<int:tid>/items/<int:item_id>/synthesis-data")
+def task_item_synthesis_data(tid, item_id):
+    """Dữ liệu cho màn tổng hợp: từng đơn vị đã nộp gì cho đầu mục này."""
+    if not session.get("uid"):
+        return jsonify({"ok": False, "error": "Chưa đăng nhập."}), 401
+
+    _ensure_task_schema()
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return jsonify({"ok": False, "error": "Không tìm thấy công việc."}), 404
+    item = TaskItem.query.filter_by(id=item_id, task_id=tid).first()
+    if not item:
+        return jsonify({"ok": False, "error": "Không tìm thấy đầu mục."}), 404
+
+    current_user = db.session.get(User, session["uid"])
+    perms = _current_perms()
+    can_manage = bool(
+        bool(session.get("is_admin"))
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+    )
+    if not can_manage:
+        return jsonify({"ok": False, "error": "Bạn không có quyền tổng hợp báo cáo."}), 403
+
+    number_fields = _outline_item_number_fields(item)
+    content = str(getattr(item, "content", "") or "")
+    assignments = _task_assignments_query(task, task_item_id=item.id).all()
+    submissions = []
+    for assignment in assignments:
+        submission = _latest_assignment_submission(assignment)
+        user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
+        values = _outline_submission_values(submission)
+        merged_text = ""
+        if item.report_kind == "number" and number_fields and submission:
+            merged_text = _outline_merged_content(content, number_fields, values).strip()
+        files = []
+        for file in (getattr(submission, "files", None) or []):
+            files.append({"name": file.original_name or file.stored_name, "id": file.id})
+        submissions.append(
+            {
+                "assignment_id": assignment.id,
+                "unit_name": _task_assignee_unit_name(user),
+                "submitter_name": getattr(user, "fullname", None) or getattr(user, "username", None) or "Cán bộ",
+                "status": _task_assignment_status_label(assignment.status),
+                "submitted_at": submission.submitted_at.strftime("%d/%m/%Y %H:%M") if submission and submission.submitted_at else "",
+                "narrative": str(getattr(submission, "narrative_content", "") or "").strip() if submission else "",
+                "merged_text": merged_text,
+                "numeric_value": ("%g" % submission.numeric_value) if submission and submission.numeric_value is not None else "",
+                "files": files,
+                "has_submission": bool(submission and (_submission_has_report_content(submission) or merged_text or files)),
+            }
+        )
+
+    return jsonify(
+        {
+            "ok": True,
+            "item": {
+                "id": item.id,
+                "item_code": getattr(item, "item_code", None) or "",
+                "title": getattr(item, "title", "") or "",
+                "report_kind": item.report_kind or "narrative",
+                "synthesis": _task_item_synthesis_text(item),
+                "synthesis_updated_at": item.synthesis_updated_at.strftime("%d/%m/%Y %H:%M") if getattr(item, "synthesis_updated_at", None) else "",
+            },
+            "submissions": submissions,
+        }
+    )
+
+@tasks_bp.route("/tasks/<int:tid>/items/<int:item_id>/synthesize", methods=["POST"])
+def save_task_item_synthesis(tid, item_id):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+    item = TaskItem.query.filter_by(id=item_id, task_id=tid).first()
+    if not item:
+        flash("Không tìm thấy đầu mục.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    current_user = db.session.get(User, session["uid"])
+    perms = _current_perms()
+    can_manage = bool(
+        bool(session.get("is_admin"))
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+    )
+    if not can_manage:
+        flash("Bạn không có quyền tổng hợp báo cáo của đầu mục này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    synthesis = (request.form.get("synthesis_content") or "").strip()
+    item.synthesis_content = synthesis or None
+    item.synthesis_updated_at = datetime.now() if synthesis else None
+    item.updated_at = datetime.now()
+    db.session.commit()
+    if synthesis:
+        flash(f"Đã lưu văn bản tổng hợp cho đầu mục {item.item_code or item.title}.", "success")
+    else:
+        flash(f"Đã xóa văn bản tổng hợp của đầu mục {item.item_code or item.title} — xuất Word sẽ gộp tự động như cũ.", "warning")
     return redirect(url_for("tasks_bp.task_detail", tid=tid) + "#pane-outline-matrix")
 
 def _return_task_assignment_v2(tid, assignment_id):

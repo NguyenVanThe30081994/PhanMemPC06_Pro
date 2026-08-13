@@ -211,6 +211,13 @@
                                                 <div class="mt-2">{{ row.table_render_html|safe }}</div>
                                                 {% endif %}
                                                     <div class="small text-muted">{{ row.submitted_count }}/{{ row.total_count }} lượt giao đã nộp</div>
+                                                    {% if can_manage_task_view %}
+                                                    <div class="mt-2">
+                                                        <button type="button" class="btn btn-sm {% if row.item.synthesis_content %}btn-success{% else %}btn-outline-primary{% endif %}" data-synthesis-open data-item-id="{{ row.item.id }}" data-item-code="{{ row.item.item_code or loop.index }}" data-item-title="{{ row.item.title }}">
+                                                            <i class="fa-solid fa-layer-group me-1"></i>Tổng hợp{% if row.item.synthesis_content %}<span class="ms-2 badge bg-white text-success">Đã lưu</span>{% endif %}
+                                                        </button>
+                                                    </div>
+                                                    {% endif %}
                                                 </td>
                                                 {% for cell in row.cells %}
                                                 <td class="text-center align-middle">
@@ -538,7 +545,12 @@
                                                 <div class="mt-2">{{ row.table_render_html|safe }}</div>
                                                 {% endif %}
                                             </div>
-                                            <div class="d-flex flex-wrap gap-2 justify-content-end">
+                                            <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
+                                                {% if can_manage_task_view %}
+                                                <button type="button" class="btn btn-sm {% if row.item.synthesis_content %}btn-success{% else %}btn-outline-primary{% endif %}" data-synthesis-open data-item-id="{{ row.item.id }}" data-item-code="{{ row.item.item_code or '' }}" data-item-title="{{ row.item.title }}">
+                                                    <i class="fa-solid fa-layer-group me-1"></i>Tổng hợp{% if row.item.synthesis_content %} ✓{% endif %}
+                                                </button>
+                                                {% endif %}
                                                 <span class="badge bg-light text-dark">{{ row.submitted_count }}/{{ row.total_count }} đã nộp</span>
                                                 <span class="badge bg-primary-subtle text-primary">{{ 'Báo cáo số' if row.item.report_kind == 'number' else 'Báo cáo lời' }}</span>
                                                 {% if row.item.attachment_required %}
@@ -2324,4 +2336,224 @@
     });
 })();
 </script>
+
+{% if can_manage_task_view %}
+<div class="modal fade" id="synthesisModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="synthesisModalTitle">Tổng hợp báo cáo</h5>
+                    <div class="small text-muted" id="synthesisModalSubtitle"></div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-4 h-100">
+                    <div class="col-lg-5 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="fw-semibold">Nội dung các đơn vị đã nộp</div>
+                            <span class="badge bg-light text-dark" id="synthesisCount"></span>
+                        </div>
+                        <div id="synthesisSubmissions" class="d-grid gap-2" style="max-height: calc(100vh - 260px); overflow:auto;"></div>
+                    </div>
+                    <div class="col-lg-7 d-flex flex-column">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <div class="fw-semibold">Văn bản tổng hợp</div>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="synthesisAutoMergeBtn"><i class="fa-solid fa-wand-magic-sparkles me-1"></i>Tự động ghép (nháp)</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="synthesisClearBtn">Xóa trắng</button>
+                            </div>
+                        </div>
+                        <textarea class="form-control flex-grow-1" id="synthesisEditor" rows="12" placeholder="Soạn văn bản tổng hợp cho đầu mục này… Bấm nút Chèn ở từng đơn vị để đưa đoạn văn của họ vào rồi chỉnh sửa, hoặc bấm Tự động ghép để lấy nháp từ tất cả các đơn vị."></textarea>
+                        <div class="small text-muted mt-2">
+                            <span id="synthesisSavedAt">Chưa lưu lần nào</span>
+                            <span class="mx-2">·</span>
+                            <span>Xuất báo cáo Word sẽ dùng văn bản này thay cho phần gộp tự động.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-outline-danger" id="synthesisDeleteBtn">Xóa tổng hợp</button>
+                <button type="button" class="btn btn-primary" id="synthesisSaveBtn"><i class="fa-solid fa-floppy-disk me-1"></i>Lưu văn bản tổng hợp</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var taskId = {{ task.id }};
+    var modalEl = document.getElementById('synthesisModal');
+    if (!modalEl) return;
+    var titleEl = document.getElementById('synthesisModalTitle');
+    var subtitleEl = document.getElementById('synthesisModalSubtitle');
+    var countEl = document.getElementById('synthesisCount');
+    var listEl = document.getElementById('synthesisSubmissions');
+    var editorEl = document.getElementById('synthesisEditor');
+    var savedAtEl = document.getElementById('synthesisSavedAt');
+    var csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    var currentItemId = null;
+    var currentSubmissions = [];
+
+    function esc(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function insertAtCursor(text) {
+        if (!text) return;
+        var start = editorEl.selectionStart == null ? editorEl.value.length : editorEl.selectionStart;
+        var end = editorEl.selectionEnd == null ? editorEl.value.length : editorEl.selectionEnd;
+        var before = editorEl.value.slice(0, start);
+        var after = editorEl.value.slice(end);
+        editorEl.value = before + text + after;
+        var cursor = start + text.length;
+        editorEl.setSelectionRange(cursor, cursor);
+        editorEl.focus();
+    }
+
+    function renderSubmissions() {
+        var hasAny = currentSubmissions.some(function (s) { return s.has_submission; });
+        if (!currentSubmissions.length) {
+            listEl.innerHTML = '<div class="alert alert-info mb-0">Đầu mục này chưa giao cho đơn vị nào.</div>';
+            return;
+        }
+        if (!hasAny) {
+            listEl.innerHTML = '<div class="alert alert-info mb-0">Chưa có đơn vị nào nộp báo cáo cho đầu mục này.</div>';
+            return;
+        }
+        var html = '';
+        currentSubmissions.forEach(function (s, index) {
+            if (!s.has_submission) return;
+            var body = s.merged_text || s.narrative || (s.numeric_value ? 'Số liệu: ' + s.numeric_value : '');
+            var filesHtml = (s.files || []).map(function (f) {
+                return '<a class="d-block small" target="_blank" href="/tasks/' + taskId + '/submission-files/' + f.id + '"><i class="fa-solid fa-paperclip me-1"></i>' + esc(f.name) + '</a>';
+            }).join('');
+            html += '<div class="border rounded-3 p-3 bg-light-subtle">' +
+                '<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">' +
+                    '<div>' +
+                        '<div class="fw-semibold small">' + esc(s.unit_name) + '</div>' +
+                        '<div class="small text-muted">' + esc(s.submitter_name) + (s.submitted_at ? ' · ' + esc(s.submitted_at) : '') + '</div>' +
+                    '</div>' +
+                    '<button type="button" class="btn btn-sm btn-outline-primary" data-insert-unit="' + index + '"><i class="fa-solid fa-plus me-1"></i>Chèn</button>' +
+                '</div>' +
+                (body ? '<div class="small bg-white border rounded-2 p-2" style="white-space: pre-wrap;">' + esc(body) + '</div>' : '<div class="small text-muted">Không có đoạn văn.</div>') +
+                (filesHtml ? '<div class="mt-2">' + filesHtml + '</div>' : '') +
+            '</div>';
+        });
+        listEl.innerHTML = html;
+        listEl.querySelectorAll('[data-insert-unit]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var sub = currentSubmissions[Number(btn.dataset.insertUnit)];
+                if (!sub) return;
+                var text = sub.merged_text || sub.narrative || (sub.numeric_value ? 'Số liệu: ' + sub.numeric_value : '');
+                var block = '— ' + sub.unit_name + ': ' + text.trim();
+                if (editorEl.value && !editorEl.value.endsWith('\n')) {
+                    block = '\n' + block;
+                }
+                insertAtCursor(block + '\n');
+            });
+        });
+    }
+
+    function openSynthesis(itemId, itemCode, itemTitle) {
+        currentItemId = itemId;
+        titleEl.textContent = 'Tổng hợp báo cáo — ' + (itemCode || '') + (itemCode ? '. ' : '') + itemTitle;
+        subtitleEl.textContent = 'Đầu mục ' + (itemCode || '') + ' · nhiều đơn vị báo cáo chung 1 nội dung → quản trị soạn văn bản tổng hợp cuối cùng.';
+        editorEl.value = '';
+        savedAtEl.textContent = 'Đang tải…';
+        countEl.textContent = '';
+        listEl.innerHTML = '<div class="text-muted small py-3">Đang tải dữ liệu…</div>';
+        fetch('/tasks/' + taskId + '/items/' + itemId + '/synthesis-data', { headers: { 'Accept': 'application/json' } })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (!data || !data.ok) {
+                    listEl.innerHTML = '<div class="alert alert-danger mb-0">' + esc((data && data.error) || 'Không tải được dữ liệu.') + '</div>';
+                    return;
+                }
+                currentSubmissions = data.submissions || [];
+                editorEl.value = data.item.synthesis || '';
+                savedAtEl.textContent = data.item.synthesis_updated_at ? ('Đã lưu lần cuối: ' + data.item.synthesis_updated_at) : 'Chưa lưu lần nào';
+                countEl.textContent = currentSubmissions.filter(function (s) { return s.has_submission; }).length + '/' + currentSubmissions.length + ' đơn vị đã nộp';
+                renderSubmissions();
+            })
+            .catch(function () {
+                listEl.innerHTML = '<div class="alert alert-danger mb-0">Không kết nối được máy chủ.</div>';
+            });
+    }
+
+    function saveSynthesis(content) {
+        var body = new URLSearchParams();
+        body.append('synthesis_content', content || '');
+        body.append('csrf_token', csrfToken);
+        return fetch('/tasks/' + taskId + '/items/' + currentItemId + '/synthesize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString()
+        }).then(function (response) {
+            if (response.redirected) {
+                window.location.href = response.url;
+                return;
+            }
+            window.location.reload();
+        });
+    }
+
+    function getModal() {
+        if (window.bootstrap && window.bootstrap.Modal) {
+            return window.bootstrap.Modal.getOrCreateInstance(modalEl);
+        }
+        return null;
+    }
+
+    document.querySelectorAll('[data-synthesis-open]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var modal = getModal();
+            if (!modal) {
+                window.alert('Bootstrap chưa sẵn sàng, hãy thử lại.');
+                return;
+            }
+            openSynthesis(btn.dataset.itemId, btn.dataset.itemCode, btn.dataset.itemTitle);
+            modal.show();
+        });
+    });
+
+    document.getElementById('synthesisAutoMergeBtn').addEventListener('click', function () {
+        var parts = [];
+        currentSubmissions.forEach(function (s) {
+            if (!s.has_submission) return;
+            var text = s.merged_text || s.narrative || (s.numeric_value ? 'Số liệu: ' + s.numeric_value : '');
+            if (!text) return;
+            parts.push('— ' + s.unit_name + ': ' + text.trim());
+        });
+        if (!parts.length) {
+            window.alert('Chưa có đơn vị nào nộp nội dung để ghép.');
+            return;
+        }
+        editorEl.value = parts.join('\n\n');
+    });
+
+    document.getElementById('synthesisClearBtn').addEventListener('click', function () {
+        editorEl.value = '';
+        editorEl.focus();
+    });
+
+    document.getElementById('synthesisDeleteBtn').addEventListener('click', function () {
+        if (!window.confirm('Xóa văn bản tổng hợp của đầu mục này? Khi đó xuất Word sẽ gộp tự động như cũ.')) return;
+        saveSynthesis('');
+    });
+
+    document.getElementById('synthesisSaveBtn').addEventListener('click', function () {
+        if (!editorEl.value.trim()) {
+            window.alert('Chưa có nội dung để lưu. Nếu muốn xóa tổng hợp, dùng nút "Xóa tổng hợp".');
+            return;
+        }
+        saveSynthesis(editorEl.value);
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}
