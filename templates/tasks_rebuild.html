@@ -771,6 +771,27 @@
         overflow-wrap: break-word;
         position: relative;
     }
+
+    /* Modal wizard toàn màn hình: <form> bọc header/body/footer phá vỡ flex của Bootstrap ->
+       sửa lại để body cuộn trong, footer (nút Quay lại / Tiếp tục) luôn hiển thị */
+    #createTaskModal .modal-content {
+        overflow: hidden !important; /* override overflow: visible !important của style.css */
+    }
+    #createTaskModal form#createTaskForm {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+    }
+    #createTaskModal .modal-header,
+    #createTaskModal .modal-footer {
+        flex-shrink: 0;
+    }
+    #createTaskModal .modal-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+    }
     .wizard-outline-table .wz-col-resizer {
         position: absolute;
         top: 0;
@@ -796,14 +817,6 @@
     .wizard-outline-table .wz-col-lead {
         width: 200px;
         min-width: 170px;
-    }
-    .wizard-outline-table .wz-lead-units {
-        font-size: 0.82rem;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        overflow-wrap: break-word;
-        min-height: 24px;
-        line-height: 1.35;
     }
     .wizard-outline-table .wz-col-other {
         width: 140px;
@@ -2406,7 +2419,7 @@
                         if (cellsInput) cellsInput.value = JSON.stringify(card._wzTableCells);
                     }
                     return `<td class="p-1 wz-col-lead">
-                        <div class="wz-lead-units ${names.length ? '' : 'text-muted'}">${escapeHtml(display || 'Chưa gán')}</div>
+                        <textarea class="form-control form-control-sm wizard-table-cell-ta" data-wz-table-cell data-col="${col.index}" rows="1" title="Tất cả đơn vị được gán">${escapeHtml(display || value)}</textarea>
                     </td>`;
                 }
                 return `<td class="p-1 wz-col-other"><textarea class="form-control form-control-sm wizard-table-cell-ta" data-wz-table-cell data-col="${col.index}" rows="1">${escapeHtml(value)}</textarea></td>`;
@@ -2540,6 +2553,8 @@
                     document.removeEventListener('mouseup', onUp);
                     document.body.style.cursor = '';
                     document.body.style.userSelect = '';
+                    // Cột đổi độ rộng -> tính lại chiều cao các ô text cho khớp nội dung mới
+                    scheduleGrowWizardTableTextareas(container);
                 };
                 document.addEventListener('mousemove', onMove);
                 document.addEventListener('mouseup', onUp);
