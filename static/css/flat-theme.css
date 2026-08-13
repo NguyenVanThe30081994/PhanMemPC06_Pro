@@ -145,6 +145,13 @@ body {
 }
 
 /* Sidebar: flat, full-height, no floating card, no heavy shadow */
+.desktop-sidebar {
+    width: var(--desktop-sidebar-width, 272px) !important;
+    min-width: var(--desktop-sidebar-width, 272px) !important;
+    max-width: var(--desktop-sidebar-width, 272px) !important;
+    flex-shrink: 0 !important;
+}
+
 .desktop-sidebar-inner {
     background: var(--bg-sidebar) !important;
     border: none !important;
@@ -153,6 +160,33 @@ body {
     box-shadow: none !important;
     gap: 8px;
     padding: 16px 12px 12px;
+    width: 100% !important;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+}
+
+/* Submenu must never change sidebar width: clip + wrap inside */
+.desktop-nav-children,
+.desktop-nav-grandchildren {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    overflow-x: hidden;
+    padding-left: 10px;
+}
+
+.desktop-nav-group {
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+
+.desktop-subnav-link {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .desktop-brand {
@@ -171,6 +205,7 @@ body {
     border-radius: 10px;
     padding: 9px 10px;
     font-weight: 600;
+    min-width: 0;
     transition: background-color 0.12s ease-out, color 0.12s ease-out;
 }
 

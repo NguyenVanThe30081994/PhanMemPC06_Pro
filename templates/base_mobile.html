@@ -469,6 +469,7 @@
     {% block head %}{% endblock %}
     {% block extra_head %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-responsive.css') }}?v=20260428">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/flat-theme.css') }}?v=1.0.0">
 </head>
 <body>
     {% if request.endpoint != 'auth_bp.login' %}
