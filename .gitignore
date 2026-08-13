@@ -3,6 +3,16 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# macOS
+.DS_Store
+
+# Backup / scratch
+*.bak
+*.bak2
+*.bak3
+*.orig
+*.rej
+
 # Environments
 .env
 .secret_key
@@ -24,6 +34,7 @@ tmp_metadata_debug.json
 .tmp.drivedownload/
 .tmp.driveupload/
 tmp/
+logs/
 
 # Static uploads (Ignore users' uploaded files, keep folder structure via .gitkeep)
 uploads/*
