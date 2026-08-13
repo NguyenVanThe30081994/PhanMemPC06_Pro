@@ -4,29 +4,29 @@
 
 {% block head %}
 <style>
-    .mobile-contact-hero { background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff; padding: 20px; border-radius: 24px; margin-bottom: 16px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); }
+    .mobile-contact-hero { background: #0f172a; color: #fff; padding: 20px; border-radius: 20px; margin-bottom: 16px; }
     .mobile-contact-hero h1 { margin: 10px 0 8px; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; }
     .mobile-contact-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.9rem; }
-    .mobile-contact-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
+    .mobile-contact-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
     .mobile-contact-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
-    .mobile-contact-search, .mobile-contact-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); }
+    .mobile-contact-search, .mobile-contact-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05); }
     .mobile-contact-search { padding: 16px; margin-bottom: 16px; }
-    .mobile-search-input { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px; background: var(--bg-body); border: 1px solid var(--border); margin-bottom: 12px; }
+    .mobile-search-input { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; background: var(--bg-body); border: 1px solid var(--border); margin-bottom: 12px; }
     .mobile-search-input input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--text-main); }
     .mobile-chip-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
     .mobile-chip-row::-webkit-scrollbar { display: none; }
-    .mobile-chip { padding: 10px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-body); color: var(--text-muted); font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
-    .mobile-chip.active { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; border-color: transparent; }
+    .mobile-chip { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-body); color: var(--text-muted); font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
+    .mobile-chip.active { background: #2563eb; color: #fff; border-color: transparent; }
     .mobile-contact-list { display: grid; gap: 14px; }
     .mobile-contact-card { padding: 16px; }
     .mobile-contact-head { display: flex; gap: 12px; align-items: center; }
-    .mobile-contact-avatar { width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #3b82f6); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; }
+    .mobile-contact-avatar { width: 46px; height: 46px; border-radius: 50%; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; }
     .mobile-contact-copy { min-width: 0; flex: 1; }
     .mobile-contact-copy h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-main); }
     .mobile-contact-copy p { margin: 5px 0 0; color: var(--text-muted); font-size: 0.82rem; }
     .mobile-contact-phone { display: inline-block; margin-top: 10px; color: #1d4ed8; font-weight: 800; text-decoration: none; }
     .mobile-contact-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--border); }
-    .mobile-contact-fab { position: fixed; bottom: 88px; right: 18px; width: 58px; height: 58px; border-radius: 18px; border: 0; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; box-shadow: 0 18px 30px rgba(37, 99, 235, 0.3); }
+    .mobile-contact-fab { position: fixed; bottom: 88px; right: 18px; width: 58px; height: 58px; border-radius: 14px; border: 0; background: #2563eb; color: #fff; }
 </style>
 {% endblock %}
 

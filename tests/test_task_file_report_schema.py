@@ -11,7 +11,6 @@ from models import (
     TaskAssignment,
     TaskComment,
     TaskParticipant,
-    TaskReportLink,
     TaskSubmission,
     User,
     db,
@@ -28,10 +27,12 @@ class TaskFileReportSchemaRouteTests(unittest.TestCase):
     def tearDown(self):
         with app.app_context():
             if self.task_id:
+                TaskAssignment.query.filter_by(task_id=self.task_id).update(
+                    {TaskAssignment.last_submission_id: None}, synchronize_session=False
+                )
                 TaskSubmission.query.filter_by(task_id=self.task_id).delete()
                 TaskComment.query.filter_by(task_id=self.task_id).delete()
                 TaskParticipant.query.filter_by(task_id=self.task_id).delete()
-                TaskReportLink.query.filter_by(task_id=self.task_id).delete()
                 TaskAssignment.query.filter_by(task_id=self.task_id).delete()
                 Task.query.filter_by(id=self.task_id).delete()
             for assignee_id in self.assignee_ids:

@@ -17,10 +17,7 @@ body.portal-dashboard {
     min-height: 100vh;
     color: #e2e8f0;
     font-family: 'Be Vietnam Pro', sans-serif;
-    background:
-        radial-gradient(circle at top left, rgba(56, 189, 248, 0.26), transparent 30%),
-        radial-gradient(circle at top right, rgba(14, 165, 233, 0.24), transparent 32%),
-        linear-gradient(135deg, var(--portal-bg-start) 0%, var(--portal-bg-mid) 48%, var(--portal-bg-end) 100%);
+    background: #0f172a;
 }
 
 .portal-shell {
@@ -35,11 +32,10 @@ body.portal-dashboard {
     align-items: center;
     gap: 18px;
     padding: 18px 22px;
-    border-radius: 28px;
-    background: rgba(15, 23, 42, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(18px);
-    box-shadow: 0 20px 40px rgba(2, 6, 23, 0.18);
+    border-radius: 20px;
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 16px rgba(2, 6, 23, 0.25);
     margin-bottom: 28px;
 }
 
@@ -52,14 +48,13 @@ body.portal-dashboard {
 .portal-brand-icon {
     width: 58px;
     height: 58px;
-    border-radius: 18px;
+    border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.5rem;
     color: #fff;
-    background: linear-gradient(135deg, #22c55e 0%, #0ea5e9 100%);
-    box-shadow: 0 14px 28px rgba(14, 165, 233, 0.28);
+    background: #0ea5e9;
 }
 
 .portal-brand h1 {
@@ -136,16 +131,16 @@ body.portal-dashboard {
     padding: 28px;
     text-decoration: none;
     color: var(--portal-text-main);
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 30px;
+    background: rgba(255, 255, 255, 0.97);
+    border-radius: 18px;
     border: 1px solid var(--portal-border-soft);
-    box-shadow: var(--portal-card-shadow);
-    transition: transform 0.22s ease, box-shadow 0.22s ease;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    transition: box-shadow 0.15s ease-out, border-color 0.15s ease-out;
 }
 
 .portal-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 30px 70px rgba(15, 23, 42, 0.18);
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
+    border-color: rgba(0, 102, 255, 0.3);
     color: var(--portal-text-main);
 }
 
@@ -169,13 +164,13 @@ body.portal-dashboard {
     box-shadow: 0 16px 30px rgba(15, 23, 42, 0.16);
 }
 
-.portal-card.bdhv .portal-card-icon { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
-.portal-card.ai .portal-card-icon { background: linear-gradient(135deg, #0f766e, #10b981); }
-.portal-card.citizen-assistant .portal-card-icon { background: linear-gradient(135deg, #d97706, #0f766e); }
-.portal-card.assistant-content .portal-card-icon { background: linear-gradient(135deg, #d97706, #0f766e); }
-.portal-card.phan-anh .portal-card-icon { background: linear-gradient(135deg, #0891b2, #06b6d4); }
-.portal-card.life-map .portal-card-icon { background: linear-gradient(135deg, #0f766e, #14b8a6); }
-.portal-card.agri .portal-card-icon { background: linear-gradient(135deg, #b45309, #65a30d); }
+.portal-card.bdhv .portal-card-icon { background: #2563eb; }
+.portal-card.ai .portal-card-icon { background: #0f766e; }
+.portal-card.citizen-assistant .portal-card-icon { background: #d97706; }
+.portal-card.assistant-content .portal-card-icon { background: #d97706; }
+.portal-card.phan-anh .portal-card-icon { background: #0891b2; }
+.portal-card.life-map .portal-card-icon { background: #0f766e; }
+.portal-card.agri .portal-card-icon { background: #65a30d; }
 
 .portal-card-title {
     margin: 0 0 10px;

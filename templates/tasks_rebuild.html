@@ -180,6 +180,73 @@
 </div>
 
 <style>
+    .wizard-outline-group {
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 12px;
+        background: #fff;
+        overflow: hidden;
+    }
+
+    .wizard-outline-group-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        background: #f6f8fa;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+    }
+
+    .wizard-outline-group-marker {
+        flex: 0 0 28px;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #2563eb;
+        color: #fff;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 13px;
+        margin-top: 2px;
+    }
+
+    .wizard-outline-group-titles {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .wizard-outline-group-breadcrumb {
+        font-size: 13px;
+        font-weight: 700;
+        color: #1f2937;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        line-height: 1.4;
+    }
+
+    .wizard-outline-group-title {
+        font-weight: 700;
+        font-size: 14px;
+        color: #1f2937;
+        line-height: 1.45;
+    }
+
+    .wizard-outline-group-body {
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .wizard-outline-row-child {
+        margin-left: 42px;
+        border-left: 3px solid rgba(37, 99, 235, 0.25) !important;
+        background: rgba(248, 250, 252, 0.85) !important;
+    }
+
     .task-workspace-shell {
         display: grid;
         gap: 24px;
@@ -652,6 +719,132 @@
         white-space: normal;
     }
 
+    .wizard-outline-row-main {
+        min-width: 0;
+    }
+
+    .wizard-outline-row-main textarea.wizard-row-textarea {
+        flex: 1 1 auto;
+        min-width: 0;
+        width: auto;
+        resize: none;
+        overflow: hidden;
+    }
+
+    .wizard-outline-row-actions {
+        min-width: 0;
+    }
+
+    /* Ô chọn file đề cương gọn, không chiếm cả hàng */
+    .outline-file-input {
+        max-width: 240px;
+    }
+    .outline-file-input::file-selector-button {
+        padding: 0.15rem 0.6rem;
+    }
+    .outline-skeleton-input {
+        min-height: 54px;
+        resize: vertical;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .table-cells-strip .tcell {
+        font-size: 0.8rem;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 2px 8px;
+        max-width: 100%;
+    }
+
+    .wizard-outline-table {
+        table-layout: fixed;
+        width: 100%;
+    }
+    .wizard-outline-table th {
+        background: #f1f5f9;
+        font-size: 0.85rem;
+        vertical-align: middle;
+        white-space: normal;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        position: relative;
+    }
+
+    /* Modal wizard toàn màn hình: <form> bọc header/body/footer phá vỡ flex của Bootstrap ->
+       sửa lại để body cuộn trong, footer (nút Quay lại / Tiếp tục) luôn hiển thị */
+    #createTaskModal .modal-content {
+        overflow: hidden !important; /* override overflow: visible !important của style.css */
+    }
+    #createTaskModal form#createTaskForm {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+    }
+    #createTaskModal .modal-header,
+    #createTaskModal .modal-footer {
+        flex-shrink: 0;
+    }
+    #createTaskModal .modal-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+    }
+    .wizard-outline-table .wz-col-resizer {
+        position: absolute;
+        top: 0;
+        right: -3px;
+        width: 7px;
+        height: 100%;
+        cursor: col-resize;
+        z-index: 3;
+        user-select: none;
+        touch-action: none;
+    }
+    .wizard-outline-table td {
+        vertical-align: middle;
+        white-space: normal;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+    /* Cân đối: nội dung chiếm phần còn lại (vừa phải), các cột khác đủ rộng để hiện tiêu đề */
+    .wizard-outline-table .wz-col-content {
+        width: auto;
+        min-width: 300px;
+    }
+    .wizard-outline-table .wz-col-lead {
+        width: 200px;
+        min-width: 170px;
+    }
+    .wizard-outline-table .wz-col-other {
+        width: 140px;
+        min-width: 120px;
+    }
+    .wizard-outline-table .wz-col-report {
+        width: 130px;
+        min-width: 110px;
+    }
+    .wizard-outline-table .wz-col-assign {
+        width: 150px;
+        min-width: 130px;
+    }
+    .wizard-outline-table .btn-icon-eq {
+        flex: 1 1 0;
+        padding: 0.25rem 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .wizard-table-cell-ta {
+        width: 100%;
+        resize: none;
+        overflow: hidden;
+        font-size: 0.85rem;
+        white-space: pre-wrap;
+    }
+
     .wizard-outline-row .badge {
         max-width: 100%;
         white-space: normal;
@@ -758,6 +951,153 @@
         color: #93c5fd;
     }
 
+    /* ---------- Wizard steps (flat stepper) ---------- */
+    .wizard-steps {
+        display: flex;
+        align-items: center;
+        gap: 0;
+    }
+
+    .wizard-step {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .wizard-step-dot {
+        flex: 0 0 auto;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #eef2f7;
+        border: 2px solid #e2e8f0;
+        color: #94a3b8;
+        font-weight: 700;
+        font-size: 0.85rem;
+        transition: background-color 0.15s ease-out, border-color 0.15s ease-out, color 0.15s ease-out;
+    }
+
+    .wizard-step-text {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.25;
+        min-width: 0;
+    }
+
+    .wizard-step-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #64748b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        transition: color 0.15s ease-out;
+    }
+
+    .wizard-step-sub {
+        font-size: 0.72rem;
+        color: #94a3b8;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .wizard-step.is-active .wizard-step-dot {
+        background: #0066FF;
+        border-color: #0066FF;
+        color: #fff;
+    }
+
+    .wizard-step.is-active .wizard-step-title {
+        color: #0f172a;
+        font-weight: 700;
+    }
+
+    .wizard-step.is-completed .wizard-step-dot {
+        background: #0066FF;
+        border-color: #0066FF;
+        color: #fff;
+    }
+
+    .wizard-step.is-completed .wizard-step-dot::after {
+        content: "\2713";
+        font-size: 0.85rem;
+        font-weight: 800;
+    }
+
+    .wizard-step.is-completed .wizard-step-num {
+        display: none;
+    }
+
+    .wizard-step.is-completed .wizard-step-title {
+        color: #334155;
+    }
+
+    .wizard-step-line {
+        flex: 1 1 20px;
+        min-width: 14px;
+        height: 2px;
+        border-radius: 2px;
+        background: #e2e8f0;
+        margin: 0 6px;
+        transition: background-color 0.15s ease-out;
+    }
+
+    .wizard-step-line.is-completed {
+        background: #0066FF;
+    }
+
+    [data-theme="dark"] .wizard-step-dot {
+        background: rgba(51, 65, 85, 0.5);
+        border-color: rgba(148, 163, 184, 0.25);
+        color: #94a3b8;
+    }
+
+    [data-theme="dark"] .wizard-step.is-active .wizard-step-dot,
+    [data-theme="dark"] .wizard-step.is-completed .wizard-step-dot {
+        background: #3b82f6;
+        border-color: #3b82f6;
+        color: #fff;
+    }
+
+    [data-theme="dark"] .wizard-step.is-active .wizard-step-title {
+        color: #f1f5f9;
+    }
+
+    [data-theme="dark"] .wizard-step.is-completed .wizard-step-title {
+        color: #cbd5e1;
+    }
+
+    [data-theme="dark"] .wizard-step-line {
+        background: rgba(148, 163, 184, 0.25);
+    }
+
+    [data-theme="dark"] .wizard-step-line.is-completed {
+        background: #3b82f6;
+    }
+
+    @media (max-width: 767.98px) {
+        .wizard-step-sub {
+            display: none;
+        }
+
+        .wizard-step-dot {
+            width: 28px;
+            height: 28px;
+            font-size: 0.78rem;
+        }
+
+        .wizard-step-line {
+            min-width: 8px;
+            margin: 0 4px;
+        }
+    }
+
     [data-theme="dark"] .btn-icon-corner.btn-danger:hover i {
         color: #f87171;
     }
@@ -838,8 +1178,7 @@
 </style>
 
 {% if is_lead or is_admin %}
-<div class="modal fade" id="createTaskModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+<div class="modal fade" id="createTaskModal" tabindex="-1" aria-hidden="true">            <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
         <div class="modal-content">
             <form method="POST" enctype="multipart/form-data" id="createTaskForm">
                 <div class="modal-header d-block">
@@ -847,22 +1186,37 @@
                         <h5 class="modal-title mb-0">Tạo công việc mới</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="d-flex flex-wrap gap-2 mt-3" id="wizardSteps">
-                        <div class="flex-fill text-center border rounded-3 px-2 py-2" data-wizard-step-label="1">
-                            <div class="fw-semibold small">1. Loại công việc</div>
-                            <div class="small text-muted">Chọn cách thu thập kết quả</div>
+                    <div class="wizard-steps mt-3" id="wizardSteps">
+                        <div class="wizard-step is-active" data-wizard-step-label="1">
+                            <span class="wizard-step-dot"><span class="wizard-step-num">1</span></span>
+                            <div class="wizard-step-text">
+                                <span class="wizard-step-title">Loại công việc</span>
+                                <span class="wizard-step-sub">Chọn cách thu thập kết quả</span>
+                            </div>
                         </div>
-                        <div class="flex-fill text-center border rounded-3 px-2 py-2" data-wizard-step-label="2">
-                            <div class="fw-semibold small">2. Tải nguồn</div>
-                            <div class="small text-muted">Đề cương / biểu mẫu / file</div>
+                        <span class="wizard-step-line" data-wizard-step-line="2"></span>
+                        <div class="wizard-step" data-wizard-step-label="2">
+                            <span class="wizard-step-dot"><span class="wizard-step-num">2</span></span>
+                            <div class="wizard-step-text">
+                                <span class="wizard-step-title">Tải nguồn</span>
+                                <span class="wizard-step-sub">Đề cương / biểu mẫu / file</span>
+                            </div>
                         </div>
-                        <div class="flex-fill text-center border rounded-3 px-2 py-2" data-wizard-step-label="3">
-                            <div class="fw-semibold small">3. Cấu hình</div>
-                            <div class="small text-muted">Việc nhỏ, trường, người nhận</div>
+                        <span class="wizard-step-line" data-wizard-step-line="3"></span>
+                        <div class="wizard-step" data-wizard-step-label="3">
+                            <span class="wizard-step-dot"><span class="wizard-step-num">3</span></span>
+                            <div class="wizard-step-text">
+                                <span class="wizard-step-title">Cấu hình</span>
+                                <span class="wizard-step-sub">Mục, trường, người nhận</span>
+                            </div>
                         </div>
-                        <div class="flex-fill text-center border rounded-3 px-2 py-2" data-wizard-step-label="4">
-                            <div class="fw-semibold small">4. Phát hành</div>
-                            <div class="small text-muted">Thông tin chung &amp; xuất việc</div>
+                        <span class="wizard-step-line" data-wizard-step-line="4"></span>
+                        <div class="wizard-step" data-wizard-step-label="4">
+                            <span class="wizard-step-dot"><span class="wizard-step-num">4</span></span>
+                            <div class="wizard-step-text">
+                                <span class="wizard-step-title">Phát hành</span>
+                                <span class="wizard-step-sub">Thông tin chung &amp; xuất việc</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -882,7 +1236,7 @@
                                 <button type="button" class="card w-100 h-100 text-start p-3 border-2 task-type-card is-selected" data-task-type="OUTLINE">
                                     <div class="fs-3">📋</div>
                                     <div class="fw-bold mt-2">Theo đề cương</div>
-                                    <div class="small text-muted mt-1">Tải đề cương Word → hệ thống tách danh sách việc nhỏ → quản trị gán từng việc cho đơn vị / vai trò / cán bộ.</div>
+                                    <div class="small text-muted mt-1">Tải đề cương Word → hệ thống gom nội dung theo từng mục → quản trị gán mục đó cho đơn vị và chọn hình thức báo cáo.</div>
                                 </button>
                             </div>
                             <div class="col-lg-4">
@@ -906,12 +1260,16 @@
                         <div data-wizard-source="OUTLINE" class="d-none">
                             <div class="border rounded-3 p-3 bg-light-subtle">
                                 <div class="fw-bold mb-1">Tải đề cương</div>
-                                <p class="small text-muted mb-3">Chọn file .docx / .txt. Hệ thống tách từng dòng thành việc nhỏ; nếu đề cương ghi rõ "giao cho ai" (vd: Đơn vị thực hiện: Đội A) thì điền sẵn gợi ý người nhận để quản trị kiểm tra lại ở bước 3.</p>
-                                <div class="d-flex flex-wrap gap-2 align-items-center">
-                                    <input class="form-control" type="file" id="wizardOutlineFile" accept=".docx,.txt" style="max-width: 420px;">
-                                    <button class="btn btn-primary" type="button" id="wizardOutlineParseBtn">Phân tích đề cương</button>
+                                <p class="small text-muted mb-3">Chọn file chính + các file phụ (.docx / .txt / .pdf). Nội dung trùng nhau giữa các file sẽ được gộp thành 1 đầu mục và đánh dấu "Báo cáo phụ" — đơn vị chỉ báo cáo 1 lần, hệ thống tự điền vào tất cả các file. Có thể bỏ tích để tách riêng.</p>
+                                <div class="d-flex flex-wrap gap-2 align-items-center mb-2" id="wizardOutlineFileList">
+                                    <div class="d-flex gap-2 align-items-center" data-wz-outline-file-row>
+                                        <span class="small fw-semibold text-muted" style="min-width: 80px;">File chính</span>
+                                        <input class="form-control form-control-sm outline-file-input" type="file" accept=".docx,.txt,.pdf" data-wz-outline-file>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" id="wizardAddOutlineFileBtn">+ Thêm file phụ</button>
+                                    <button class="btn btn-sm btn-primary" type="button" id="wizardOutlineParseBtn">Phân tích đề cương</button>
                                 </div>
-                                <div class="small mt-2" id="wizardOutlineStatus">Chưa phân tích. Nếu không tải file, bấm Tiếp tục để nhập tay từng việc nhỏ.</div>
+                                <div class="small mt-2" id="wizardOutlineStatus">Chưa phân tích. Nếu không tải file, bấm Tiếp tục để nhập tay từng mục.</div>
                             </div>
                         </div>
                         <div data-wizard-source="FILE" class="d-none">
@@ -968,58 +1326,47 @@
                     <div data-wizard-pane="3" class="d-none">
                         <div data-wizard-config="OUTLINE" class="d-none">
                             <div class="border rounded-3 p-3 bg-light-subtle">
-                                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
-                                    <div>
-                                        <div class="fw-bold">Danh sách việc nhỏ</div>
-                                        <div class="small text-muted">Gán từng việc cho ai do quản trị quyết định. Kết quả phân tích từ đề cương chỉ là gợi ý, có thể sửa.</div>
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="fw-bold">Danh sách nội dung</div>
+                                        <button class="btn btn-outline-primary btn-sm" type="button" id="wizardAddOutlineRowBtn">+ Thêm nội dung</button>
                                     </div>
-                                    <button class="btn btn-outline-primary btn-sm" type="button" id="wizardAddOutlineRowBtn">+ Thêm việc nhỏ</button>
+                                    <div id="wizardOutlineTableBar" class="d-none"></div>
                                 </div>
+                                <div id="wizardOutlineTableView" class="d-none mb-2"></div>
                                 <div id="wizardOutlineRows" class="d-grid gap-2"></div>
                                 <div class="border rounded-3 p-3 mt-3 bg-white">
                                     <div class="fw-semibold mb-2">Gán hàng loạt cho dòng đã tích</div>
-                                    <div class="row g-2 align-items-start">
-                                        <div class="col-lg-3">
-                                            <select class="form-select form-select-sm" id="wizardAssignType">
-                                                <option value="unit">Theo đơn vị</option>
-                                                <option value="role">Theo vai trò</option>
-                                                <option value="user">Theo cá nhân</option>
-                                            </select>
-                                        </div>
+                                    <div class="row g-2 align-items-end">
                                         <div class="col-lg-7">
+                                            <label class="form-label small fw-semibold mb-1">Gán theo đơn vị</label>
                                             <div data-wizard-assign="unit">
-                                                <div class="border rounded-2 p-2" style="max-height: 150px; overflow:auto;">
-                                                    {% for item in pro_units %}
-                                                    <label class="d-flex align-items-center gap-2 small py-1">
-                                                        <input type="checkbox" data-wizard-unit-checkbox value="{{ item.value }}" data-label="{{ item.name }}">
-                                                        <span>{{ item.name }}</span>
-                                                    </label>
-                                                    {% endfor %}
-                                                </div>
-                                            </div>
-                                            <div class="d-none" data-wizard-assign="role">
-                                                <div class="border rounded-2 p-2" style="max-height: 150px; overflow:auto;">
-                                                    {% for role in roles %}
-                                                    <label class="d-flex align-items-center gap-2 small py-1">
-                                                        <input type="checkbox" data-wizard-role-checkbox value="{{ role.id }}" data-label="{{ role.name }}">
-                                                        <span>{{ role.name }}</span>
-                                                    </label>
-                                                    {% endfor %}
-                                                </div>
-                                            </div>
-                                            <div class="d-none" data-wizard-assign="user">
-                                                <div class="border rounded-2 p-2" style="max-height: 150px; overflow:auto;">
-                                                    {% for user in users %}
-                                                    <label class="d-flex align-items-start gap-2 small py-1">
-                                                        <input type="checkbox" data-wizard-user-checkbox value="{{ user.id }}" data-label="{{ user.fullname }}">
-                                                        <span>{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</span>
-                                                    </label>
-                                                    {% endfor %}
+                                                <div class="dropdown">
+                                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="wizardBulkUnitDropdown">
+                                                        <i class="fa-solid fa-building me-1"></i>
+                                                        <span data-wizard-unit-dropdown-label>Chọn đơn vị…</span>
+                                                    </button>
+                                                    <div class="dropdown-menu p-2" style="max-height: 300px; overflow:auto; min-width: 340px;">
+                                                        <div class="d-flex justify-content-between align-items-center px-2 py-1">
+                                                            <label class="small d-flex align-items-center gap-2 mb-0">
+                                                                <input type="checkbox" data-wizard-unit-check-all class="form-check-input">
+                                                                <span>Tích tất cả</span>
+                                                            </label>
+                                                            <button type="button" class="btn btn-link btn-sm p-0 text-danger" data-wizard-unit-clear>Bỏ hết</button>
+                                                        </div>
+                                                        <hr class="my-1">
+                                                        {% for item in pro_units %}
+                                                        <label class="dropdown-item d-flex align-items-center gap-2 small py-1">
+                                                            <input type="checkbox" data-wizard-unit-checkbox value="{{ item.value }}" data-label="{{ item.name }}" class="form-check-input">
+                                                            <span>{{ item.name }}</span>
+                                                        </label>
+                                                        {% endfor %}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-lg-2 d-flex flex-column gap-1">
-                                            <button class="btn btn-sm btn-outline-secondary" type="button" id="wizardSelectAllRowsBtn">Tích tất cả</button>
+                                        <div class="col-lg-5 d-flex gap-2 align-items-center">
+                                            <button class="btn btn-sm btn-outline-secondary" type="button" id="wizardSelectAllRowsBtn">Tích tất cả dòng</button>
                                             <button class="btn btn-sm btn-outline-primary" type="button" id="wizardApplyAssignBtn">Gán cho dòng tích</button>
                                         </div>
                                     </div>
@@ -1114,8 +1461,57 @@
                                 <input class="form-control" type="text" name="title" id="wizardTitle" required placeholder="Ví dụ: Tổng hợp báo cáo tuần ...">
                             </div>
                             <div class="col-lg-4">
-                                <label class="form-label fw-bold">Hạn xử lý</label>
-                                <input class="form-control" type="date" name="deadline">
+                                <label class="form-label fw-bold">Hạn nộp / chu kỳ báo cáo</label>
+                                <select class="form-select mb-2" name="report_period_kind">
+                                    <option value="one_time">Báo cáo đột xuất / một lần</option>
+                                    <option value="periodic">Báo cáo định kỳ</option>
+                                    <option value="milestone">Báo cáo theo mốc / giai đoạn</option>
+                                    <option value="ongoing">Công việc thường xuyên (duy trì)</option>
+                                </select>
+                                <div data-report-deadline-panel>
+                                    <input class="form-control" type="date" name="deadline">
+                                    <div class="form-text">Hạn nộp báo cáo đột xuất / một lần.</div>
+                                </div>
+                                <div class="d-none" data-report-period-panel>
+                                    <select class="form-select form-select-sm mb-2" name="report_period">
+                                        <option value="week">Hàng tuần</option>
+                                        <option value="month" selected>Hàng tháng</option>
+                                        <option value="quarter">Hàng quý</option>
+                                        <option value="year">Hàng năm</option>
+                                    </select>
+                                    <div class="d-flex gap-2 mb-2" data-report-week-anchor>
+                                        <span class="small text-muted align-self-center text-nowrap">Hạn nộp</span>
+                                        <select class="form-select form-select-sm" name="report_weekday">
+                                            <option value="0">Thứ 2</option>
+                                            <option value="1">Thứ 3</option>
+                                            <option value="2">Thứ 4</option>
+                                            <option value="3">Thứ 5</option>
+                                            <option value="4" selected>Thứ 6</option>
+                                            <option value="5">Thứ 7</option>
+                                            <option value="6">Chủ nhật</option>
+                                        </select>
+                                    </div>
+                                    <div class="d-flex gap-2 mb-2" data-report-day-anchor>
+                                        <span class="small text-muted align-self-center text-nowrap">Hạn nộp</span>
+                                        <input class="form-control form-control-sm" type="number" name="report_day_of_month" min="1" max="28" value="5" title="Ngày hạn nộp trong kỳ">
+                                        <select class="form-select form-select-sm d-none" name="report_month_of_year">
+                                            {% for m in range(1, 13) %}
+                                            <option value="{{ m }}" {% if m == 12 %}selected{% endif %}>Tháng {{ m }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <span class="small text-muted align-self-center text-nowrap d-none" data-report-day-suffix>hàng kỳ</span>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <input class="form-control form-control-sm" type="date" name="report_start_date" title="Bắt đầu áp dụng (tùy chọn)">
+                                        <input class="form-control form-control-sm" type="date" name="report_end_date" title="Kết thúc (tùy chọn)">
+                                    </div>
+                                    <div class="form-text">Báo cáo lặp lại theo kỳ; hạn nộp từng kỳ tự tính.</div>
+                                </div>
+                                <div class="d-none" data-report-milestone-panel>
+                                    <textarea class="form-control form-control-sm" name="report_milestones" rows="2" placeholder="Mỗi dòng một ngày (vd: 30/08/2026)&#10;15/09/2026&#10;31/12/2026"></textarea>
+                                    <div class="form-text">Mỗi mốc thời gian là một lần báo cáo.</div>
+                                </div>
+                                <div class="d-none text-muted small" data-report-ongoing-panel>Không đặt hạn — theo dõi liên tục.</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">Lĩnh vực</label>
@@ -1245,8 +1641,57 @@
                             <input class="form-control" type="text" name="title" placeholder="Ví dụ: Tổng hợp báo cáo tuần ...">
                         </div>
                         <div class="col-lg-4">
-                            <label class="form-label fw-bold">Hạn xử lý</label>
-                            <input class="form-control" type="date" name="deadline">
+                            <label class="form-label fw-bold">Hạn nộp / chu kỳ báo cáo</label>
+                            <select class="form-select mb-2" name="report_period_kind">
+                                <option value="one_time">Báo cáo đột xuất / một lần</option>
+                                <option value="periodic">Báo cáo định kỳ</option>
+                                <option value="milestone">Báo cáo theo mốc / giai đoạn</option>
+                                <option value="ongoing">Công việc thường xuyên (duy trì)</option>
+                            </select>
+                            <div data-report-deadline-panel>
+                                <input class="form-control" type="date" name="deadline">
+                                <div class="form-text">Hạn nộp báo cáo đột xuất / một lần.</div>
+                            </div>
+                            <div class="d-none" data-report-period-panel>
+                                <select class="form-select form-select-sm mb-2" name="report_period">
+                                    <option value="week">Hàng tuần</option>
+                                    <option value="month" selected>Hàng tháng</option>
+                                    <option value="quarter">Hàng quý</option>
+                                    <option value="year">Hàng năm</option>
+                                </select>
+                                <div class="d-flex gap-2 mb-2" data-report-week-anchor>
+                                    <span class="small text-muted align-self-center text-nowrap">Hạn nộp</span>
+                                    <select class="form-select form-select-sm" name="report_weekday">
+                                        <option value="0">Thứ 2</option>
+                                        <option value="1">Thứ 3</option>
+                                        <option value="2">Thứ 4</option>
+                                        <option value="3">Thứ 5</option>
+                                        <option value="4" selected>Thứ 6</option>
+                                        <option value="5">Thứ 7</option>
+                                        <option value="6">Chủ nhật</option>
+                                    </select>
+                                </div>
+                                <div class="d-flex gap-2 mb-2" data-report-day-anchor>
+                                    <span class="small text-muted align-self-center text-nowrap">Hạn nộp</span>
+                                    <input class="form-control form-control-sm" type="number" name="report_day_of_month" min="1" max="28" value="5" title="Ngày hạn nộp trong kỳ">
+                                    <select class="form-select form-select-sm d-none" name="report_month_of_year">
+                                        {% for m in range(1, 13) %}
+                                        <option value="{{ m }}" {% if m == 12 %}selected{% endif %}>Tháng {{ m }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <span class="small text-muted align-self-center text-nowrap d-none" data-report-day-suffix>hàng kỳ</span>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <input class="form-control form-control-sm" type="date" name="report_start_date" title="Bắt đầu áp dụng (tùy chọn)">
+                                    <input class="form-control form-control-sm" type="date" name="report_end_date" title="Kết thúc (tùy chọn)">
+                                </div>
+                                <div class="form-text">Báo cáo lặp lại theo kỳ; hạn nộp từng kỳ tự tính.</div>
+                            </div>
+                            <div class="d-none" data-report-milestone-panel>
+                                <textarea class="form-control form-control-sm" name="report_milestones" rows="2" placeholder="Mỗi dòng một ngày (vd: 30/08/2026)&#10;15/09/2026&#10;31/12/2026"></textarea>
+                                <div class="form-text">Mỗi mốc thời gian là một lần báo cáo.</div>
+                            </div>
+                            <div class="d-none text-muted small" data-report-ongoing-panel>Không đặt hạn — theo dõi liên tục.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Lĩnh vực</label>
@@ -1356,18 +1801,10 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Gán việc nhỏ cho ai</h5>
+                <h5 class="modal-title">Gán mục cho đơn vị</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Giao theo</label>
-                    <select class="form-select" id="wizardRowAssignType">
-                        <option value="unit">Đơn vị</option>
-                        <option value="role">Vai trò</option>
-                        <option value="user">Cá nhân</option>
-                    </select>
-                </div>
                 <div data-wzrow-section="unit">
                     <label class="form-label fw-bold">Đơn vị nhận việc</label>
                     <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
@@ -1375,31 +1812,6 @@
                         <label class="d-flex align-items-center gap-2 px-2 py-2 border-bottom">
                             <input type="checkbox" class="mt-1" data-wzrow-unit-checkbox value="{{ item.value }}" data-label="{{ item.name }}">
                             <span class="small">{{ item.name }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div class="d-none" data-wzrow-section="role">
-                    <label class="form-label fw-bold">Vai trò nhận việc</label>
-                    <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
-                        {% for role in roles %}
-                        <label class="d-flex align-items-center gap-2 px-2 py-2 border-bottom">
-                            <input type="checkbox" class="mt-1" data-wzrow-role-checkbox value="{{ role.id }}" data-label="{{ role.name }}">
-                            <span class="small">{{ role.name }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div class="d-none" data-wzrow-section="user">
-                    <label class="form-label fw-bold">Cán bộ nhận việc</label>
-                    <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
-                        {% for user in users %}
-                        <label class="d-flex align-items-start gap-2 px-2 py-2 border-bottom">
-                            <input type="checkbox" class="mt-1" data-wzrow-user-checkbox value="{{ user.id }}" data-label="{{ user.fullname }}">
-                            <div class="small">
-                                <div class="fw-medium">{{ user.fullname }}</div>
-                                <div class="text-muted">{% if user.unit_area_display %}{{ user.unit_area_display }}{% else %}Chưa có đơn vị{% endif %}</div>
-                            </div>
                         </label>
                         {% endfor %}
                     </div>
@@ -1444,6 +1856,28 @@
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
     let currentStep = 1;
     let wizardMode = 'OUTLINE';
+    let wizardTableSchema = null;
+    let wizardTableViewEnabled = false;
+    let wizardTableViewSuspend = false;
+    // Độ rộng cột người dùng kéo chỉnh (key = data-col-index) — giữ qua các lần render
+    let wizardTableUserColWidths = {};
+    const WIZARD_UNITS = {{ pro_units | tojson }};
+    const WIZARD_TABLE_ROLES = [
+        { value: 'stt', label: 'Số thứ tự' },
+        { value: 'content', label: 'Nội dung' },
+        { value: 'lead', label: 'Đơn vị chủ trì' },
+        { value: 'coordinate', label: 'Đơn vị phối hợp' },
+        { value: 'deadline', label: 'Thời gian' },
+        { value: 'product', label: 'Sản phẩm, kết quả' },
+        { value: 'note', label: 'Ghi chú' },
+        { value: 'other', label: 'Cột khác' },
+    ];
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, (ch) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        }[ch]));
+    }
 
     const wizardPanes = {
         1: document.querySelector('[data-wizard-pane="1"]'),
@@ -1455,11 +1889,13 @@
     const wizardNextBtn = document.getElementById('wizardNextBtn');
     const wizardSubmitBtn = document.getElementById('wizardSubmitBtn');
     const outlineRowsBox = document.getElementById('wizardOutlineRows');
+    const wizardOutlineGroups = new Map(); // heading -> { block, body }
     const formFieldList = document.getElementById('formFieldList');
     const formFieldTemplate = document.getElementById('formFieldTemplate');
     const addFormFieldBtn = document.getElementById('addFormFieldBtn');
     const assignType = document.getElementById('createAssignType');
-    const wizardOutlineFile = document.getElementById('wizardOutlineFile');
+    const wizardOutlineFileList = document.getElementById('wizardOutlineFileList');
+    const wizardAddOutlineFileBtn = document.getElementById('wizardAddOutlineFileBtn');
     const wizardOutlineParseBtn = document.getElementById('wizardOutlineParseBtn');
     const wizardOutlineStatus = document.getElementById('wizardOutlineStatus');
     const wizardFormExcelFile = document.getElementById('wizardFormExcelFile');
@@ -1474,13 +1910,23 @@
             element.classList.toggle('d-none', Number(key) !== step);
         });
         document.querySelectorAll('[data-wizard-step-label]').forEach((label) => {
-            const active = Number(label.dataset.wizardStepLabel) === step;
-            label.classList.toggle('border-primary', active);
-            label.classList.toggle('bg-primary-subtle', active);
+            const num = Number(label.dataset.wizardStepLabel);
+            label.classList.toggle('is-active', num === step);
+            label.classList.toggle('is-completed', num < step);
+        });
+        document.querySelectorAll('[data-wizard-step-line]').forEach((line) => {
+            line.classList.toggle('is-completed', Number(line.dataset.wizardStepLine) <= step);
         });
         if (wizardBackBtn) wizardBackBtn.disabled = step === 1;
         if (wizardNextBtn) wizardNextBtn.classList.toggle('d-none', step === 4);
         if (wizardSubmitBtn) wizardSubmitBtn.classList.toggle('d-none', step !== 4);
+        if (step === 3) {
+            // Pane vừa hiển thị -> tính lại kích thước textarea cho khớp nội dung
+            const growCards = () => outlineRowsBox?.querySelectorAll('textarea[name="item_content"]').forEach(autoGrowOutlineTextarea);
+            requestAnimationFrame(growCards);
+            setTimeout(growCards, 80);
+            scheduleGrowWizardTableTextareas(document.getElementById('wizardOutlineTableView'));
+        }
         syncWizardSummary();
     }
 
@@ -1501,8 +1947,8 @@
         let detail = '';
         if (wizardMode === 'OUTLINE') {
             const rows = Array.from(outlineRowsBox?.querySelectorAll('[data-wz-row]') || []);
-            const assigned = rows.filter((row) => (row.querySelector('input[name="item_assign_type"]')?.value || '') && ((row.querySelector('input[name="item_domains"]')?.value || row.querySelector('input[name="item_role_ids"]')?.value || row.querySelector('input[name="item_user_ids"]')?.value || '')));
-            detail = `${rows.length} việc nhỏ, ${assigned.length} việc đã gán người nhận`;
+            const assigned = rows.filter((row) => effectiveWizardRowDomains(row).length);
+            detail = `${rows.length} nội dung, ${assigned.length} nội dung đã gán đơn vị`;
         } else if (wizardMode === 'FORM') {
             const fields = Array.from(formFieldList?.querySelectorAll('.form-field-item') || []);
             const source = document.querySelector('input[name="form_source_choice"]:checked')?.value || 'builder';
@@ -1548,17 +1994,48 @@
     });
     wizardBackBtn?.addEventListener('click', () => setStep(Math.max(currentStep - 1, 1)));
 
+    document.getElementById('wizardAddOutlineRowBtn')?.addEventListener('click', () => {
+        if (wizardMode !== 'OUTLINE') return;
+        addWizardOutlineRow({});
+        syncWizardSummary();
+    });
+
     // ---------- step 2: outline parse ----------
+    wizardAddOutlineFileBtn?.addEventListener('click', () => {
+        const row = document.createElement('div');
+        row.className = 'd-flex gap-2 align-items-center';
+        row.dataset.wzOutlineFileRow = '';
+        const label = document.createElement('span');
+        label.className = 'small fw-semibold text-muted';
+        label.style.minWidth = '90px';
+        label.textContent = 'File phụ';
+        const input = document.createElement('input');
+        input.className = 'form-control form-control-sm outline-file-input';
+        input.type = 'file';
+        input.accept = '.docx,.txt,.pdf';
+        input.dataset.wzOutlineFile = '';
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'btn btn-sm btn-outline-danger';
+        remove.title = 'Bỏ file này';
+        remove.textContent = '✕';
+        remove.addEventListener('click', () => row.remove());
+        row.append(label, input, remove);
+        wizardOutlineFileList?.appendChild(row);
+    });
+
     async function parseOutlineFile() {
-        if (!wizardOutlineFile?.files?.length) {
-            wizardOutlineStatus.textContent = 'Cần chọn file đề cương (.docx / .txt) trước.';
+        const fileInputs = Array.from(document.querySelectorAll('[data-wz-outline-file]'));
+        const files = fileInputs.map((input) => input.files && input.files[0]).filter(Boolean);
+        if (!files.length) {
+            wizardOutlineStatus.textContent = 'Cần chọn ít nhất một file đề cương (.docx / .txt / .pdf) trước.';
             wizardOutlineStatus.classList.add('text-danger');
             return;
         }
         wizardOutlineStatus.textContent = 'Đang phân tích đề cương...';
         wizardOutlineStatus.classList.remove('text-danger');
         const formData = new FormData();
-        formData.append('outline_file', wizardOutlineFile.files[0]);
+        files.forEach((file) => formData.append('outline_file', file));
         try {
             const response = await fetch('{{ url_for("tasks_bp.parse_outline_file_for_create") }}', {
                 method: 'POST',
@@ -1566,13 +2043,28 @@
                 headers: { 'X-CSRF-Token': csrfToken },
                 body: formData,
             });
-            const payload = await response.json();
+            let payload = null;
+            try {
+                payload = await response.json();
+            } catch (jsonError) {
+                // Server trả về trang lỗi (500 HTML) thay vì JSON
+                wizardOutlineStatus.textContent = 'Máy chủ gặp lỗi khi phân tích (HTTP ' + response.status + '). Vui lòng kiểm tra nhật ký server hoặc thử lại sau.';
+                wizardOutlineStatus.classList.add('text-danger');
+                return;
+            }
             if (!response.ok || !payload?.ok) {
                 throw new Error(payload?.error || 'Không phân tích được đề cương.');
             }
             clearWizardOutlineRows();
-            (payload.rows || []).forEach((row) => addWizardOutlineRow(row));
-            wizardOutlineStatus.textContent = `Đã tách ${(payload.rows || []).length} việc nhỏ từ đề cương. Kiểm tra và gán lại ở bước 3 rồi Tiếp tục.`;
+            const createdRowEls = [];
+            (payload.rows || []).forEach((row, i) => {
+                const parentIndex = (typeof row.parent_row_index === 'number' && row.parent_row_index >= 0 && row.parent_row_index < createdRowEls.length) ? row.parent_row_index : null;
+                const parentEl = parentIndex !== null ? createdRowEls[parentIndex] : null;
+                createdRowEls.push(addWizardOutlineRow(row, parentEl));
+            });
+            setupWizardTableEditor();
+            const mergedNote = payload.merged ? ` Đã gộp nội dung trùng giữa ${files.length} file.` : '';
+            wizardOutlineStatus.textContent = `Đã tách ${(payload.rows || []).length} nội dung từ đề cương, gom theo ${wizardOutlineGroups.size} mục. Kiểm tra, gán đơn vị và chọn hình thức báo cáo ở bước 3 rồi Tiếp tục.${mergedNote}`;
             wizardOutlineStatus.classList.add('text-success');
             syncWizardSummary();
         } catch (error) {
@@ -1638,33 +2130,56 @@
     });
 
     // ---------- outline rows ----------
-    function wizardNameMaps() {
-        const unitMap = new Map(Array.from(document.querySelectorAll('[data-wizard-unit-checkbox]')).map((cb) => [cb.value, cb.dataset.label || cb.value]));
-        const roleMap = new Map(Array.from(document.querySelectorAll('[data-wizard-role-checkbox]')).map((cb) => [cb.value, cb.dataset.label || cb.value]));
-        const userMap = new Map(Array.from(document.querySelectorAll('[data-wizard-user-checkbox]')).map((cb) => [cb.value, cb.dataset.label || cb.value]));
-        return { unitMap, roleMap, userMap };
+    function wizardUnitNameMap() {
+        return new Map(Array.from(document.querySelectorAll('[data-wizard-unit-checkbox]')).map((cb) => [cb.value, cb.dataset.label || cb.value]));
     }
 
     function formatWizardAssignmentSummary(payload) {
-        const { unitMap, roleMap, userMap } = wizardNameMaps();
         if (payload.assignType === 'unit' && payload.unitDomains.length) {
+            const unitMap = wizardUnitNameMap();
             return 'Đơn vị: ' + payload.unitDomains.map((value) => unitMap.get(String(value)) || String(value)).join(', ');
-        }
-        if (payload.assignType === 'role' && payload.roleIds.length) {
-            return 'Vai trò: ' + payload.roleIds.map((value) => roleMap.get(String(value)) || String(value)).join(', ');
-        }
-        if (payload.assignType === 'user' && payload.userIds.length) {
-            return 'Cá nhân: ' + payload.userIds.map((value) => userMap.get(String(value)) || String(value)).join(', ');
         }
         return 'Chưa gán người nhận';
     }
 
+    function wizardRowParentElement(row) {
+        return (row && typeof row._wzParentEl !== 'undefined') ? row._wzParentEl : null;
+    }
+
     function syncWizardOutlineRowIndexes() {
         if (!outlineRowsBox) return;
-        Array.from(outlineRowsBox.querySelectorAll('[data-wz-row]')).forEach((row, index) => {
+        const rows = Array.from(outlineRowsBox.querySelectorAll('[data-wz-row]'));
+        rows.forEach((row, index) => {
             const attachment = row.querySelector('input[name="item_attachment_required"]');
             if (attachment) attachment.value = String(index);
+            const parentInput = row.querySelector('input[name="item_parent"]');
+            if (parentInput) {
+                const parentEl = wizardRowParentElement(row);
+                const parentIndex = parentEl ? rows.indexOf(parentEl) : -1;
+                parentInput.value = parentIndex >= 0 ? String(parentIndex) : '';
+            }
+            const inheritInput = row.querySelector('input[name="item_inherit"]');
+            const inheritCheckbox = row.querySelector('[data-wz-inherit]');
+            if (inheritInput) {
+                inheritInput.value = (inheritCheckbox && inheritCheckbox.checked) ? String(index) : '';
+            }
         });
+    }
+
+    function effectiveWizardRowDomains(row, visited) {
+        if (!row) return [];
+        const own = (row.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean);
+        if (own.length) return own;
+        const inheritCheckbox = row.querySelector('[data-wz-inherit]');
+        if (inheritCheckbox && inheritCheckbox.checked) {
+            const parentEl = wizardRowParentElement(row);
+            if (parentEl && (!visited || !visited.has(parentEl))) {
+                const nextVisited = visited ? new Set(visited) : new Set();
+                nextVisited.add(row);
+                return effectiveWizardRowDomains(parentEl, nextVisited);
+            }
+        }
+        return [];
     }
 
     function updateWizardOutlineRowAssignment(row, payload) {
@@ -1673,9 +2188,33 @@
         row.querySelector('input[name="item_domains"]').value = (payload.unitDomains || []).join(',');
         row.querySelector('input[name="item_role_ids"]').value = (payload.roleIds || []).join(',');
         row.querySelector('input[name="item_user_ids"]').value = (payload.userIds || []).join(',');
+        const checkbox = row.querySelector('[data-wz-inherit]');
+        if (checkbox) checkbox.checked = false;
+        const assignBtn = row.querySelector('[data-wz-row-assign]');
+        if (assignBtn) assignBtn.disabled = false;
         const summary = row.querySelector('[data-wz-row-summary]');
         if (summary) summary.textContent = formatWizardAssignmentSummary(payload);
+        syncWizardOutlineRowIndexes();
+        propagateWizardInheritedChildren(row);
         syncWizardSummary();
+        if (wizardTableViewEnabled && !wizardTableViewSuspend) renderWizardTableView();
+    }
+
+    function propagateWizardInheritedChildren(parentRow) {
+        if (!outlineRowsBox) return;
+        const parentDomains = (parentRow.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean);
+        Array.from(outlineRowsBox.querySelectorAll('[data-wz-row]')).forEach((child) => {
+            if (wizardRowParentElement(child) !== parentRow) return;
+            const inheritCheckbox = child.querySelector('[data-wz-inherit]');
+            const summary = child.querySelector('[data-wz-row-summary]');
+            if (inheritCheckbox && inheritCheckbox.checked) {
+                if (summary) {
+                    summary.textContent = parentDomains.length
+                        ? 'Kế thừa mục cha: ' + parentDomains.map((v) => wizardUnitNameMap().get(String(v)) || String(v)).join(', ')
+                        : 'Kế thừa mục cha (chưa gán)';
+                }
+            }
+        });
     }
 
 
@@ -1753,106 +2292,562 @@
         container.appendChild(hiddenIsHeading);
     }
 
-    function addWizardOutlineRow(rowData = {}) {
+    function wizardRowGroupBody(row) {
+        return (row && typeof row._wzGroupBody !== 'undefined') ? row._wzGroupBody : null;
+    }
+
+    // ---------- bảng đề cương: cột + ô ----------
+    function normalizeUnitText(value) {
+        return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[.,;:()\[\]"'“”‘’]/g, ' ').replace(/[\s\-_/|]+/g, ' ').trim();
+    }
+
+    function wizardTableContentIndex() {
+        if (!wizardTableSchema) return null;
+        const col = wizardTableSchema.find((c) => c.role === 'content');
+        return col ? Number(col.index) : null;
+    }
+
+    function syncWizardTableCellsJson(row) {
+        const hidden = row.querySelector('input[name="item_table_cells"]');
+        if (hidden && row._wzTableCells) hidden.value = JSON.stringify(row._wzTableCells);
+    }
+
+    function matchWizardRowUnitFromLead(row, leadText) {
+        const norm = normalizeUnitText(leadText);
+        if (!norm) return;
+        let best = null;
+        (WIZARD_UNITS || []).forEach((unit) => {
+            const name = normalizeUnitText(unit.name);
+            if (name.length >= 3 && norm.includes(name) && (!best || name.length > best.normLen)) {
+                best = { value: String(unit.value), normLen: name.length };
+            }
+        });
+        if (best) {
+            updateWizardOutlineRowAssignment(row, { assignType: 'unit', domain: '', unitDomains: [best.value], roleIds: [], userIds: [] });
+        }
+    }
+
+    function renderWizardTableStrip(row) {
+        const strip = row.querySelector('[data-wz-table-strip]');
+        const cells = row._wzTableCells;
+        const schema = row._wzTableSchema || wizardTableSchema;
+        if (!strip || !cells || !schema || !schema.length) return;
+        const visible = schema.filter((col) => col.visible && col.role !== 'content');
+        strip.innerHTML = visible.map((col) => {
+            const idx = String(col.index);
+            const value = cells[idx] || '';
+            if (col.role === 'lead') {
+                return `<label class="tcell d-inline-flex align-items-center gap-1"><b>${escapeHtml(col.header)}:</b> <input class="form-control form-control-sm" style="width:auto;min-width:200px;" data-wz-table-lead value="${escapeHtml(value)}" title="Sửa tên đơn vị chủ trì; hệ thống tự gán lại cho đơn vị khớp"></label>`;
+            }
+            return `<span class="tcell"><b>${escapeHtml(col.header)}:</b> <span>${escapeHtml(value)}</span></span>`;
+        }).join('');
+        strip.querySelectorAll('[data-wz-table-lead]').forEach((input) => {
+            input.addEventListener('change', () => {
+                const leadCol = (row._wzTableSchema || wizardTableSchema || []).find((c) => c.role === 'lead');
+                if (leadCol) {
+                    row._wzTableCells[String(leadCol.index)] = input.value;
+                    syncWizardTableCellsJson(row);
+                    matchWizardRowUnitFromLead(row, input.value);
+                }
+            });
+        });
+    }
+
+    function rebuildWizardTableRows() {
         if (!outlineRowsBox) return;
-        const row = document.createElement('div');
-        row.className = 'border rounded-2 p-3 bg-white wizard-outline-row';
-        row.dataset.wzRow = '1';
-        
-        // Check if this is a hierarchy item with levels
-        const level = rowData.level || 0;
-        const number = rowData.number || '';
-        const hasHierarchy = level > 0 && rowData.is_heading;
-        
-        if (hasHierarchy) {
-            // Render as hierarchy item
-            renderHierarchyItem(row, rowData);
-            outlineRowsBox.appendChild(row);
-            syncWizardOutlineRowIndexes();
-            syncWizardSummary();
+        outlineRowsBox.querySelectorAll('[data-wz-row]').forEach((row) => {
+            if (!row._wzTableCells) return;
+            const contentIdx = wizardTableContentIndex();
+            const textarea = row.querySelector('textarea[name="item_content"]');
+            if (textarea && contentIdx !== null && row._wzTableCells[String(contentIdx)] !== undefined) {
+                textarea.value = row._wzTableCells[String(contentIdx)];
+                autoGrowOutlineTextarea(textarea);
+            }
+            renderWizardTableStrip(row);
+            syncWizardTableCellsJson(row);
+        });
+        if (wizardTableViewEnabled) renderWizardTableView();
+    }
+
+    function syncWizardTableSchemaInput() {
+        const hidden = document.querySelector('#wizardOutlineTableBar input[name="item_table_schema"]');
+        if (hidden && wizardTableSchema) hidden.value = JSON.stringify(wizardTableSchema);
+    }
+
+    function renderWizardTableBar() {
+        const bar = document.getElementById('wizardOutlineTableBar');
+        if (!bar) return;
+        if (!wizardTableSchema || !wizardTableSchema.length) {
+            bar.classList.add('d-none');
+            bar.innerHTML = '';
             return;
         }
-        const titleValue = String(rowData.title || '').replace(/"/g, '&quot;');
-        const contentValue = String(rowData.content || '').replace(/"/g, '&quot;');
-        const headingValue = String(rowData.heading || '').replace(/"/g, '&quot;');
-        const numberFields = Array.isArray(rowData.number_fields) ? rowData.number_fields : [];
-        const hasNumbers = numberFields.length > 0 || Boolean(rowData.has_numbers);
-        const reportKind = rowData.report_kind === 'number' ? 'number' : 'narrative';
-        const numberFieldsJson = JSON.stringify(numberFields).replace(/"/g, '&quot;');
-        row.innerHTML = `
-            <div class="row g-2 align-items-start">
-                <div class="col-12 mb-1">
-                    ${headingValue ? `<span class="badge bg-secondary">${headingValue}</span>` : ''}
-                    <input type="hidden" name="item_heading" value="${headingValue}">
-                </div>
-                <div class="col-md-1 d-flex align-items-center mt-2">
-                    <input class="form-check-input" type="checkbox" data-wz-row-check title="Tích dòng để gán hàng loạt">
-                </div>
-                <div class="col-md-11">
-                    <div class="row g-2">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-semibold mb-1">Tên việc nhỏ</label>
-                            <input class="form-control form-control-sm" type="text" name="item_title" placeholder="Nội dung việc nhỏ" value="${titleValue}" style="word-break: break-word; white-space: normal;">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-semibold mb-1">Hình thức báo cáo</label>
-                            <select class="form-select form-select-sm" name="item_report_kind" data-report-kind-toggle>
-                                <option value="narrative" ${reportKind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
-                                <option value="number" ${reportKind === 'number' ? 'selected' : ''}>Báo cáo số</option>
+        bar.classList.remove('d-none');
+        const visibleCount = wizardTableSchema.filter((c) => c.visible).length;
+        bar.innerHTML = `
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Chọn cột hiển thị cho đơn vị nhận và sửa vai trò cột">
+                    <i class="fa-solid fa-table-columns"></i>Cấu trúc bảng
+                    <span class="badge text-bg-secondary" id="wizardTableVisibleCount">${visibleCount}/${wizardTableSchema.length}</span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-2 shadow" style="min-width: 360px; max-width: 440px;">
+                    <div class="small text-muted px-2 pb-2">Tích cột để hiển thị cho đơn vị nhận; sửa vai trò cột nếu nhận diện sai — cột "Đơn vị chủ trì" sẽ gán sẵn cho từng dòng.</div>
+                    ${wizardTableSchema.map((col) => `
+                        <div class="dropdown-item d-flex align-items-center gap-2 px-2 py-1">
+                            <input type="checkbox" class="form-check-input mt-0 flex-shrink-0" data-wz-table-col-visible data-col="${col.index}" ${col.visible ? 'checked' : ''} title="Hiển thị cột này cho đơn vị nhận">
+                            <select class="form-select form-select-sm flex-shrink-0" style="width: 132px;" data-wz-table-col-role data-col="${col.index}" title="Vai trò của cột">
+                                ${WIZARD_TABLE_ROLES.map((role) => `<option value="${role.value}" ${role.value === col.role ? 'selected' : ''}>${role.label}</option>`).join('')}
                             </select>
+                            <span class="small text-truncate flex-grow-1">${escapeHtml(col.header)}</span>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-semibold mb-1">Tùy chọn</label>
-                            <div class="d-flex align-items-center gap-2">
-                                <label class="form-check-label small mb-0">
-                                    <input class="form-check-input" type="checkbox" name="item_attachment_required" ${rowData.attachment_required ? 'checked' : ''}>
-                                    Bắt buộc file
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row g-2 mt-2">
-                        <div class="col-12">
-                            <label class="form-label small fw-semibold mb-1">Nội dung chi tiết từ đề cương</label>
-                            <textarea class="form-control form-control-sm" name="item_content" rows="3" placeholder="Nội dung chi tiết từ đề cương" style="word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap;">${contentValue}</textarea>
-                        </div>
-                    </div>
-                    <div class="row g-2 mt-2">
-                        <div class="col-md-8">
-                            <div class="d-flex gap-2 align-items-center">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" data-wz-row-assign><i class="fa-solid fa-user-plus me-1"></i>Gán đơn vị</button>
-                                <button type="button" class="btn btn-sm btn-outline-danger" data-wz-row-remove><i class="fa-solid fa-trash me-1"></i>Xóa</button>
-                                <span class="small fw-medium text-primary" data-wz-row-summary></span>
-                            </div>
-                        </div>
-                    </div>
-                    <input type="hidden" name="item_assign_type">
-                    <input type="hidden" name="item_domain">
-                    <input type="hidden" name="item_domains">
-                    <input type="hidden" name="item_role_ids">
-                    <input type="hidden" name="item_user_ids">
-                    <input type="hidden" name="item_number_fields" value="${numberFieldsJson}">
-                    <div class="number-fields-preview ${reportKind === 'number' ? '' : 'd-none'} mt-2 p-2 bg-light rounded" data-number-preview>
-                        ${numberFields.length > 0 ? numberFields.map((field, idx) => `<div class="small text-muted mb-1">${idx + 1}. <strong>${field.label}</strong>: <span class="text-primary">${field.value}</span> ${field.unit || ''}</div>`).join('') : ''}
-                        ${hasNumbers && numberFields.length === 0 ? `<div class="small text-muted"><i class="fa-solid fa-circle-info me-1"></i>Đã phát hiện số liệu trong nội dung. Chọn "Báo cáo số" để nhập các trường số.</div>` : ''}
-                    </div>
+                    `).join('')}
+                    <input type="hidden" name="item_table_schema" value="${escapeHtml(JSON.stringify(wizardTableSchema))}">
                 </div>
             </div>
         `;
-        updateWizardOutlineRowAssignment(row, {
-            assignType: rowData.assign_type || '',
-            domain: rowData.domain || '',
-            unitDomains: rowData.unit_domains || [],
-            roleIds: rowData.role_ids || [],
-            userIds: rowData.user_ids || [],
+        bar.querySelectorAll('[data-wz-table-col-visible]').forEach((checkbox) => {
+            checkbox.addEventListener('change', () => {
+                const col = wizardTableSchema.find((c) => c.index === Number(checkbox.dataset.col));
+                if (col) col.visible = checkbox.checked;
+                syncWizardTableSchemaInput();
+                updateWizardTableBarVisibleCount(bar);
+                rebuildWizardTableRows();
+            });
         });
+        bar.querySelectorAll('[data-wz-table-col-role]').forEach((select) => {
+            select.addEventListener('change', () => {
+                const col = wizardTableSchema.find((c) => c.index === Number(select.dataset.col));
+                if (col) col.role = select.value;
+                syncWizardTableSchemaInput();
+                rebuildWizardTableRows();
+            });
+        });
+    }
+
+    function updateWizardTableBarVisibleCount(bar) {
+        const el = (bar || document.getElementById('wizardOutlineTableBar'))?.querySelector('#wizardTableVisibleCount');
+        if (!el || !wizardTableSchema) return;
+        el.textContent = `${wizardTableSchema.filter((c) => c.visible).length}/${wizardTableSchema.length}`;
+    }
+
+    function setupWizardTableEditor() {
+        let schema = null;
+        let tableRowCount = 0;
+        let totalRowCount = 0;
+        if (outlineRowsBox) {
+            outlineRowsBox.querySelectorAll('[data-wz-row]').forEach((row) => {
+                totalRowCount += 1;
+                if (row._wzTableSchema) {
+                    schema = schema || row._wzTableSchema;
+                    tableRowCount += 1;
+                }
+            });
+        }
+        wizardTableSchema = schema;
+        // Chế độ bảng chỉ bật khi TẤT CẢ các dòng đều là dòng bảng
+        wizardTableViewEnabled = Boolean(schema) && totalRowCount > 0 && tableRowCount === totalRowCount;
+        renderWizardTableBar();
+        if (schema) rebuildWizardTableRows();
+        renderWizardTableView();
+    }
+
+    function wizardTableVisibleColumns() {
+        if (!wizardTableSchema) return [];
+        return wizardTableSchema.filter((col) => col.visible);
+    }
+
+    function wizardTableSectionTitle(headingValue) {
+        const parts = String(headingValue || '').split(' » ').map((p) => p.trim()).filter(Boolean);
+        if (!parts.length) return '';
+        const last = parts[parts.length - 1];
+        return parts.length > 1 ? parts.slice(0, -1).join(' » ') + ' » ' + last : last;
+    }
+
+    function renderWizardTableView() {
+        const container = document.getElementById('wizardOutlineTableView');
+        if (!container) return;
+        if (!wizardTableViewEnabled || !wizardTableSchema || !outlineRowsBox) {
+            container.classList.add('d-none');
+            container.innerHTML = '';
+            if (outlineRowsBox) outlineRowsBox.classList.remove('d-none');
+            return;
+        }
+        container.classList.remove('d-none');
+        outlineRowsBox.classList.add('d-none');
+        const visibleCols = wizardTableVisibleColumns();
+        const unitNameMap = wizardUnitNameMap();
+        const totalCols = visibleCols.length + 3; // ô tích + hình thức + gán
+
+        const headerCells = [
+            '<th class="text-center" style="width:34px;"><input class="form-check-input mt-0" type="checkbox" data-wz-table-view-check-all title="Tích tất cả dòng"></th>',
+        ].concat(
+            visibleCols.map((col) => {
+                const colClass = col.role === 'content' ? 'wz-col-content' : col.role === 'lead' ? 'wz-col-lead' : 'wz-col-other';
+                const savedW = wizardTableUserColWidths[col.index];
+                return `<th class="${colClass}" data-col-index="${col.index}" ${savedW ? `style="width:${savedW}px;"` : ''}>
+                    <div class="text-center fw-semibold" style="font-size: 0.85rem;">${escapeHtml(col.header || '')}</div>
+                    <span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span>
+                </th>`;
+            })
+        ).concat([
+            '<th class="wz-col-report" data-col-index="report" ' + (wizardTableUserColWidths.report ? `style="width:${wizardTableUserColWidths.report}px;"` : '') + '><div class="text-center fw-semibold" style="font-size: 0.85rem;">Hình thức báo cáo</div><span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span></th>',
+            '<th class="wz-col-assign" data-col-index="assign" ' + (wizardTableUserColWidths.assign ? `style="width:${wizardTableUserColWidths.assign}px;"` : '') + '><div class="text-center fw-semibold" style="font-size: 0.85rem;">Gán cho ai</div><span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span></th>',
+        ]);
+
+        let bodyHtml = '';
+        // Nhóm mục (section) + dòng trong nhóm, sau đó dòng đứng riêng
+        const renderRowCard = (card) => {
+            const cells = card._wzTableCells || {};
+            const rowCheck = card.querySelector('[data-wz-row-check]');
+            const cellEls = visibleCols.map((col) => {
+                const idx = String(col.index);
+                const value = cells[idx] || '';
+                if (col.role === 'content') {
+                    return `<td class="p-1 wz-col-content"><textarea class="form-control form-control-sm wizard-table-cell-ta" data-wz-table-cell data-col="${col.index}" rows="1">${escapeHtml(value)}</textarea></td>`;
+                }
+                if (col.role === 'lead') {
+                    const assigned = (card.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean);
+                    const names = assigned.map((v) => unitNameMap.get(String(v)) || String(v)).filter(Boolean);
+                    const display = names.join(', ');
+                    // Đồng bộ ô bảng (xuất tổng hợp) với danh sách đơn vị đã gán
+                    if (names.length && card._wzTableCells && card._wzTableCells[String(col.index)] !== display) {
+                        card._wzTableCells[String(col.index)] = display;
+                        const cellsInput = card.querySelector('input[name="item_table_cells"]');
+                        if (cellsInput) cellsInput.value = JSON.stringify(card._wzTableCells);
+                    }
+                    return `<td class="p-1 wz-col-lead">
+                        <textarea class="form-control form-control-sm wizard-table-cell-ta" data-wz-table-cell data-col="${col.index}" rows="1" title="Tất cả đơn vị được gán">${escapeHtml(display || value)}</textarea>
+                    </td>`;
+                }
+                return `<td class="p-1 wz-col-other"><textarea class="form-control form-control-sm wizard-table-cell-ta" data-wz-table-cell data-col="${col.index}" rows="1">${escapeHtml(value)}</textarea></td>`;
+            });
+            const reportKind = card.querySelector('[name="item_report_kind"]')?.value || 'narrative';
+            const secondaryBadge = card.querySelector('[data-wz-report-secondary]')
+                ? '<span class="badge bg-warning-subtle text-warning-emphasis small">Phụ</span> ' : '';
+            return `<tr data-wz-table-view-row>
+                <td class="text-center">${rowCheck ? '<input class="form-check-input mt-0" type="checkbox" data-wz-table-view-check>' : ''}</td>
+                ${cellEls.join('')}
+                <td class="p-1">
+                    <select class="form-select form-select-sm" data-wz-table-view-kind style="width:100%;">
+                        <option value="narrative" ${reportKind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
+                        <option value="number" ${reportKind === 'number' ? 'selected' : ''}>Báo cáo số</option>
+                    </select>
+                </td>
+                <td class="p-1 wz-col-assign">
+                    <div class="d-flex gap-1 align-items-center">
+                        ${secondaryBadge}
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-icon-eq" data-wz-table-view-assign title="Gán cho ai"><i class="fa-solid fa-user-plus"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-danger btn-icon-eq" data-wz-table-view-remove title="Xóa"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </td>
+            </tr>`;
+        };
+
+        // Không hiển thị dòng tiêu đề mục (nội dung gốc đã có trong file đề cương) — chỉ hiện dòng dữ liệu
+        wizardTableViewCards().forEach((card) => {
+            bodyHtml += renderRowCard(card);
+        });
+
+        container.innerHTML = `
+            <div class="table-responsive border rounded-3 bg-white">
+                <table class="table table-bordered table-sm align-middle mb-0 wizard-outline-table">
+                    <thead><tr>${headerCells.join('')}</tr></thead>
+                    <tbody>${bodyHtml || '<tr><td colspan="' + totalCols + '" class="text-center text-muted py-3">Chưa có dòng nào.</td></tr>'}</tbody>
+                </table>
+            </div>
+        `;
+        // Đợi layout xong rồi mới đo — nếu đo ngay sau innerHTML, scrollHeight chưa phản ánh nội dung
+        scheduleGrowWizardTableTextareas(container);
+        wireWizardTableView(container);
+    }
+
+    function wireWizardTableView(container) {
+        // Header: tích tất cả
+        container.querySelector('[data-wz-table-view-check-all]')?.addEventListener('change', (e) => {
+            container.querySelectorAll('[data-wz-table-view-check]').forEach((cb) => { cb.checked = e.target.checked; });
+        });
+        // Bỏ/tích hiển thị cột giờ nằm trong droplist "Cấu trúc bảng" (wizardOutlineTableBar)
+        // Ô dữ liệu: nội dung / cột thường -> cập nhật cells + hidden JSON
+        container.querySelectorAll('[data-wz-table-cell]').forEach((input) => {
+            input.addEventListener('input', () => {
+                const card = wizardTableViewCardFor(input);
+                if (!card || !card._wzTableCells) return;
+                card._wzTableCells[String(input.dataset.col)] = input.value;
+                syncWizardTableCellsJson(card);
+                if (input.dataset.col === String(wizardTableContentIndex())) {
+                    const cardTa = card.querySelector('textarea[name="item_content"]');
+                    if (cardTa) cardTa.value = input.value;
+                }
+                if (input.classList.contains('wizard-table-cell-ta')) growWizardTableCell(input);
+                syncWizardSummary();
+            });
+        });
+        // Cột đơn vị chủ trì: ô text hiển thị tất cả đơn vị đã gán (gán qua nút Gán cuối dòng)
+        // Hình thức báo cáo
+        container.querySelectorAll('[data-wz-table-view-kind]').forEach((select) => {
+            select.addEventListener('change', () => {
+                const card = wizardTableViewCardFor(select);
+                if (!card) return;
+                const cardSelect = card.querySelector('[name="item_report_kind"]');
+                if (cardSelect) {
+                    cardSelect.value = select.value;
+                    cardSelect.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+        // Gán cho ai (mở modal gán nhiều đơn vị)
+        container.querySelectorAll('[data-wz-table-view-assign]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const card = wizardTableViewCardFor(btn);
+                if (card) openWizardRowAssign(card);
+            });
+        });
+        // Xóa dòng
+        container.querySelectorAll('[data-wz-table-view-remove]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const card = wizardTableViewCardFor(btn);
+                if (!card) return;
+                const groupBody = wizardRowGroupBody(card);
+                card.remove();
+                syncWizardOutlineRowIndexes();
+                syncWizardSummary();
+                if (groupBody && !groupBody.querySelector('[data-wz-row]')) {
+                    const block = groupBody.parentElement;
+                    if (block && block.classList.contains('wizard-outline-group')) block.remove();
+                }
+                renderWizardTableView();
+            });
+        });
+        // Dòng tích -> đồng bộ với card checkbox (gán hàng loạt)
+        container.querySelectorAll('[data-wz-table-view-check]').forEach((cb, i) => {
+            const cards = wizardTableViewCards();
+            const card = cards[i];
+            if (card) {
+                cb.addEventListener('change', () => {
+                    const cardCb = card.querySelector('[data-wz-row-check]');
+                    if (cardCb) cardCb.checked = cb.checked;
+                });
+            }
+        });
+        // Kéo thả chỉnh độ rộng cột (kiểu Excel)
+        container.querySelectorAll('thead th').forEach((th) => {
+            const resizer = th.querySelector('.wz-col-resizer');
+            const key = th.dataset.colIndex;
+            if (!resizer || key === undefined) return;
+            resizer.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const startX = e.clientX;
+                const startW = th.getBoundingClientRect().width;
+                const minW = 48;
+                const onMove = (ev) => {
+                    const w = Math.max(minW, startW + (ev.clientX - startX));
+                    th.style.width = w + 'px';
+                    wizardTableUserColWidths[key] = w;
+                };
+                const onUp = () => {
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                    // Cột đổi độ rộng -> tính lại chiều cao các ô text cho khớp nội dung mới
+                    scheduleGrowWizardTableTextareas(container);
+                };
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+            });
+        });
+    }
+
+    function wizardTableViewCardFor(element) {
+        const tr = element.closest('[data-wz-table-view-row]');
+        if (!tr) return null;
+        const cards = wizardTableViewCards();
+        const idx = Array.from(tr.parentElement.children).indexOf(tr);
+        // tr.parentElement là tbody chứa cả section rows -> lọc chỉ dòng dữ liệu
+        const dataRows = Array.from(tr.parentElement.children).filter((el) => el.hasAttribute('data-wz-table-view-row'));
+        const dataIndex = dataRows.indexOf(tr);
+        return cards[dataIndex] || null;
+    }
+
+    function wizardTableViewCards() {
+        const cards = [];
+        wizardOutlineGroups.forEach((group) => {
+            group.body.querySelectorAll('[data-wz-row]').forEach((card) => cards.push(card));
+        });
+        Array.from(outlineRowsBox.children).forEach((el) => {
+            if (el.classList && el.classList.contains('wizard-outline-row') && !el.closest('.wizard-outline-group')) {
+                cards.push(el);
+            }
+        });
+        return cards;
+    }
+
+    function unitNameOf(value) {
+        const unit = (WIZARD_UNITS || []).find((u) => String(u.value) === String(value));
+        return unit ? unit.name : '';
+    }
+
+    function addWizardOutlineRow(rowData = {}, parentRowEl = null) {
+        if (!outlineRowsBox) return;
+        const row = document.createElement('div');
+        const isChild = Boolean(parentRowEl);
+        row.className = 'border rounded-2 p-3 bg-white wizard-outline-row' + (isChild ? ' wizard-outline-row-child' : '');
+        row.dataset.wzRow = '1';
+        row._wzParentEl = parentRowEl || null;
+
+        const titleValue = String(rowData.title || '').replace(/"/g, '&quot;');
+        const contentValue = String(rowData.content || rowData.title || '').replace(/"/g, '&quot;');
+        const headingValue = String(rowData.heading || '').replace(/"/g, '&quot;');
+        const headingParts = String(rowData.heading || '').split(' » ').map((part) => part.trim()).filter(Boolean);
+        const section = headingParts.length ? headingParts[headingParts.length - 1] : '';
+        const breadcrumb = headingParts.slice(0, -1).join(' » ');
+        const standalone = Boolean(section) && String(rowData.title || '').trim() === section;
+        const isManual = !headingValue && !parentRowEl;
+        const numberFields = Array.isArray(rowData.number_fields) ? rowData.number_fields : [];
+        const hasNumbers = numberFields.length > 0 || Boolean(rowData.has_numbers);
+        const reportKind = (rowData.report_kind === 'number' || (!rowData.report_kind && hasNumbers)) ? 'number' : 'narrative';
+        const numberFieldsJson = JSON.stringify(numberFields).replace(/"/g, '&quot;');
+        const inherited = isChild && !(rowData.assign_type || (rowData.unit_domains || []).length || (rowData.role_ids || []).length || (rowData.user_ids || []).length);
+        row.innerHTML = `
+            <div class="wizard-outline-row-grid">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <label class="form-label small fw-semibold mb-0">Nội dung đề cương</label>
+                    ${isChild ? '<span class="badge bg-info-subtle text-info-emphasis"><i class="fa-solid fa-level-down fa-rotate-90 me-1"></i>Nội dung con</span>' : ''}
+                    ${rowData.report_secondary ? `<span class="badge bg-warning-subtle text-warning-emphasis" title="${escapeHtml((rowData.sources || []).join(', '))}"><i class="fa-solid fa-files me-1"></i>Báo cáo phụ (${(rowData.sources || []).length} file)</span>` : ''}
+                </div>
+                <div class="d-flex gap-2 align-items-center wizard-outline-row-main">
+                    <div class="flex-shrink-0 d-flex align-items-center">
+                        <input class="form-check-input" type="checkbox" data-wz-row-check title="Tích dòng để gán hàng loạt">
+                    </div>
+                    <textarea class="form-control form-control-sm wizard-row-textarea" name="item_content" rows="1" ${isManual ? '' : 'readonly'} placeholder="Nội dung đề cương" style="word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; ${isManual ? '' : 'background-color: var(--bs-secondary-bg);'}">${contentValue}</textarea>
+                    <div class="flex-shrink-0 d-flex gap-2 align-items-center flex-wrap justify-content-end wizard-row-actions">
+                        <select class="form-select form-select-sm" name="item_report_kind" data-report-kind-toggle aria-label="Hình thức báo cáo" style="width: 132px;">
+                            <option value="narrative" ${reportKind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
+                            <option value="number" ${reportKind === 'number' ? 'selected' : ''}>Báo cáo số</option>
+                        </select>
+                        ${isChild ? `
+                            <div class="form-check form-check-inline mb-0">
+                                <input class="form-check-input" type="checkbox" data-wz-inherit ${inherited ? 'checked' : ''} title="Kế thừa gán từ mục cha">
+                                <label class="form-check-label small">Kế thừa cha</label>
+                            </div>
+                        ` : ''}
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-wz-row-assign title="Gán cho ai" ${inherited ? 'disabled' : ''}><i class="fa-solid fa-user-plus"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-wz-row-remove title="Xóa"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+                <div class="small fw-medium text-primary" data-wz-row-summary></div>
+                ${rowData.report_secondary ? `
+                <div class="small">
+                    <label class="form-check form-check-inline mb-0">
+                        <input class="form-check-input" type="checkbox" data-wz-report-secondary checked title="Bỏ tích để tách nội dung này thành báo cáo riêng, không gộp chung">
+                        <span class="form-check-label">Báo cáo phụ — đơn vị điền 1 lần, tự động áp dụng cho tất cả file</span>
+                    </label>
+                </div>
+                ` : ''}
+                <input type="hidden" name="item_title" value="${titleValue}">
+                <input type="hidden" name="item_heading" value="${headingValue}">
+                <input type="hidden" name="item_assign_type">
+                <input type="hidden" name="item_domain">
+                <input type="hidden" name="item_domains">
+                <input type="hidden" name="item_role_ids">
+                <input type="hidden" name="item_user_ids">
+                <input type="hidden" name="item_number_fields" value="${numberFieldsJson}">
+                <input type="hidden" name="item_parent">
+                <input type="hidden" name="item_inherit" value="${isChild ? (inherited ? '1' : '0') : '0'}">
+                <input type="hidden" name="item_report_secondary" value="${rowData.report_secondary ? '1' : '0'}">
+                <input type="hidden" name="item_sources" value="${escapeHtml((rowData.sources || []).join(','))}">
+            </div>
+            <div class="number-fields-preview ${reportKind === 'number' ? '' : 'd-none'} mt-2 p-2 bg-light rounded" data-number-preview>
+                ${numberFields.length > 0 ? `
+                    <div class="small mb-1"><i class="fa-solid fa-pen-to-square me-1"></i><strong>Văn bản sau khi xóa số liệu</strong> — đơn vị sẽ điền số vào chỗ trống:</div>
+                    <textarea class="form-control outline-skeleton-input mb-1" data-wz-skeleton rows="2" title="Sửa trực tiếp; dùng [...] để đánh dấu chỗ đơn vị điền số">${escapeHtml(String(rowData.skeleton || ''))}</textarea>
+                    <div class="small text-muted mb-2"><i class="fa-solid fa-pen me-1"></i>Có thể sửa trực tiếp. Dùng [...] để đánh dấu vị trí cần đơn vị điền số; sửa nhãn và đơn vị của từng ô bên dưới.</div>
+                    <div class="row g-2 number-fields-grid">
+                        ${numberFields.map((field, idx) => `
+                            <div class="col-md-6">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">${idx + 1}</span>
+                                    <input type="text" class="form-control" data-wz-number-label value="${escapeHtml(field.label || '')}" placeholder="Nhãn số liệu" title="Nhãn số liệu">
+                                    <input type="text" class="form-control" style="width: 90px;" data-wz-number-unit value="${escapeHtml(field.unit || '')}" placeholder="Đơn vị" title="Đơn vị (vd: %, người, tỷ đồng)">
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                ${hasNumbers && numberFields.length === 0 ? `<div class="small text-muted"><i class="fa-solid fa-circle-info me-1"></i>Đã phát hiện số liệu trong nội dung. Chọn "Báo cáo số" để đơn vị điền số vào chỗ trống.</div>` : ''}
+            </div>
+            ${rowData.table_cells ? `
+                <div class="table-cells-strip mt-2 d-flex flex-wrap gap-2" data-wz-table-strip></div>
+                <input type="hidden" name="item_table_cells" value="${escapeHtml(JSON.stringify(rowData.table_cells))}">
+            ` : ''}
+        `;
+        if (rowData.table_cells) {
+            row._wzTableCells = Object.assign({}, rowData.table_cells);
+            row._wzTableSchema = rowData.table_schema || null;
+        }
+        updateWizardOutlineRowAssignment(row, {
+            assignType: isChild && inherited ? '' : (rowData.assign_type || ''),
+            domain: isChild && inherited ? '' : (rowData.domain || ''),
+            unitDomains: isChild && inherited ? [] : (rowData.unit_domains || []),
+            roleIds: isChild && inherited ? [] : (rowData.role_ids || []),
+            userIds: isChild && inherited ? [] : (rowData.user_ids || []),
+        });
+        if (isChild && inherited) {
+            setWizardRowInherit(row, true);
+        }
+        const inheritCheckbox = row.querySelector('[data-wz-inherit]');
+        if (inheritCheckbox) {
+            inheritCheckbox.addEventListener('change', () => {
+                setWizardRowInherit(row, inheritCheckbox.checked);
+                syncWizardSummary();
+            });
+        }
         row.querySelector('[data-wz-row-remove]')?.addEventListener('click', () => {
+            const groupBody = wizardRowGroupBody(row);
             row.remove();
             syncWizardOutlineRowIndexes();
             syncWizardSummary();
+            if (groupBody && !groupBody.querySelector('[data-wz-row]')) {
+                const block = groupBody.parentElement;
+                if (block && block.classList.contains('wizard-outline-group')) block.remove();
+            }
         });
         row.querySelector('[data-wz-row-assign]')?.addEventListener('click', () => openWizardRowAssign(row));
-        row.querySelector('input[name="item_title"]')?.addEventListener('input', syncWizardSummary);
+        const contentTextarea = row.querySelector('textarea[name="item_content"]');
+        if (contentTextarea) {
+            contentTextarea.addEventListener('input', () => {
+                if (isManual) {
+                    const hiddenTitle = row.querySelector('input[name="item_title"]');
+                    if (hiddenTitle) hiddenTitle.value = contentTextarea.value;
+                }
+                if (row._wzTableCells) {
+                    const contentIdx = wizardTableContentIndex();
+                    if (contentIdx !== null) {
+                        row._wzTableCells[String(contentIdx)] = contentTextarea.value;
+                        syncWizardTableCellsJson(row);
+                    }
+                }
+                autoGrowOutlineTextarea(contentTextarea);
+                syncWizardSummary();
+            });
+        }
+        if (row._wzTableCells) {
+            // Nội dung của dòng bảng = ô cột "Nội dung" (có thể sửa trực tiếp)
+            const rowSchema = row._wzTableSchema;
+            const contentIdx = rowSchema ? Number((rowSchema.find((c) => c.role === 'content') || {}).index) : null;
+            if (contentTextarea && contentIdx !== null && row._wzTableCells[String(contentIdx)] !== undefined) {
+                contentTextarea.value = row._wzTableCells[String(contentIdx)];
+            }
+            if (contentTextarea) {
+                contentTextarea.removeAttribute('readonly');
+                contentTextarea.style.backgroundColor = '';
+            }
+            renderWizardTableStrip(row);
+        }
         const reportKindSelect = row.querySelector('[data-report-kind-toggle]');
         if (reportKindSelect) {
             reportKindSelect.addEventListener('change', () => {
@@ -1860,87 +2855,293 @@
                 if (preview) {
                     preview.classList.toggle('d-none', reportKindSelect.value !== 'number');
                 }
+                // Đồng bộ nội dung lưu theo hình thức báo cáo:
+                // - Báo cáo số: lưu bản mẫu (đã xóa số, chứa [...])
+                // - Báo cáo lời: lưu văn bản gốc có số
+                const hiddenContent = row.querySelector('textarea[name="item_content"]');
+                if (hiddenContent) {
+                    if (reportKindSelect.value === 'number') {
+                        const skeletonText = row.querySelector('[data-wz-skeleton]')?.value || '';
+                        if (skeletonText) hiddenContent.value = skeletonText;
+                    } else if (rowData.content) {
+                        hiddenContent.value = rowData.content;
+                    }
+                }
             });
         }
-        outlineRowsBox.appendChild(row);
+        // Đồng bộ nhãn/đơn vị đã sửa vào hidden item_number_fields
+        const syncNumberFieldsJson = () => {
+            const hidden = row.querySelector('input[name="item_number_fields"]');
+            if (!hidden || !hidden.value) return;
+            let fields = [];
+            try { fields = JSON.parse(hidden.value); } catch (e) { return; }
+            const labels = row.querySelectorAll('[data-wz-number-label]');
+            const units = row.querySelectorAll('[data-wz-number-unit]');
+            fields.forEach((field, idx) => {
+                if (labels[idx]) field.label = labels[idx].value;
+                if (units[idx]) field.unit = units[idx].value;
+            });
+            hidden.value = JSON.stringify(fields);
+        };
+        row.querySelectorAll('[data-wz-number-label], [data-wz-number-unit]').forEach((input) => {
+            input.addEventListener('input', syncNumberFieldsJson);
+        });
+        // Dựng lại các ô sửa nhãn/đơn vị theo danh sách trường mới (sau khi sửa văn bản mẫu)
+        const renderNumberFieldEditors = (fields) => {
+            const grid = row.querySelector('.number-fields-grid');
+            if (!grid) return;
+            grid.innerHTML = fields.map((field, idx) => `
+                <div class="col-md-6">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">${idx + 1}</span>
+                        <input type="text" class="form-control" data-wz-number-label value="${escapeHtml(field.label || '')}" placeholder="Nhãn số liệu" title="Nhãn số liệu">
+                        <input type="text" class="form-control" style="width: 90px;" data-wz-number-unit value="${escapeHtml(field.unit || '')}" placeholder="Đơn vị" title="Đơn vị (vd: %, người, tỷ đồng)">
+                    </div>
+                </div>
+            `).join('');
+            grid.querySelectorAll('[data-wz-number-label], [data-wz-number-unit]').forEach((input) => {
+                input.addEventListener('input', syncNumberFieldsJson);
+            });
+        };
+        // Cho phép sửa trực tiếp văn bản sau khi xóa số liệu: mỗi [...] là 1 ô trống
+        const skeletonTextarea = row.querySelector('[data-wz-skeleton]');
+        if (skeletonTextarea) {
+            skeletonTextarea.addEventListener('input', () => {
+                const skeletonText = skeletonTextarea.value;
+                rowData.skeleton = skeletonText;
+                const hiddenFields = row.querySelector('input[name="item_number_fields"]');
+                if (hiddenFields) {
+                    let oldFields = [];
+                    try { oldFields = JSON.parse(hiddenFields.value) || []; } catch (e) { oldFields = []; }
+                    const markers = [...skeletonText.matchAll(/\[\.\.\.\]/g)];
+                    const newFields = markers.map((m, idx) => {
+                        const old = oldFields[idx] || {};
+                        return {
+                            blank_id: (old.blank_id !== undefined && old.blank_id !== null) ? old.blank_id : (idx + 1),
+                            label: old.label || 'Số liệu',
+                            value: old.value || '',
+                            unit: old.unit || '',
+                            kind: old.kind || 'blank',
+                            start: m.index,
+                            end: m.index + 5,
+                        };
+                    });
+                    hiddenFields.value = JSON.stringify(newFields);
+                    renderNumberFieldEditors(newFields);
+                }
+                const hiddenContent = row.querySelector('textarea[name="item_content"]');
+                if (hiddenContent && skeletonText) {
+                    const kindSel = row.querySelector('[name="item_report_kind"]');
+                    if (kindSel && kindSel.value === 'number') hiddenContent.value = skeletonText;
+                }
+                autoGrowOutlineTextarea(skeletonTextarea);
+                syncWizardSummary();
+            });
+        }
+        // Với dòng báo cáo số, nội dung lưu là bản mẫu (đã xóa số) chứ không phải văn bản gốc
+        const skeletonOnInit = row.querySelector('[data-wz-skeleton]');
+        const hiddenContentOnInit = row.querySelector('textarea[name="item_content"]');
+        if (skeletonOnInit && hiddenContentOnInit && reportKind === 'number' && skeletonOnInit.value) {
+            hiddenContentOnInit.value = skeletonOnInit.value;
+        }
+        const reportSecondaryCheckbox = row.querySelector('[data-wz-report-secondary]');
+        if (reportSecondaryCheckbox) {
+            reportSecondaryCheckbox.addEventListener('change', () => {
+                const hidden = row.querySelector('input[name="item_report_secondary"]');
+                if (hidden) hidden.value = reportSecondaryCheckbox.checked ? '1' : '0';
+            });
+        }
+        // Đặt dòng vào nhóm mục tương ứng (hoặc đứng độc lập nếu là mục tự thân / thêm tay)
+        if (isChild && parentRowEl && wizardRowGroupBody(parentRowEl)) {
+            wizardRowGroupBody(parentRowEl).appendChild(row);
+            row._wzGroupBody = wizardRowGroupBody(parentRowEl);
+        } else if (!isChild && section && !standalone && !isManual) {
+            let group = wizardOutlineGroups.get(headingValue);
+            if (!group) {
+                const block = document.createElement('div');
+                block.className = 'wizard-outline-group';
+                const header = document.createElement('div');
+                header.className = 'wizard-outline-group-header';
+                header.innerHTML = `
+                    <div class="wizard-outline-group-marker">${wizardOutlineGroups.size + 1}</div>
+                    <div class="wizard-outline-group-titles">
+                        ${breadcrumb ? `<div class="wizard-outline-group-breadcrumb" title="${breadcrumb.replace(/"/g, '&quot;')}">${breadcrumb}</div>` : ''}
+                        <div class="wizard-outline-group-title">${section}</div>
+                    </div>
+                `;
+                const body = document.createElement('div');
+                body.className = 'wizard-outline-group-body';
+                block.appendChild(header);
+                block.appendChild(body);
+                outlineRowsBox.appendChild(block);
+                group = { block, body };
+                wizardOutlineGroups.set(headingValue, group);
+            }
+            group.body.appendChild(row);
+            row._wzGroupBody = group.body;
+        } else {
+            outlineRowsBox.appendChild(row);
+            row._wzGroupBody = null;
+        }
+        if (isChild) {
+            propagateWizardInheritedChildren(parentRowEl);
+        }
+        autoGrowOutlineTextarea(row.querySelector('textarea[name="item_content"]'));
         syncWizardOutlineRowIndexes();
         syncWizardSummary();
+        return row;
+    }
+
+    function autoGrowOutlineTextarea(ta) {
+        if (!ta) return;
+        ta.style.height = 'auto';
+        const maxHeight = 520;
+        const sh = ta.scrollHeight;
+        if (!sh) {
+            // Chưa có layout (pane đang ẩn) — không đặt height 0px
+            ta.style.height = '';
+            return;
+        }
+        const height = Math.min(sh, maxHeight);
+        ta.style.height = height + 'px';
+        ta.style.overflowY = sh > maxHeight ? 'auto' : 'hidden';
+    }
+
+    function autoGrowWizardTableCellWidth(ta) {
+        // Bảng dùng table-layout: fixed + width 100% -> cột nội dung chiếm phần còn lại vừa phải,
+        // các cột khác luôn nằm gọn trong màn hình. Ô text lấp đầy cột, nội dung hiện trọn vẹn
+        // nhờ wrap + tự tăng chiều cao (giới hạn để bảng không bị "kéo dài" quá mức).
+        if (!ta || !ta.isConnected) return;
+        ta.style.width = '100%';
+    }
+
+    function growWizardTableCell(ta) {
+        if (!ta) return;
+        autoGrowWizardTableCellWidth(ta);
+        autoGrowOutlineTextarea(ta);
+        if (ta.scrollHeight > 160) {
+            ta.style.height = '160px';
+            ta.style.overflowY = 'auto';
+        }
+    }
+
+    function scheduleGrowWizardTableTextareas(container) {
+        if (!container) return;
+        const grow = () => container.querySelectorAll('.wizard-table-cell-ta').forEach(growWizardTableCell);
+        requestAnimationFrame(grow);
+        // Phòng khi môi trường không chạy rAF (webview/headless) — chạy lại sau 80ms
+        setTimeout(grow, 80);
+    }
+
+    function setWizardRowInherit(row, on) {
+        const assignBtn = row.querySelector('[data-wz-row-assign]');
+        const summary = row.querySelector('[data-wz-row-summary]');
+        const checkbox = row.querySelector('[data-wz-inherit]');
+        if (checkbox) checkbox.checked = on;
+        if (assignBtn) assignBtn.disabled = on;
+        if (on) {
+            row.querySelector('input[name="item_assign_type"]').value = '';
+            row.querySelector('input[name="item_domain"]').value = '';
+            row.querySelector('input[name="item_domains"]').value = '';
+            row.querySelector('input[name="item_role_ids"]').value = '';
+            row.querySelector('input[name="item_user_ids"]').value = '';
+        }
+        const parentEl = wizardRowParentElement(row);
+        const parentDomains = parentEl ? (parentEl.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean) : [];
+        if (on) {
+            if (summary) {
+                summary.textContent = parentDomains.length
+                    ? 'Kế thừa mục cha: ' + parentDomains.map((v) => wizardUnitNameMap().get(String(v)) || String(v)).join(', ')
+                    : 'Kế thừa mục cha (chưa gán)';
+            }
+        } else if (summary) {
+            summary.textContent = 'Chưa gán người nhận';
+        }
+        syncWizardOutlineRowIndexes();
     }
 
     function clearWizardOutlineRows() {
         if (!outlineRowsBox) return;
         outlineRowsBox.innerHTML = '';
+        wizardOutlineGroups.clear();
+        wizardTableSchema = null;
+        wizardTableViewEnabled = false;
+        const tableView = document.getElementById('wizardOutlineTableView');
+        if (tableView) {
+            tableView.classList.add('d-none');
+            tableView.innerHTML = '';
+        }
     }
 
-    // ---------- per-row assign modal ----------
+    // ---------- per-row assign modal (chỉ gán theo đơn vị) ----------
     let wizardRowTarget = null;
     const wizardRowAssignModalEl = document.getElementById('wizardRowAssignModal');
-    const wizardRowAssignType = document.getElementById('wizardRowAssignType');
-
-    function setWizardRowSection(type) {
-        document.querySelectorAll('[data-wzrow-section]').forEach((section) => {
-            section.classList.toggle('d-none', section.dataset.wzrowSection !== type);
-        });
-    }
 
     function openWizardRowAssign(row) {
         wizardRowTarget = row;
         const current = {
-            assignType: row.querySelector('input[name="item_assign_type"]')?.value || 'unit',
             unitDomains: (row.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean),
-            roleIds: (row.querySelector('input[name="item_role_ids"]')?.value || '').split(',').filter(Boolean),
-            userIds: (row.querySelector('input[name="item_user_ids"]')?.value || '').split(',').filter(Boolean),
         };
-        if (wizardRowAssignType) wizardRowAssignType.value = ['unit', 'role', 'user'].includes(current.assignType) ? current.assignType : 'unit';
         document.querySelectorAll('[data-wzrow-unit-checkbox]').forEach((cb) => { cb.checked = current.unitDomains.includes(cb.value); });
-        document.querySelectorAll('[data-wzrow-role-checkbox]').forEach((cb) => { cb.checked = current.roleIds.includes(cb.value); });
-        document.querySelectorAll('[data-wzrow-user-checkbox]').forEach((cb) => { cb.checked = current.userIds.includes(cb.value); });
-        setWizardRowSection(wizardRowAssignType ? wizardRowAssignType.value : 'unit');
         if (wizardRowAssignModalEl && window.bootstrap) {
             bootstrap.Modal.getOrCreateInstance(wizardRowAssignModalEl).show();
         }
     }
 
-    wizardRowAssignType?.addEventListener('change', () => setWizardRowSection(wizardRowAssignType.value));
     document.getElementById('applyWizardRowAssignBtn')?.addEventListener('click', () => {
         if (!wizardRowTarget) return;
-        const type = wizardRowAssignType ? wizardRowAssignType.value : 'unit';
         const unitDomains = Array.from(document.querySelectorAll('[data-wzrow-unit-checkbox]:checked')).map((cb) => cb.value);
-        const roleIds = Array.from(document.querySelectorAll('[data-wzrow-role-checkbox]:checked')).map((cb) => cb.value);
-        const userIds = Array.from(document.querySelectorAll('[data-wzrow-user-checkbox]:checked')).map((cb) => cb.value);
-        updateWizardOutlineRowAssignment(wizardRowTarget, { assignType: type, domain: '', unitDomains, roleIds, userIds });
+        updateWizardOutlineRowAssignment(wizardRowTarget, { assignType: 'unit', domain: '', unitDomains, roleIds: [], userIds: [] });
         if (wizardRowAssignModalEl && window.bootstrap) {
             bootstrap.Modal.getOrCreateInstance(wizardRowAssignModalEl).hide();
         }
     });
 
-    // ---------- bulk assign ----------
-    const wizardAssignType = document.getElementById('wizardAssignType');
-    function syncWizardAssignSections() {
-        const type = wizardAssignType?.value || 'unit';
-        document.querySelectorAll('[data-wizard-assign]').forEach((section) => {
-            section.classList.toggle('d-none', section.dataset.wizardAssign !== type);
-        });
-    }
-    wizardAssignType?.addEventListener('change', syncWizardAssignSections);
-    document.getElementById('wizardSelectAllRowsBtn')?.addEventListener('click', () => {
-        outlineRowsBox?.querySelectorAll('[data-wz-row-check]').forEach((cb) => { cb.checked = true; });
-    });
-    document.getElementById('wizardApplyAssignBtn')?.addEventListener('click', () => {
-        const type = wizardAssignType?.value || 'unit';
-        const unitDomains = Array.from(document.querySelectorAll('[data-wizard-unit-checkbox]:checked')).map((cb) => cb.value);
-        const roleIds = Array.from(document.querySelectorAll('[data-wizard-role-checkbox]:checked')).map((cb) => cb.value);
-        const userIds = Array.from(document.querySelectorAll('[data-wizard-user-checkbox]:checked')).map((cb) => cb.value);
-        if ((type === 'unit' && !unitDomains.length) || (type === 'role' && !roleIds.length) || (type === 'user' && !userIds.length)) {
-            window.alert('Cần chọn ít nhất một đối tượng nhận việc trước khi gán.');
+    // ---------- bulk assign (chỉ gán theo đơn vị) ----------
+    function wizardBulkUnitLabel() {
+        const labelEl = document.querySelector('[data-wizard-unit-dropdown-label]');
+        if (!labelEl) return;
+        const checked = Array.from(document.querySelectorAll('[data-wizard-unit-checkbox]:checked'));
+        if (!checked.length) {
+            labelEl.textContent = 'Chọn đơn vị…';
             return;
         }
+        const names = checked.map((cb) => cb.dataset.label || cb.value);
+        labelEl.textContent = names.length > 3 ? `${names.slice(0, 3).join(', ')} +${names.length - 3} đơn vị` : names.join(', ');
+    }
+    document.querySelectorAll('[data-wizard-unit-checkbox]').forEach((cb) => {
+        cb.addEventListener('change', wizardBulkUnitLabel);
+    });
+    document.querySelector('[data-wizard-unit-check-all]')?.addEventListener('change', (event) => {
+        document.querySelectorAll('[data-wizard-unit-checkbox]').forEach((cb) => { cb.checked = event.target.checked; });
+        wizardBulkUnitLabel();
+    });
+    document.querySelector('[data-wizard-unit-clear]')?.addEventListener('click', () => {
+        document.querySelectorAll('[data-wizard-unit-checkbox]').forEach((cb) => { cb.checked = false; });
+        const checkAll = document.querySelector('[data-wizard-unit-check-all]');
+        if (checkAll) checkAll.checked = false;
+        wizardBulkUnitLabel();
+    });
+    document.getElementById('wizardSelectAllRowsBtn')?.addEventListener('click', () => {
+        outlineRowsBox?.querySelectorAll('[data-wz-row-check]').forEach((cb) => { cb.checked = true; });
+        const tableView = document.getElementById('wizardOutlineTableView');
+        if (tableView) tableView.querySelectorAll('[data-wz-table-view-check]').forEach((cb) => { cb.checked = true; });
+    });
+    document.getElementById('wizardApplyAssignBtn')?.addEventListener('click', () => {
+        const unitDomains = Array.from(document.querySelectorAll('[data-wizard-unit-checkbox]:checked')).map((cb) => cb.value);
+        if (!unitDomains.length) {
+            window.alert('Cần chọn ít nhất một đơn vị nhận việc trước khi gán.');
+            return;
+        }
+        wizardTableViewSuspend = true;
         outlineRowsBox?.querySelectorAll('[data-wz-row]').forEach((row) => {
             const checkbox = row.querySelector('[data-wz-row-check]');
             if (checkbox && checkbox.checked) {
-                updateWizardOutlineRowAssignment(row, { assignType: type, domain: '', unitDomains, roleIds, userIds });
+                updateWizardOutlineRowAssignment(row, { assignType: 'unit', domain: '', unitDomains, roleIds: [], userIds: [] });
             }
         });
+        wizardTableViewSuspend = false;
+        if (wizardTableViewEnabled) renderWizardTableView();
     });
 
     // ---------- form fields ----------
@@ -2054,19 +3255,15 @@
         }
         if (wizardMode === 'OUTLINE') {
             const rows = Array.from(outlineRowsBox?.querySelectorAll('[data-wz-row]') || []);
-            const blank = rows.findIndex((row) => !(row.querySelector('input[name="item_title"]')?.value || '').trim());
+            const blank = rows.findIndex((row) => !((row.querySelector('input[name="item_title"]')?.value || '').trim() || (row.querySelector('textarea[name="item_content"]')?.value || '').trim()));
             if (blank !== -1) {
-                window.alert(`Dòng ${blank + 1} chưa có nội dung việc nhỏ.`);
+                window.alert(`Dòng ${blank + 1} chưa có nội dung.`);
                 setStep(3);
                 return;
             }
-            const unassigned = rows.findIndex((row) => {
-                const assignTypeValue = row.querySelector('input[name="item_assign_type"]')?.value || '';
-                const hasTarget = Boolean((row.querySelector('input[name="item_domains"]')?.value || row.querySelector('input[name="item_role_ids"]')?.value || row.querySelector('input[name="item_user_ids"]')?.value || '').trim());
-                return !assignTypeValue || !hasTarget;
-            });
+            const unassigned = rows.findIndex((row) => !effectiveWizardRowDomains(row).length);
             if (unassigned !== -1) {
-                window.alert(`Việc nhỏ ${unassigned + 1} chưa gán người nhận. Bấm Gán trên dòng đó để chọn đơn vị / vai trò / cá nhân.`);
+                window.alert(`Mục ${unassigned + 1} chưa gán đơn vị nhận. Bấm Gán trên dòng đó (hoặc gán mục cha nếu là nội dung con kế thừa).`);
                 setStep(3);
                 return;
             }
@@ -2120,14 +3317,12 @@
         syncWizardForMode();
         syncFormSource();
         syncAssignType();
-        syncWizardAssignSections();
         setStep(1);
     });
 
     syncWizardForMode();
     syncFormSource();
     syncAssignType();
-    syncWizardAssignSections();
     setStep(1);
     if (!outlineRowsBox?.querySelector('[data-wz-row]')) {
         addWizardOutlineRow({});
@@ -2178,6 +3373,61 @@
             editConfigModalInstance.show();
         }
     };
+
+    // ---------- cách báo cáo theo loại công việc ----------
+    const REPORT_KIND_FROM_TYPE = (label, value) => {
+        const s = (label || '').toLowerCase();
+        if (s.includes('định kỳ') || s.includes('đinh ky') || s.includes('dinh ky')) return 'periodic';
+        if (s.includes('mốc') || s.includes('giai đoạn') || s.includes('gai doan')) return 'milestone';
+        if ((value || '') !== '' && (s.includes('thường xuyên') || s.includes('duy trì') || s.includes('thuong xuyen'))) return 'ongoing';
+        return 'one_time';
+    };
+
+    function syncReportPeriodPanel(formEl) {
+        const kindSelect = formEl.querySelector('select[name="report_period_kind"]');
+        if (!kindSelect) return;
+        const kind = kindSelect.value || 'one_time';
+        const panels = {
+            one_time: formEl.querySelector('[data-report-deadline-panel]'),
+            periodic: formEl.querySelector('[data-report-period-panel]'),
+            milestone: formEl.querySelector('[data-report-milestone-panel]'),
+            ongoing: formEl.querySelector('[data-report-ongoing-panel]'),
+        };
+        Object.entries(panels).forEach(([key, el]) => {
+            if (el) el.classList.toggle('d-none', key !== kind);
+        });
+        const period = formEl.querySelector('select[name="report_period"]')?.value || 'month';
+        const weekAnchor = formEl.querySelector('[data-report-week-anchor]');
+        const dayAnchor = formEl.querySelector('[data-report-day-anchor]');
+        const monthOfYear = formEl.querySelector('select[name="report_month_of_year"]');
+        const daySuffix = formEl.querySelector('[data-report-day-suffix]');
+        if (weekAnchor) weekAnchor.classList.toggle('d-none', period !== 'week');
+        if (dayAnchor) dayAnchor.classList.toggle('d-none', period === 'week');
+        if (monthOfYear) monthOfYear.classList.toggle('d-none', period !== 'year');
+        if (daySuffix) daySuffix.classList.toggle('d-none', period !== 'year');
+    }
+
+    function setupReportPeriodPanel(formEl) {
+        const kindSelect = formEl.querySelector('select[name="report_period_kind"]');
+        if (!kindSelect) return;
+        let userTouched = false;
+        kindSelect.addEventListener('change', () => { userTouched = true; syncReportPeriodPanel(formEl); });
+        const typeSelect = formEl.querySelector('select[name="task_type"]');
+        typeSelect?.addEventListener('change', () => {
+            if (userTouched) return;
+            const label = typeSelect.selectedOptions[0] ? typeSelect.selectedOptions[0].textContent : typeSelect.value;
+            kindSelect.value = REPORT_KIND_FROM_TYPE(label, typeSelect.value);
+            syncReportPeriodPanel(formEl);
+        });
+        formEl.querySelectorAll('select[name="report_period"]').forEach((sel) => {
+            sel.addEventListener('change', () => syncReportPeriodPanel(formEl));
+        });
+        const label = typeSelect && typeSelect.selectedOptions[0] ? typeSelect.selectedOptions[0].textContent : '';
+        if (label) kindSelect.value = REPORT_KIND_FROM_TYPE(label, typeSelect ? typeSelect.value : '');
+        syncReportPeriodPanel(formEl);
+    }
+    setupReportPeriodPanel(document.getElementById('createTaskForm'));
+    setupReportPeriodPanel(document.getElementById('editConfigForm'));
 </script>
 
 {% endif %}

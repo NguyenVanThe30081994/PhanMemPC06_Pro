@@ -209,6 +209,8 @@ class Task(db.Model):
     google_form_runtime_json = db.Column(db.Text)
     google_form_sync_state_json = db.Column(db.Text)
     report_schema_json = db.Column(db.Text)
+    outline_table_schema_json = db.Column(db.Text)
+    report_period_json = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.now)
     assignments = db.relationship('TaskAssignment', backref='task', cascade='all, delete-orphan')
     task_items = db.relationship('TaskItem', backref='task', cascade='all, delete-orphan', foreign_keys='TaskItem.task_id')
@@ -253,6 +255,12 @@ class TaskItem(db.Model):
     output_type = db.Column(db.String(30), default='OUTLINE')
     report_kind = db.Column(db.String(30), default='narrative')
     attachment_required = db.Column(db.Boolean, default=False)
+    linked_item_id = db.Column(db.Integer, db.ForeignKey('task_item.id'), index=True)
+    allow_aggregate = db.Column(db.Boolean, default=False)
+    report_sources_json = db.Column(db.Text)
+    table_cells_json = db.Column(db.Text)
+    synthesis_content = db.Column(db.Text)
+    synthesis_updated_at = db.Column(db.DateTime)
     status = db.Column(db.String(50), default='Chưa tiếp nhận')
     deadline = db.Column(db.Date)
     sort_order = db.Column(db.Integer, default=0)
@@ -260,7 +268,8 @@ class TaskItem(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     source_task = db.relationship('Task', foreign_keys=[source_task_id], backref='task_item_rows')
-    parent_item = db.relationship('TaskItem', remote_side=[id], backref='child_items')
+    parent_item = db.relationship('TaskItem', remote_side=[id], foreign_keys=[parent_item_id], backref='child_items')
+    linked_item = db.relationship('TaskItem', remote_side=[id], foreign_keys=[linked_item_id], backref='linked_items')
 
 
 class TaskAssignment(db.Model):
@@ -293,7 +302,7 @@ class TaskParticipant(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False, index=True)
-    task_item_id = db.Column(db.Integer, db.ForeignKey('task.id'), index=True)
+    task_item_id = db.Column(db.Integer, db.ForeignKey('task_item.id'), index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     role_id = db.Column(db.Integer, db.ForeignKey('app_role.id'), index=True)
     participant_type = db.Column(db.String(30), default='executor', index=True)
@@ -305,7 +314,7 @@ class TaskParticipant(db.Model):
 
     user = db.relationship('User', backref='task_participants')
     role = db.relationship('AppRole', backref='task_participants')
-    task_item = db.relationship('Task', foreign_keys=[task_item_id])
+    task_item = db.relationship('TaskItem', foreign_keys=[task_item_id])
 
 
 class TaskSubmission(db.Model):
@@ -313,7 +322,7 @@ class TaskSubmission(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False, index=True)
-    task_item_id = db.Column(db.Integer, db.ForeignKey('task.id'), index=True)
+    task_item_id = db.Column(db.Integer, db.ForeignKey('task_item.id'), index=True)
     participant_id = db.Column(db.Integer, db.ForeignKey('task_participant.id'), index=True)
     assignment_id = db.Column(db.Integer, db.ForeignKey('task_assignment.id'), index=True)
     submitted_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
@@ -326,6 +335,8 @@ class TaskSubmission(db.Model):
     attachment_path = db.Column(db.String(500))
     external_submission_id = db.Column(db.String(255), index=True)
     external_source = db.Column(db.String(30))
+    cycle_key = db.Column(db.String(50), index=True)
+    cycle_label = db.Column(db.String(100))
     synced_at = db.Column(db.DateTime)
     submitted_at = db.Column(db.DateTime)
     returned_at = db.Column(db.DateTime)

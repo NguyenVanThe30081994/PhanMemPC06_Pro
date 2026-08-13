@@ -2,28 +2,23 @@
    BDHVS LAYOUT SYSTEM - Áp dụng vào PC06
    ======================================== */
 
-/* 1. DARK GRADIENT BACKGROUND (Tùy chọn) */
+/* 1. DARK HERO BACKGROUND */
 .page-dark-hero {
-    background:
-        radial-gradient(circle at top left, rgba(56, 189, 248, 0.26), transparent 28%),
-        radial-gradient(circle at top right, rgba(37, 99, 235, 0.28), transparent 30%),
-        linear-gradient(135deg, #0f172a 0%, #173b86 50%, #2563eb 100%) !important;
+    background: #0f172a !important;
     color: #e2e8f0;
 }
 
 /* 2. ENHANCED CARD DESIGN - BDHVS Style */
 .bdhvs-card {
-    background: rgba(255, 255, 255, 0.96) !important;
-    border-radius: 32px !important; /* Tăng từ 22px */
-    border: 1px solid rgba(255, 255, 255, 0.16) !important;
-    backdrop-filter: blur(18px) !important;
-    box-shadow: 0 24px 52px rgba(15, 23, 42, 0.16) !important;
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    background: rgba(255, 255, 255, 0.97) !important;
+    border-radius: 20px !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
+    transition: box-shadow 0.15s ease-out, border-color 0.15s ease-out !important;
 }
 
 .bdhvs-card:hover {
-    transform: translateY(-6px) !important; /* Tăng từ -4px */
-    box-shadow: 0 32px 68px rgba(15, 23, 42, 0.2) !important;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1) !important;
 }
 
 /* Dark mode support */
@@ -42,11 +37,10 @@
 
 .bdhvs-hero-panel {
     padding: 30px;
-    border-radius: 32px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.17), rgba(255, 255, 255, 0.08));
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    backdrop-filter: blur(18px);
-    box-shadow: 0 24px 52px rgba(15, 23, 42, 0.16);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 4px 14px rgba(2, 6, 23, 0.2);
 }
 
 .bdhvs-hero-kicker {
@@ -55,7 +49,7 @@
     gap: 8px;
     padding: 8px 14px;
     border-radius: 999px;
-    background: rgba(15, 23, 42, 0.28);
+    background: rgba(15, 23, 42, 0.4);
     color: #dbeafe;
     font-size: 0.9rem;
     font-weight: 700;
@@ -80,11 +74,10 @@
 
 .bdhvs-summary-panel {
     padding: 24px;
-    border-radius: 32px;
-    background: rgba(15, 23, 42, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    backdrop-filter: blur(18px);
-    box-shadow: 0 24px 52px rgba(15, 23, 42, 0.16);
+    border-radius: 20px;
+    background: rgba(15, 23, 42, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 4px 14px rgba(2, 6, 23, 0.2);
 }
 
 .bdhvs-summary-title {
@@ -133,51 +126,50 @@
 }
 
 .bdhvs-icon.blue {
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
-    box-shadow: 0 14px 30px rgba(37, 99, 235, 0.26);
+    background: #2563eb;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.22);
 }
 
 .bdhvs-icon.purple {
-    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-    box-shadow: 0 14px 30px rgba(139, 92, 246, 0.26);
+    background: #8b5cf6;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.22);
 }
 
 .bdhvs-icon.orange {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-    box-shadow: 0 14px 30px rgba(245, 158, 11, 0.26);
+    background: #f59e0b;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.22);
 }
 
 .bdhvs-icon.pink {
-    background: linear-gradient(135deg, #ec4899, #be185d);
-    box-shadow: 0 14px 30px rgba(236, 72, 153, 0.26);
+    background: #ec4899;
+    box-shadow: 0 2px 8px rgba(236, 72, 153, 0.22);
 }
 
 .bdhvs-icon.green {
-    background: linear-gradient(135deg, #10b981, #059669);
-    box-shadow: 0 14px 30px rgba(16, 185, 129, 0.26);
+    background: #10b981;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.22);
 }
 
 /* 5. TOPBAR GLASS EFFECT */
 .bdhvs-topbar {
     padding: 18px 22px;
-    border-radius: 28px;
-    background: rgba(15, 23, 42, 0.3);
+    border-radius: 18px;
+    background: rgba(15, 23, 42, 0.35);
     border: 1px solid rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(18px);
-    box-shadow: 0 20px 40px rgba(2, 6, 23, 0.18);
+    box-shadow: 0 4px 14px rgba(2, 6, 23, 0.2);
     margin-bottom: 28px;
 }
 
 .bdhvs-brand-badge {
     width: 58px;
     height: 58px;
-    border-radius: 18px;
+    border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.45rem;
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
-    box-shadow: 0 14px 30px rgba(37, 99, 235, 0.26);
+    background: #2563eb;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
     color: #fff;
 }
 
@@ -192,20 +184,20 @@
 /* 7. ENHANCED BUTTONS */
 .btn-bdhvs {
     padding: 10px 16px;
-    border-radius: 999px;
+    border-radius: 10px;
     font-weight: 700;
-    transition: all 0.2s ease;
+    transition: background-color 0.15s ease-out, box-shadow 0.15s ease-out;
 }
 
 .btn-bdhvs.primary {
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    background: #2563eb;
     color: #fff;
     border: none;
-    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
 }
 
 .btn-bdhvs.primary:hover {
-    transform: translateY(-2px);
+    background: #1d4ed8;
     box-shadow: 0 12px 28px rgba(37, 99, 235, 0.4);
 }
 
@@ -222,31 +214,30 @@
 /* 8. STATS CARDS */
 .bdhvs-stat-card {
     padding: 24px;
-    border-radius: 24px;
+    border-radius: 16px;
     text-align: center;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.15s ease-out, border-color 0.15s ease-out;
 }
 
 .bdhvs-stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
 }
 
 .bdhvs-stat-card.blue {
-    background: linear-gradient(145deg, #DBEAFE, #BFDBFE);
+    background: #dbeafe;
 }
 
 .bdhvs-stat-card.green {
-    background: linear-gradient(145deg, #D1FAE5, #A7F3D0);
+    background: #d1fae5;
 }
 
 .bdhvs-stat-card.yellow {
-    background: linear-gradient(145deg, #FEF3C7, #FDE68A);
+    background: #fef3c7;
 }
 
 .bdhvs-stat-card.red {
-    background: linear-gradient(145deg, #FEE2E2, #FECACA);
+    background: #fee2e2;
 }
 
 .bdhvs-stat-value {
@@ -330,7 +321,7 @@
 
 /* 13. DARK MODE OVERRIDES */
 [data-theme="dark"] .bdhvs-hero-panel {
-    background: linear-gradient(135deg, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.4));
+    background: rgba(30, 41, 59, 0.6);
 }
 
 [data-theme="dark"] .bdhvs-summary-panel {
@@ -374,23 +365,20 @@
     border-radius: 999px !important;
 }
 
-/* 15. GLASS PANEL VARIANTS */
+/* 15. GLASS PANEL VARIANTS (flat) */
 .bdhvs-glass-light {
-    background: rgba(255, 255, 255, 0.96) !important;
-    backdrop-filter: blur(18px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
 }
 
 .bdhvs-glass-dark {
-    background: rgba(15, 23, 42, 0.3) !important;
-    backdrop-filter: blur(18px) !important;
+    background: #1e293b !important;
     border: 1px solid rgba(255, 255, 255, 0.12) !important;
 }
 
 .bdhvs-glass-medium {
-    background: rgba(255, 255, 255, 0.7) !important;
-    backdrop-filter: blur(18px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    background: #f8fafc !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
 }
 
 /* ========================================
@@ -398,17 +386,11 @@
    ======================================== */
 
 .pc06-bdhvs-body {
-    background:
-        radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 24%),
-        radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 22%),
-        linear-gradient(180deg, rgba(241, 245, 249, 0.9), rgba(248, 250, 252, 1));
+    background: #f1f5f9;
 }
 
 [data-theme="dark"] .pc06-bdhvs-body {
-    background:
-        radial-gradient(circle at top left, rgba(56, 189, 248, 0.12), transparent 24%),
-        radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 22%),
-        linear-gradient(180deg, #020617, #0f172a 42%, #111827);
+    background: #0f172a;
 }
 
 .pc06-page-shell {
@@ -424,11 +406,9 @@
 
 .pc06-hero-card {
     padding: 22px 24px;
-    border-radius: 28px;
-    background:
-        radial-gradient(circle at top right, rgba(125, 211, 252, 0.14), transparent 24%),
-        linear-gradient(135deg, #0f172a 0%, #173b86 52%, #2563eb 100%);
-    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+    border-radius: 20px;
+    background: #0f172a;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
     color: #fff;
 }
 
@@ -452,10 +432,9 @@
     display: grid;
     gap: 14px;
     padding: 16px 18px;
-    border-radius: 22px;
+    border-radius: 16px;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.14);
-    backdrop-filter: blur(16px);
 }
 
 .pc06-hero-toolbar-grid {
@@ -561,10 +540,9 @@
 
 .pc06-metric-card {
     padding: 14px 16px;
-    border-radius: 18px;
+    border-radius: 14px;
     background: rgba(255, 255, 255, 0.11);
     border: 1px solid rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(14px);
 }
 
 .pc06-metric-card span {
@@ -925,10 +903,9 @@ a.pc06-chip {
 
 .pc06-chip.active,
 .pc06-chip:hover {
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    background: #2563eb;
     color: #fff;
     border-color: transparent;
-    box-shadow: 0 12px 26px rgba(37, 99, 235, 0.22);
 }
 
 .pc06-chip.active .pc06-chip-count,
@@ -970,10 +947,9 @@ a.pc06-chip {
 
 .pc06-pill-tabs .nav-link.active,
 .pc06-pill-tabs .nav-link:hover {
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    background: #2563eb;
     color: #fff;
     border-color: transparent;
-    box-shadow: 0 12px 26px rgba(37, 99, 235, 0.22);
 }
 
 .pc06-toolbar-form-grid {
@@ -1084,8 +1060,8 @@ a.pc06-chip {
 }
 
 .pc06-task-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 30px 56px rgba(15, 23, 42, 0.14);
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
+    border-color: rgba(0, 102, 255, 0.35);
 }
 
 .pc06-task-card-head {
@@ -1097,8 +1073,8 @@ a.pc06-chip {
 .pc06-task-card-icon {
     width: 52px;
     height: 52px;
-    border-radius: 18px;
-    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+    border-radius: 14px;
+    background: #dbeafe;
     color: #1d4ed8;
     display: flex;
     align-items: center;
@@ -1296,8 +1272,8 @@ a.pc06-chip {
 }
 
 .pc06-modal-head {
-    padding: 28px 30px 22px;
-    background: linear-gradient(135deg, #0f172a 0%, #173b86 48%, #2563eb 100%);
+    padding: 24px 28px 20px;
+    background: #0f172a;
     color: #fff;
 }
 
@@ -1400,10 +1376,10 @@ a.pc06-chip {
 .pc06-section-menu-shell {
     display: grid;
     padding: 16px 18px;
-    border-radius: 22px;
-    border: 1px solid rgba(226, 232, 240, 0.92);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.92));
-    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-md);
 }
 
 .pc06-section-menu-shell.with-actions {
@@ -1446,9 +1422,8 @@ a.pc06-chip {
 
 .pc06-section-menu-tab.is-active {
     border-color: #2563eb;
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    background: #2563eb;
     color: #fff;
-    box-shadow: 0 12px 22px rgba(37, 99, 235, 0.22);
 }
 
 .pc06-section-pane-shell {
@@ -1471,7 +1446,7 @@ a.pc06-chip {
 
 [data-theme="dark"] .pc06-section-menu-shell {
     border-color: rgba(148, 163, 184, 0.16);
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.78));
+    background: rgba(15, 23, 42, 0.92);
 }
 
 [data-theme="dark"] .pc06-section-menu-tab {

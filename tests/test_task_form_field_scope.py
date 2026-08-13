@@ -5,7 +5,7 @@ import unittest
 from datetime import date, datetime
 
 from app import app
-from models import AppRole, Task, TaskAssignment, TaskComment, TaskFormField, TaskParticipant, TaskReportLink, TaskSubmission, User, db
+from models import AppRole, Task, TaskAssignment, TaskComment, TaskFormField, TaskParticipant, TaskSubmission, User, db
 
 
 class TaskFormFieldScopeRouteTests(unittest.TestCase):
@@ -18,11 +18,13 @@ class TaskFormFieldScopeRouteTests(unittest.TestCase):
     def tearDown(self):
         with app.app_context():
             if self.task_id:
+                TaskAssignment.query.filter_by(task_id=self.task_id).update(
+                    {TaskAssignment.last_submission_id: None}, synchronize_session=False
+                )
                 TaskSubmission.query.filter_by(task_id=self.task_id).delete()
                 TaskAssignment.query.filter_by(task_id=self.task_id).delete()
                 TaskFormField.query.filter_by(task_id=self.task_id).delete()
                 TaskParticipant.query.filter_by(task_id=self.task_id).delete()
-                TaskReportLink.query.filter_by(task_id=self.task_id).delete()
                 TaskComment.query.filter_by(task_id=self.task_id).delete()
                 Task.query.filter_by(id=self.task_id).delete()
             for user_id in self.user_ids:

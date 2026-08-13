@@ -10,6 +10,9 @@
             <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
                 <a href="{{ url_for('tasks_bp.tasks') }}" class="btn btn-light btn-sm">Quay lại danh sách</a>
                 <span class="task-detail-pill task-detail-pill-info">{{ task.task_mode_label }}</span>
+                {% if report_kind_label %}
+                <span class="task-detail-pill task-detail-pill-info">{{ report_kind_label }}</span>
+                {% endif %}
                 {% if task.task_mode == 'FORM' %}
                 <span class="task-detail-pill task-detail-pill-info">{{ task.form_provider_label }}</span>
                 {% endif %}
@@ -19,7 +22,9 @@
             <p>{{ task.task_mode_description }}</p>
             <div class="task-detail-meta">
                 <span>Người giao: <strong>{{ task.author_name }}</strong></span>
-                {% if task.deadline %}<span>Hạn: <strong>{{ task.deadline.strftime('%d/%m/%Y') }}</strong></span>{% endif %}
+                {% if current_cycle and current_cycle.label and report_period and report_period.kind != 'one_time' %}
+                <span>Chu kỳ: <strong>{{ current_cycle.label }}</strong>{% if current_cycle.due %} — hạn nộp <strong>{{ current_cycle.due[8:10] }}/{{ current_cycle.due[5:7] }}/{{ current_cycle.due[0:4] }}</strong>{% endif %}{% if current_cycle.overdue %} <span class="text-danger">(quá hạn)</span>{% endif %}</span>
+                {% elif task.deadline %}<span>Hạn: <strong>{{ task.deadline.strftime('%d/%m/%Y') }}</strong></span>{% endif %}
                 <span>Tiến độ: <strong>{{ detail_context.progress_percent }}%</strong></span>
                 {% if task.task_mode == 'FORM' and task.form_provider == 'google' and task.google_form_sync_state.last_sync_at %}
                 <span>Đồng bộ cuối: <strong>{{ task.google_form_sync_state.last_sync_at[:16]|replace('T', ' ') }}</strong></span>
@@ -202,7 +207,17 @@
                                             <tr>
                                                 <td>
                                                     <div class="fw-semibold">{{ row.item.item_code or loop.index }}. {{ row.item.title }}</div>
+                                                {% if row.table_render_html %}
+                                                <div class="mt-2">{{ row.table_render_html|safe }}</div>
+                                                {% endif %}
                                                     <div class="small text-muted">{{ row.submitted_count }}/{{ row.total_count }} lượt giao đã nộp</div>
+                                                    {% if can_manage_task_view %}
+                                                    <div class="mt-2">
+                                                        <button type="button" class="btn btn-sm {% if row.item.synthesis_content %}btn-success{% else %}btn-outline-primary{% endif %}" data-synthesis-open data-item-id="{{ row.item.id }}" data-item-code="{{ row.item.item_code or loop.index }}" data-item-title="{{ row.item.title }}">
+                                                            <i class="fa-solid fa-layer-group me-1"></i>Tổng hợp{% if row.item.synthesis_content %}<span class="ms-2 badge bg-white text-success">Đã lưu</span>{% endif %}
+                                                        </button>
+                                                    </div>
+                                                    {% endif %}
                                                 </td>
                                                 {% for cell in row.cells %}
                                                 <td class="text-center align-middle">
@@ -212,6 +227,13 @@
                                                     <span class="badge bg-success-subtle text-success">Đã nộp</span>
                                                     {% else %}
                                                     <span class="badge bg-light text-dark">{{ cell.submitted_count }}/{{ cell.total_count }}</span>
+                                                    {% endif %}
+                                                    {% if cell.numbers %}
+                                                    <div class="small text-start mt-2">
+                                                        {% for number in cell.numbers %}
+                                                        <div class="text-primary fw-medium">{{ number.first_value }}</div>
+                                                        {% endfor %}
+                                                    </div>
                                                     {% endif %}
                                                     {% for cell_assignment in cell.assignments %}
                                                     {% if cell_assignment.submitted %}
@@ -225,10 +247,19 @@
                                                 </td>
                                                 {% endfor %}
                                                 <td class="text-center">
+                                                    {% if row.aggregate_total is not none and row.aggregate_count >= 2 %}
+                                                    <div class="fw-bold text-success" title="Tổng cộng số liệu {{ row.aggregate_count }} đơn vị đã nộp">Tổng: {{ "%g" % row.aggregate_total }}</div>
+                                                    {% endif %}
                                                     {% if row.done %}
                                                     <span class="badge bg-success">Hoàn tất</span>
                                                     {% else %}
                                                     <span class="badge bg-warning-subtle text-warning">{{ row.percent }}%</span>
+                                                    {% endif %}
+                                                    {% if row.item.report_kind == 'number' %}
+                                                    <form action="{{ url_for('tasks_bp.toggle_task_item_aggregate', tid=task.id, item_id=row.item.id) }}" method="POST" class="d-inline-block mt-2">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <button class="btn btn-sm {% if row.item.allow_aggregate %}btn-success{% else %}btn-outline-secondary{% endif %}" type="submit" title="Cho phép cộng gộp số liệu các đơn vị">Cộng gộp {% if row.item.allow_aggregate %}✓{% endif %}</button>
+                                                    </form>
                                                     {% endif %}
                                                 </td>
                                             </tr>
@@ -375,8 +406,8 @@
 
                                 <div id="outlineModeImportSection" class="d-none">
                                     <div class="border rounded-3 p-3 bg-light-subtle mb-4">
-                                        <div class="fw-semibold mb-1">Bước 1: Nạp file đề cương</div>
-                                        <div class="small text-muted mb-3">Hệ thống chỉ lấy danh sách nội dung từ file, sau đó bạn sửa lại, chọn hình thức báo cáo và gán người nhận trước khi tạo thật.</div>
+                                        <div class="fw-semibold mb-1"><span class="step-pill me-2">Bước 1</span>Nạp file đề cương</div>
+                                        <div class="small text-muted mb-3">Hệ thống gom nội dung theo từng mục, sau đó bạn sửa tiêu đề mục, chọn hình thức báo cáo và gán đơn vị nhận trước khi tạo thật.</div>
                                         <form action="{{ url_for('tasks_bp.preview_outline_import', tid=task.id) }}" method="POST" enctype="multipart/form-data">
                                             <div class="row g-3 align-items-end">
                                                 <div class="col-lg-5">
@@ -384,19 +415,13 @@
                                                     <input class="form-control" type="file" name="outline_file" accept=".docx,.txt" required>
                                                 </div>
                                                 <div class="col-lg-4">
-                                                    <label class="form-label fw-bold">Kiểu mặc định khi nạp file</label>
+                                                    <label class="form-label fw-bold">Hình thức báo cáo mặc định khi nạp file</label>
                                                     <select class="form-select" name="child_report_kind">
                                                         <option value="narrative">Báo cáo lời</option>
                                                         <option value="number">Báo cáo số</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-lg-2">
-                                                    <div class="form-check mb-2">
-                                                        <input class="form-check-input" type="checkbox" name="child_attachment_required" value="1" id="importAttachmentRequired">
-                                                        <label class="form-check-label" for="importAttachmentRequired">Bắt buộc file</label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-lg-1">
+                                                <div class="col-lg-3">
                                                     <button class="btn btn-outline-primary w-100" type="submit">Nạp</button>
                                                 </div>
                                             </div>
@@ -407,21 +432,16 @@
                                     <form action="{{ url_for('tasks_bp.create_child_task', tid=task.id) }}" method="POST" id="outlineImportConfigForm">
                                         <div class="border rounded-3 p-3 mb-4">
                                             <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
-                                                <div>
-                                                    <div class="fw-semibold">Bước 2: Cấu hình sau khi nạp đề cương</div>
-                                                    <div class="small text-muted">Đề cương được tách thành danh sách việc nhỏ ở bên dưới. Kết quả phân tích tự động chỉ là gợi ý: bấm <b>Gán</b> ở từng dòng để gán việc cho đơn vị / vai trò / cá nhân, hoặc tích nhiều dòng rồi gán hàng loạt ở khung phía trên. Toàn bộ quyết định giao việc do quản trị quyết định trước khi bấm Tạo.</div>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <div class="fw-semibold"><span class="step-pill me-2">Bước 2</span>Cấu hình sau khi nạp đề cương</div>
+                                                    <button class="btn btn-outline-primary btn-sm" type="button" id="addImportOutlineRowBtn">Thêm dòng</button>
                                                 </div>
-                                                <button class="btn btn-outline-primary btn-sm" type="button" id="addImportOutlineRowBtn">Thêm dòng</button>
                                             </div>
 
                                             <div class="row g-3 mb-3">
                                                 <div class="col-lg-4">
-                                                    <label class="form-label fw-bold">Gán cho dòng tích theo</label>
-                                                    <select class="form-select" id="importAssignType">
-                                                        <option value="unit">Đơn vị</option>
-                                                        <option value="role">Vai trò</option>
-                                                        <option value="user">Cá nhân</option>
-                                                    </select>
+                                                    <label class="form-label fw-bold">Gán cho dòng tích</label>
+                                                    <div class="fw-semibold small pt-2">Theo đơn vị</div>
                                                 </div>
                                                 <div class="col-lg-8" data-import-assign="unit">
                                                     <label class="form-label fw-bold">Đơn vị nhận việc</label>
@@ -446,55 +466,6 @@
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div class="col-lg-8 d-none" data-import-assign="role">
-                                                    <label class="form-label fw-bold">Vai trò nhận việc</label>
-                                                    <div class="position-relative">
-                                                        <button class="form-select text-start" type="button" id="importRolePickerToggle" aria-expanded="false">Chọn vai trò</button>
-                                                        <div class="border rounded-3 bg-white shadow-sm mt-2 d-none position-absolute start-0 end-0 z-3" id="importRolePickerMenu">
-                                                            <div class="d-flex justify-content-between align-items-center gap-2 px-3 py-2 border-bottom bg-light">
-                                                                <div class="small fw-semibold text-muted">Có thể chọn một hoặc nhiều vai trò</div>
-                                                                <div class="d-flex gap-2">
-                                                                    <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="importRoleSelectAllBtn">Tất cả</button>
-                                                                    <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="importRoleClearAllBtn">Bỏ chọn</button>
-                                                                </div>
-                                                            </div>
-                                                            <div style="max-height: 280px; overflow:auto;">
-                                                                {% for role in roles %}
-                                                                <label class="d-flex align-items-center gap-3 px-3 py-3 border-top">
-                                                                    <input type="checkbox" class="mt-1" data-import-role-checkbox value="{{ role.id }}" data-role-label="{{ role.name }}">
-                                                                    <span class="fw-medium">{{ role.name }}</span>
-                                                                </label>
-                                                                {% endfor %}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-lg-8 d-none" data-import-assign="user">
-                                                    <label class="form-label fw-bold">Cán bộ nhận việc</label>
-                                                    <div class="position-relative">
-                                                        <button class="form-select text-start" type="button" id="importUserPickerToggle" aria-expanded="false">Chọn cán bộ nhận việc</button>
-                                                        <div class="border rounded-3 bg-white shadow-sm mt-2 d-none position-absolute start-0 end-0 z-3" id="importUserPickerMenu">
-                                                            <div class="d-flex justify-content-between align-items-center gap-2 px-3 py-2 border-bottom bg-light">
-                                                                <div class="small fw-semibold text-muted">Có thể chọn một hoặc nhiều cán bộ</div>
-                                                                <div class="d-flex gap-2">
-                                                                    <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="importUserSelectAllBtn">Tất cả</button>
-                                                                    <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" id="importUserClearAllBtn">Bỏ chọn</button>
-                                                                </div>
-                                                            </div>
-                                                            <div style="max-height: 320px; overflow:auto;">
-                                                                {% for user in users %}
-                                                                <label class="d-flex align-items-start gap-3 px-3 py-3 border-top">
-                                                                    <input type="checkbox" class="mt-1" data-import-user-checkbox value="{{ user.id }}" data-user-label="{{ user.fullname }}">
-                                                                    <div class="flex-grow-1">
-                                                                        <div class="fw-medium">{{ user.fullname }}</div>
-                                                                        <div class="small text-muted">{% if user.unit_area_display %}{{ user.unit_area_display }}{% else %}Chưa có đơn vị{% endif %}</div>
-                                                                    </div>
-                                                                </label>
-                                                                {% endfor %}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
                                                 <div class="col-12 d-flex flex-wrap gap-2">
                                                     <button class="btn btn-outline-secondary btn-sm" type="button" id="importSelectAllRowsBtn">Chọn tất cả dòng</button>
                                                     <button class="btn btn-outline-secondary btn-sm" type="button" id="importClearAllRowsBtn">Bỏ chọn dòng</button>
@@ -503,16 +474,6 @@
                                             </div>
 
                                             <div class="border rounded-3 overflow-hidden">
-                                                <div class="d-none d-lg-block px-3 py-2 border-bottom small fw-semibold text-muted bg-light">
-                                                    <div class="row g-2">
-                                                        <div class="col-lg-1">Chọn</div>
-                                                        <div class="col-lg-4">Nội dung báo cáo</div>
-                                                        <div class="col-lg-2">Hình thức</div>
-                                                        <div class="col-lg-2">Bắt buộc file</div>
-                                                        <div class="col-lg-2">Người nhận</div>
-                                                        <div class="col-lg-1">Xóa</div>
-                                                    </div>
-                                                </div>
                                                 <div id="outlineImportRows" class="bg-white"></div>
                                                 <div id="outlineImportEmpty" class="px-3 py-4 text-muted d-none">Chưa có dòng nào trong cấu hình import.</div>
                                             </div>
@@ -527,14 +488,6 @@
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
                                                 </div>
                                                 <div class="modal-body">
-                                                    <div class="mb-3">
-                                                        <label class="form-label fw-bold">Giao theo</label>
-                                                        <select class="form-select" id="rowAssignType">
-                                                            <option value="unit">Đơn vị</option>
-                                                            <option value="role">Vai trò</option>
-                                                            <option value="user">Cá nhân</option>
-                                                        </select>
-                                                    </div>
                                                     <div data-row-assign-section="unit">
                                                         <label class="form-label fw-bold">Đơn vị nhận việc</label>
                                                         <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
@@ -542,31 +495,6 @@
                                                             <label class="d-flex align-items-center gap-2 px-2 py-2 border-bottom">
                                                                 <input type="checkbox" class="mt-1" data-row-unit-checkbox value="{{ item.value }}">
                                                                 <span class="small">{{ item.name }}</span>
-                                                            </label>
-                                                            {% endfor %}
-                                                        </div>
-                                                    </div>
-                                                    <div class="d-none" data-row-assign-section="role">
-                                                        <label class="form-label fw-bold">Vai trò nhận việc</label>
-                                                        <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
-                                                            {% for role in roles %}
-                                                            <label class="d-flex align-items-center gap-2 px-2 py-2 border-bottom">
-                                                                <input type="checkbox" class="mt-1" data-row-role-checkbox value="{{ role.id }}">
-                                                                <span class="small">{{ role.name }}</span>
-                                                            </label>
-                                                            {% endfor %}
-                                                        </div>
-                                                    </div>
-                                                    <div class="d-none" data-row-assign-section="user">
-                                                        <label class="form-label fw-bold">Cán bộ nhận việc</label>
-                                                        <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
-                                                            {% for user in users %}
-                                                            <label class="d-flex align-items-start gap-2 px-2 py-2 border-bottom">
-                                                                <input type="checkbox" class="mt-1" data-row-user-checkbox value="{{ user.id }}">
-                                                                <div class="small">
-                                                                    <div class="fw-medium">{{ user.fullname }}</div>
-                                                                    <div class="text-muted">{% if user.unit_area_display %}{{ user.unit_area_display }}{% else %}Chưa có đơn vị{% endif %}</div>
-                                                                </div>
                                                             </label>
                                                             {% endfor %}
                                                         </div>
@@ -613,8 +541,16 @@
                                                 {% if row.secondary_text %}
                                                 <div class="small text-muted mt-1">{{ row.secondary_text }}</div>
                                                 {% endif %}
+                                                {% if row.table_render_html %}
+                                                <div class="mt-2">{{ row.table_render_html|safe }}</div>
+                                                {% endif %}
                                             </div>
-                                            <div class="d-flex flex-wrap gap-2 justify-content-end">
+                                            <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
+                                                {% if can_manage_task_view %}
+                                                <button type="button" class="btn btn-sm {% if row.item.synthesis_content %}btn-success{% else %}btn-outline-primary{% endif %}" data-synthesis-open data-item-id="{{ row.item.id }}" data-item-code="{{ row.item.item_code or '' }}" data-item-title="{{ row.item.title }}">
+                                                    <i class="fa-solid fa-layer-group me-1"></i>Tổng hợp{% if row.item.synthesis_content %} ✓{% endif %}
+                                                </button>
+                                                {% endif %}
                                                 <span class="badge bg-light text-dark">{{ row.submitted_count }}/{{ row.total_count }} đã nộp</span>
                                                 <span class="badge bg-primary-subtle text-primary">{{ 'Báo cáo số' if row.item.report_kind == 'number' else 'Báo cáo lời' }}</span>
                                                 {% if row.item.attachment_required %}
@@ -638,9 +574,14 @@
                                                 <input type="hidden" name="task_item_id" value="{{ row.item.id }}">
                                                 <div class="row g-3">
                                                     {% if row.item.report_kind == 'number' %}
-                                                    <div class="col-lg-3">
-                                                        <label class="form-label fw-bold">Số liệu báo cáo</label>
+                                                    <div class="col-12">
+                                                        <label class="form-label fw-bold">Điền số liệu vào chỗ trống trong nội dung</label>
+                                                        {% if row.blank_editor_html %}
+                                                        <div class="border rounded-3 p-3 bg-white outline-blank-editor">{{ row.blank_editor_html|safe }}</div>
+                                                        <div class="small text-muted mt-1"><i class="fa-solid fa-circle-info me-1"></i>Điền số thực tế của đơn vị vào từng ô. Nếu cặp số dạng "54.105/57.417" (số đã làm / tổng số) thì điền cả hai vào 1 ô.</div>
+                                                        {% else %}
                                                         <input class="form-control" type="number" step="any" name="report_number" value="{{ row.my_submission.numeric_value if row.my_submission and row.my_submission.numeric_value is not none else '' }}">
+                                                        {% endif %}
                                                     </div>
                                                     {% endif %}
                                                     <div class="col-lg-{{ '5' if row.item.report_kind == 'number' else '6' }}">
@@ -1250,6 +1191,116 @@
 </div>
 
 <style>
+    .import-config-row-child {
+        margin-left: 42px;
+        border-left: 3px solid rgba(37, 99, 235, 0.25) !important;
+        background: rgba(248, 250, 252, 0.85);
+    }
+
+    .outline-table-render th {
+        background: #f1f5f9;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+    .outline-table-render td {
+        font-size: 0.85rem;
+    }
+
+    .wizard-outline-row-main {
+        min-width: 0;
+    }
+
+    .wizard-outline-row-main textarea.wizard-row-textarea {
+        flex: 1 1 auto;
+        min-width: 0;
+        width: auto;
+        resize: none;
+        overflow: hidden;
+    }
+
+    .wizard-outline-row-actions {
+        min-width: 0;
+    }
+
+    .wizard-outline-group {
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 12px;
+        background: #fff;
+        overflow: hidden;
+    }
+
+    .wizard-outline-group-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        background: #f6f8fa;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+    }
+
+    .wizard-outline-group-marker {
+        flex: 0 0 28px;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #2563eb;
+        color: #fff;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 13px;
+        margin-top: 2px;
+    }
+
+    .wizard-outline-group-titles {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .wizard-outline-group-breadcrumb {
+        font-size: 13px;
+        font-weight: 700;
+        color: #1f2937;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        line-height: 1.4;
+    }
+
+    .wizard-outline-group-title {
+        font-weight: 700;
+        font-size: 14px;
+        color: #1f2937;
+        line-height: 1.45;
+    }
+
+    .wizard-outline-group-body {
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    /* Step pill phẳng cho luồng import đề cương */
+    .step-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: #0066FF;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        vertical-align: middle;
+    }
+
+    [data-theme="dark"] .step-pill {
+        background: #3b82f6;
+    }
+
     .task-detail-shell {
         display: grid;
         gap: 24px;
@@ -1484,6 +1535,7 @@
     const importUserClearAllBtn = document.getElementById('importUserClearAllBtn');
     const importUserCheckboxes = Array.from(document.querySelectorAll('[data-import-user-checkbox]'));
     const importRows = document.getElementById('outlineImportRows');
+    const importGroups = new Map(); // heading -> { block, body }
     const importEmpty = document.getElementById('outlineImportEmpty');
     const addImportOutlineRowBtn = document.getElementById('addImportOutlineRowBtn');
     const importSelectAllRowsBtn = document.getElementById('importSelectAllRowsBtn');
@@ -1704,15 +1756,11 @@
             const unitNames = domains.map((value) => importUnitNameMap().get(String(value)) || String(value));
             return `Đơn vị: ${unitNames.join(', ')}`;
         }
-        if (assignType === 'role' && roleIds.length) {
-            const roleNames = roleIds.map((roleId) => importRoleNameMap().get(String(roleId)) || String(roleId));
-            return `Vai trò: ${roleNames.join(', ')}`;
-        }
-        if (assignType === 'user' && userIds.length) {
-            const userNames = userIds.map((userId) => importUserNameMap().get(String(userId)) || String(userId));
-            return `Cá nhân: ${userNames.join(', ')}`;
-        }
         return 'Chưa gán người nhận';
+    }
+
+    function importRowParentElement(row) {
+        return (row && typeof row._importParentEl !== 'undefined') ? row._importParentEl : null;
     }
 
     function syncImportRowIndexes() {
@@ -1721,8 +1769,35 @@
         rows.forEach((row, index) => {
             const attachment = row.querySelector('[data-item-attachment]');
             if (attachment) attachment.value = String(index);
+            const parentInput = row.querySelector('input[name="item_parent"]');
+            if (parentInput) {
+                const parentEl = importRowParentElement(row);
+                const parentIndex = parentEl ? rows.indexOf(parentEl) : -1;
+                parentInput.value = parentIndex >= 0 ? String(parentIndex) : '';
+            }
+            const inheritInput = row.querySelector('input[name="item_inherit"]');
+            const inheritCheckbox = row.querySelector('[data-import-inherit]');
+            if (inheritInput) {
+                inheritInput.value = (inheritCheckbox && inheritCheckbox.checked) ? String(index) : '';
+            }
         });
         importEmpty?.classList.toggle('d-none', rows.length > 0);
+    }
+
+    function effectiveImportRowDomains(row, visited) {
+        if (!row) return [];
+        const own = (row.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean);
+        if (own.length) return own;
+        const inheritCheckbox = row.querySelector('[data-import-inherit]');
+        if (inheritCheckbox && inheritCheckbox.checked) {
+            const parentEl = importRowParentElement(row);
+            if (parentEl && (!visited || !visited.has(parentEl))) {
+                const nextVisited = visited ? new Set(visited) : new Set();
+                nextVisited.add(row);
+                return effectiveImportRowDomains(parentEl, nextVisited);
+            }
+        }
+        return [];
     }
 
     function updateImportRowAssignment(row, payload) {
@@ -1731,38 +1806,74 @@
         row.querySelector('input[name="item_domains"]').value = (payload.unitDomains || []).join(',');
         row.querySelector('input[name="item_role_ids"]').value = (payload.roleIds || []).join(',');
         row.querySelector('input[name="item_user_ids"]').value = (payload.userIds || []).join(',');
+        const checkbox = row.querySelector('[data-import-inherit]');
+        if (checkbox) checkbox.checked = false;
+        const assignBtn = row.querySelector('[data-row-assign-btn]');
+        if (assignBtn) assignBtn.disabled = false;
         row.querySelector('[data-import-assignment-summary]').textContent = formatImportAssignmentSummary(
             payload.assignType || '',
             payload.unitDomains || [],
             payload.roleIds || [],
             payload.userIds || [],
         );
+        syncImportRowIndexes();
+        propagateImportInheritedChildren(row);
+    }
+
+    function propagateImportInheritedChildren(parentRow) {
+        if (!importRows) return;
+        const parentDomains = (parentRow.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean);
+        Array.from(importRows.querySelectorAll('[data-import-config-row]')).forEach((child) => {
+            if (importRowParentElement(child) !== parentRow) return;
+            const inheritCheckbox = child.querySelector('[data-import-inherit]');
+            const summary = child.querySelector('[data-import-assignment-summary]');
+            if (inheritCheckbox && inheritCheckbox.checked) {
+                if (summary) {
+                    summary.textContent = parentDomains.length
+                        ? 'Kế thừa mục cha: ' + parentDomains.map((v) => importUnitNameMap().get(String(v)) || String(v)).join(', ')
+                        : 'Kế thừa mục cha (chưa gán)';
+                }
+            }
+        });
+    }
+
+    function setImportRowInherit(row, on) {
+        const assignBtn = row.querySelector('[data-row-assign-btn]');
+        const summary = row.querySelector('[data-import-assignment-summary]');
+        const checkbox = row.querySelector('[data-import-inherit]');
+        if (checkbox) checkbox.checked = on;
+        if (assignBtn) assignBtn.disabled = on;
+        if (on) {
+            row.querySelector('input[name="item_assign_type"]').value = '';
+            row.querySelector('input[name="item_domain"]').value = '';
+            row.querySelector('input[name="item_domains"]').value = '';
+            row.querySelector('input[name="item_role_ids"]').value = '';
+            row.querySelector('input[name="item_user_ids"]').value = '';
+        }
+        const parentEl = importRowParentElement(row);
+        const parentDomains = parentEl ? (parentEl.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean) : [];
+        if (on) {
+            if (summary) {
+                summary.textContent = parentDomains.length
+                    ? 'Kế thừa mục cha: ' + parentDomains.map((v) => importUnitNameMap().get(String(v)) || String(v)).join(', ')
+                    : 'Kế thừa mục cha (chưa gán)';
+            }
+        } else if (summary) {
+            summary.textContent = 'Chưa gán người nhận';
+        }
+        syncImportRowIndexes();
     }
 
     let rowAssignTarget = null;
     const rowAssignModalEl = document.getElementById('rowAssignModal');
-    const rowAssignType = document.getElementById('rowAssignType');
-
-    function setRowAssignSection(type) {
-        document.querySelectorAll('[data-row-assign-section]').forEach((section) => {
-            section.classList.toggle('d-none', section.dataset.rowAssignSection !== type);
-        });
-    }
 
     function openRowAssignModal(row) {
         if (!row) return;
         rowAssignTarget = row;
         const current = {
-            assignType: row.querySelector('input[name="item_assign_type"]')?.value || 'unit',
             unitDomains: (row.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean),
-            roleIds: (row.querySelector('input[name="item_role_ids"]')?.value || '').split(',').filter(Boolean),
-            userIds: (row.querySelector('input[name="item_user_ids"]')?.value || '').split(',').filter(Boolean),
         };
-        if (rowAssignType) rowAssignType.value = ['unit', 'role', 'user'].includes(current.assignType) ? current.assignType : 'unit';
         document.querySelectorAll('[data-row-unit-checkbox]').forEach((checkbox) => { checkbox.checked = current.unitDomains.includes(checkbox.value); });
-        document.querySelectorAll('[data-row-role-checkbox]').forEach((checkbox) => { checkbox.checked = current.roleIds.includes(checkbox.value); });
-        document.querySelectorAll('[data-row-user-checkbox]').forEach((checkbox) => { checkbox.checked = current.userIds.includes(checkbox.value); });
-        setRowAssignSection(rowAssignType ? rowAssignType.value : 'unit');
         if (rowAssignModalEl && window.bootstrap) {
             bootstrap.Modal.getOrCreateInstance(rowAssignModalEl).show();
         }
@@ -1770,87 +1881,155 @@
 
     function applyRowAssign() {
         if (!rowAssignTarget) return;
-        const type = rowAssignType ? rowAssignType.value : 'unit';
         const unitDomains = Array.from(document.querySelectorAll('[data-row-unit-checkbox]:checked')).map((checkbox) => checkbox.value);
-        const roleIds = Array.from(document.querySelectorAll('[data-row-role-checkbox]:checked')).map((checkbox) => checkbox.value);
-        const userIds = Array.from(document.querySelectorAll('[data-row-user-checkbox]:checked')).map((checkbox) => checkbox.value);
-        updateImportRowAssignment(rowAssignTarget, { assignType: type, domain: '', unitDomains, roleIds, userIds });
+        updateImportRowAssignment(rowAssignTarget, { assignType: 'unit', domain: '', unitDomains, roleIds: [], userIds: [] });
         if (rowAssignModalEl && window.bootstrap) {
             bootstrap.Modal.getOrCreateInstance(rowAssignModalEl).hide();
         }
     }
 
-    rowAssignType?.addEventListener('change', () => setRowAssignSection(rowAssignType.value));
     document.getElementById('applyRowAssignBtn')?.addEventListener('click', applyRowAssign);
 
-    function makeImportRow(rowData = {}) {
+    function importRowGroupBody(row) {
+        return (row && typeof row._importGroupBody !== 'undefined') ? row._importGroupBody : null;
+    }
+
+    function makeImportRow(rowData = {}, parentRowEl = null) {
         const wrapper = document.createElement('div');
-        wrapper.className = 'px-3 py-3 border-top';
+        const isChild = Boolean(parentRowEl);
+        wrapper.className = 'px-3 py-3 border-top import-config-row' + (isChild ? ' import-config-row-child' : '');
         wrapper.dataset.importConfigRow = '1';
+        wrapper._importParentEl = parentRowEl || null;
+        const titleValue = String(rowData.title || '').replace(/"/g, '&quot;');
+        const contentValue = String(rowData.content || rowData.title || '').replace(/"/g, '&quot;');
+        const headingValue = String(rowData.heading || '').replace(/"/g, '&quot;');
+        const inherited = isChild && !(rowData.assign_type || (rowData.unit_domains || []).length || (rowData.role_ids || []).length || (rowData.user_ids || []).length);
         wrapper.innerHTML = `
-            <div class="row g-2 align-items-center">
-                <div class="col-lg-1">
-                    <div class="form-check m-0">
+            <div class="wizard-outline-row-grid">
+                <div class="d-flex align-items-center gap-2">
+                    <label class="form-label small fw-semibold mb-0">Nội dung đề cương</label>
+                    ${isChild ? '<span class="badge bg-info-subtle text-info-emphasis"><i class="fa-solid fa-level-down fa-rotate-90 me-1"></i>Nội dung con</span>' : ''}
+                </div>
+                <div class="d-flex gap-2 align-items-center wizard-outline-row-main">
+                    <div class="flex-shrink-0 d-flex align-items-center">
                         <input class="form-check-input" type="checkbox" data-import-row-check>
                     </div>
-                </div>
-                <div class="col-lg-4">
-                    <input class="form-control" type="text" name="item_title" placeholder="Nhập nội dung báo cáo" value="${String(rowData.title || '').replace(/"/g, '&quot;')}">
-                </div>
-                <div class="col-lg-2">
-                    <select class="form-select" name="item_report_kind">
-                        <option value="narrative" ${rowData.report_kind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
-                        <option value="number" ${rowData.report_kind === 'number' ? 'selected' : ''}>Báo cáo số</option>
-                    </select>
-                </div>
-                <div class="col-lg-2">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="item_attachment_required" data-item-attachment ${rowData.attachment_required ? 'checked' : ''}>
-                        <label class="form-check-label small">Bắt buộc file</label>
+                    <textarea class="form-control form-control-sm wizard-row-textarea" name="item_content" rows="1" readonly style="background-color: var(--bs-secondary-bg); word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap;">${contentValue}</textarea>
+                    <div class="flex-shrink-0 d-flex gap-2 align-items-center flex-wrap justify-content-end wizard-row-actions">
+                        <select class="form-select form-select-sm" name="item_report_kind" aria-label="Hình thức báo cáo" style="width: 132px;">
+                            <option value="narrative" ${rowData.report_kind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
+                            <option value="number" ${rowData.report_kind === 'number' ? 'selected' : ''}>Báo cáo số</option>
+                        </select>
+                        ${isChild ? `
+                            <div class="form-check form-check-inline mb-0">
+                                <input class="form-check-input" type="checkbox" data-import-inherit ${inherited ? 'checked' : ''} title="Kế thừa gán từ mục cha">
+                                <label class="form-check-label small">Kế thừa cha</label>
+                            </div>
+                        ` : ''}
+                        <button class="btn btn-sm btn-outline-secondary text-nowrap" type="button" data-row-assign-btn title="Gán cho ai" ${inherited ? 'disabled' : ''}><i class="fa-solid fa-user-plus"></i></button>
+                        <button class="btn btn-outline-danger btn-sm" type="button" data-remove-import-row title="Xóa"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
-                <div class="col-lg-2">
-                    <div class="d-flex align-items-start gap-2">
-                        <button class="btn btn-sm btn-outline-secondary text-nowrap" type="button" data-row-assign-btn>Gán</button>
-                        <div class="flex-grow-1">
-                            <div class="small fw-medium" data-import-assignment-summary></div>
-                            <div class="small text-muted" data-import-assignment-hint></div>
-                        </div>
-                    </div>
-                    <input type="hidden" name="item_assign_type">
-                    <input type="hidden" name="item_domain">
-                    <input type="hidden" name="item_domains">
-                    <input type="hidden" name="item_role_ids">
-                    <input type="hidden" name="item_user_ids">
-                </div>
-                <div class="col-lg-1 text-lg-end">
-                    <button class="btn btn-outline-danger btn-sm" type="button" data-remove-import-row>Xóa</button>
-                </div>
+                <div class="small fw-medium" data-import-assignment-summary></div>
+                <div class="small text-muted" data-import-assignment-hint></div>
+                <input type="hidden" name="item_title" value="${titleValue}">
+                <input type="hidden" name="item_heading" value="${headingValue}">
+                <input type="hidden" name="item_parent">
+                <input type="hidden" name="item_inherit" value="${isChild ? (inherited ? '1' : '0') : '0'}">
+                <input type="hidden" name="item_assign_type">
+                <input type="hidden" name="item_domain">
+                <input type="hidden" name="item_domains">
+                <input type="hidden" name="item_role_ids">
+                <input type="hidden" name="item_user_ids">
             </div>
         `;
         updateImportRowAssignment(wrapper, {
-            assignType: rowData.assign_type || '',
-            domain: rowData.domain || '',
-            unitDomains: rowData.unit_domains || [],
-            roleIds: rowData.role_ids || [],
-            userIds: rowData.user_ids || [],
+            assignType: isChild && inherited ? '' : (rowData.assign_type || ''),
+            domain: isChild && inherited ? '' : (rowData.domain || ''),
+            unitDomains: isChild && inherited ? [] : (rowData.unit_domains || []),
+            roleIds: isChild && inherited ? [] : (rowData.role_ids || []),
+            userIds: isChild && inherited ? [] : (rowData.user_ids || []),
         });
+        if (isChild && inherited) {
+            setImportRowInherit(wrapper, true);
+        }
         const hintEl = wrapper.querySelector('[data-import-assignment-hint]');
         if (hintEl && rowData.assignee_hint) {
             hintEl.textContent = 'Đề cương ghi: ' + String(rowData.assignee_hint);
         }
+        const inheritCheckbox = wrapper.querySelector('[data-import-inherit]');
+        if (inheritCheckbox) {
+            inheritCheckbox.addEventListener('change', () => {
+                setImportRowInherit(wrapper, inheritCheckbox.checked);
+            });
+        }
         wrapper.querySelector('[data-remove-import-row]')?.addEventListener('click', () => {
+            const groupBody = importRowGroupBody(wrapper);
             wrapper.remove();
             syncImportRowIndexes();
+            if (groupBody && !groupBody.querySelector('[data-import-config-row]')) {
+                const block = groupBody.parentElement;
+                if (block && block.classList.contains('wizard-outline-group')) block.remove();
+            }
         });
         wrapper.querySelector('[data-row-assign-btn]')?.addEventListener('click', () => openRowAssignModal(wrapper));
         return wrapper;
     }
 
-    function addImportRow(rowData = {}) {
+    function addImportRow(rowData = {}, parentRowEl = null) {
         if (!importRows) return;
-        importRows.appendChild(makeImportRow(rowData));
+        const wrapper = makeImportRow(rowData, parentRowEl);
+        const headingValue = String(rowData.heading || '');
+        const headingParts = headingValue.split(' » ').map((part) => part.trim()).filter(Boolean);
+        const section = headingParts.length ? headingParts[headingParts.length - 1] : '';
+        const breadcrumb = headingParts.slice(0, -1).join(' » ');
+        const standalone = Boolean(section) && String(rowData.title || '').trim() === section;
+        const isChild = Boolean(parentRowEl);
+        if (isChild && parentRowEl && importRowGroupBody(parentRowEl)) {
+            importRowGroupBody(parentRowEl).appendChild(wrapper);
+            wrapper._importGroupBody = importRowGroupBody(parentRowEl);
+        } else if (!isChild && section && !standalone) {
+            let group = importGroups.get(headingValue);
+            if (!group) {
+                const block = document.createElement('div');
+                block.className = 'wizard-outline-group';
+                const header = document.createElement('div');
+                header.className = 'wizard-outline-group-header';
+                header.innerHTML = `
+                    <div class="wizard-outline-group-marker">${importGroups.size + 1}</div>
+                    <div class="wizard-outline-group-titles">
+                        ${breadcrumb ? `<div class="wizard-outline-group-breadcrumb" title="${breadcrumb.replace(/"/g, '&quot;')}">${breadcrumb}</div>` : ''}
+                        <div class="wizard-outline-group-title">${section}</div>
+                    </div>
+                `;
+                const body = document.createElement('div');
+                body.className = 'wizard-outline-group-body';
+                block.appendChild(header);
+                block.appendChild(body);
+                importRows.appendChild(block);
+                group = { block, body };
+                importGroups.set(headingValue, group);
+            }
+            group.body.appendChild(wrapper);
+            wrapper._importGroupBody = group.body;
+        } else {
+            importRows.appendChild(wrapper);
+            wrapper._importGroupBody = null;
+        }
+        if (parentRowEl) {
+            propagateImportInheritedChildren(parentRowEl);
+        }
+        autoGrowOutlineTextarea(wrapper.querySelector('textarea[name="item_content"]'));
         syncImportRowIndexes();
+    }
+
+    function autoGrowOutlineTextarea(ta) {
+        if (!ta) return;
+        ta.style.height = 'auto';
+        const maxHeight = 520;
+        const height = Math.min(ta.scrollHeight, maxHeight);
+        ta.style.height = height + 'px';
+        ta.style.overflowY = ta.scrollHeight > maxHeight ? 'auto' : 'hidden';
     }
 
     function getCurrentImportAssignmentPayload() {
@@ -2078,7 +2257,12 @@
     syncImportRolePickerLabel();
     syncImportUserPickerLabel();
     if (Array.isArray(importPreviewRows)) {
-        importPreviewRows.forEach((row) => addImportRow(row));
+        const createdImportRowEls = [];
+        importPreviewRows.forEach((row, i) => {
+            const parentIndex = (typeof row.parent_row_index === 'number' && row.parent_row_index >= 0 && row.parent_row_index < createdImportRowEls.length) ? row.parent_row_index : null;
+            const parentEl = parentIndex !== null ? createdImportRowEls[parentIndex] : null;
+            createdImportRowEls.push(addImportRow(row, parentEl));
+        });
     }
     syncImportRowIndexes();
     syncOutlineMode(importPreviewRows.length ? 'import' : 'manual');
@@ -2152,4 +2336,224 @@
     });
 })();
 </script>
+
+{% if can_manage_task_view %}
+<div class="modal fade" id="synthesisModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="synthesisModalTitle">Tổng hợp báo cáo</h5>
+                    <div class="small text-muted" id="synthesisModalSubtitle"></div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-4 h-100">
+                    <div class="col-lg-5 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="fw-semibold">Nội dung các đơn vị đã nộp</div>
+                            <span class="badge bg-light text-dark" id="synthesisCount"></span>
+                        </div>
+                        <div id="synthesisSubmissions" class="d-grid gap-2" style="max-height: calc(100vh - 260px); overflow:auto;"></div>
+                    </div>
+                    <div class="col-lg-7 d-flex flex-column">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <div class="fw-semibold">Văn bản tổng hợp</div>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="synthesisAutoMergeBtn"><i class="fa-solid fa-wand-magic-sparkles me-1"></i>Tự động ghép (nháp)</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="synthesisClearBtn">Xóa trắng</button>
+                            </div>
+                        </div>
+                        <textarea class="form-control flex-grow-1" id="synthesisEditor" rows="12" placeholder="Soạn văn bản tổng hợp cho đầu mục này… Bấm nút Chèn ở từng đơn vị để đưa đoạn văn của họ vào rồi chỉnh sửa, hoặc bấm Tự động ghép để lấy nháp từ tất cả các đơn vị."></textarea>
+                        <div class="small text-muted mt-2">
+                            <span id="synthesisSavedAt">Chưa lưu lần nào</span>
+                            <span class="mx-2">·</span>
+                            <span>Xuất báo cáo Word sẽ dùng văn bản này thay cho phần gộp tự động.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-outline-danger" id="synthesisDeleteBtn">Xóa tổng hợp</button>
+                <button type="button" class="btn btn-primary" id="synthesisSaveBtn"><i class="fa-solid fa-floppy-disk me-1"></i>Lưu văn bản tổng hợp</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var taskId = {{ task.id }};
+    var modalEl = document.getElementById('synthesisModal');
+    if (!modalEl) return;
+    var titleEl = document.getElementById('synthesisModalTitle');
+    var subtitleEl = document.getElementById('synthesisModalSubtitle');
+    var countEl = document.getElementById('synthesisCount');
+    var listEl = document.getElementById('synthesisSubmissions');
+    var editorEl = document.getElementById('synthesisEditor');
+    var savedAtEl = document.getElementById('synthesisSavedAt');
+    var csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    var currentItemId = null;
+    var currentSubmissions = [];
+
+    function esc(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function insertAtCursor(text) {
+        if (!text) return;
+        var start = editorEl.selectionStart == null ? editorEl.value.length : editorEl.selectionStart;
+        var end = editorEl.selectionEnd == null ? editorEl.value.length : editorEl.selectionEnd;
+        var before = editorEl.value.slice(0, start);
+        var after = editorEl.value.slice(end);
+        editorEl.value = before + text + after;
+        var cursor = start + text.length;
+        editorEl.setSelectionRange(cursor, cursor);
+        editorEl.focus();
+    }
+
+    function renderSubmissions() {
+        var hasAny = currentSubmissions.some(function (s) { return s.has_submission; });
+        if (!currentSubmissions.length) {
+            listEl.innerHTML = '<div class="alert alert-info mb-0">Đầu mục này chưa giao cho đơn vị nào.</div>';
+            return;
+        }
+        if (!hasAny) {
+            listEl.innerHTML = '<div class="alert alert-info mb-0">Chưa có đơn vị nào nộp báo cáo cho đầu mục này.</div>';
+            return;
+        }
+        var html = '';
+        currentSubmissions.forEach(function (s, index) {
+            if (!s.has_submission) return;
+            var body = s.merged_text || s.narrative || (s.numeric_value ? 'Số liệu: ' + s.numeric_value : '');
+            var filesHtml = (s.files || []).map(function (f) {
+                return '<a class="d-block small" target="_blank" href="/tasks/' + taskId + '/submission-files/' + f.id + '"><i class="fa-solid fa-paperclip me-1"></i>' + esc(f.name) + '</a>';
+            }).join('');
+            html += '<div class="border rounded-3 p-3 bg-light-subtle">' +
+                '<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">' +
+                    '<div>' +
+                        '<div class="fw-semibold small">' + esc(s.unit_name) + '</div>' +
+                        '<div class="small text-muted">' + esc(s.submitter_name) + (s.submitted_at ? ' · ' + esc(s.submitted_at) : '') + '</div>' +
+                    '</div>' +
+                    '<button type="button" class="btn btn-sm btn-outline-primary" data-insert-unit="' + index + '"><i class="fa-solid fa-plus me-1"></i>Chèn</button>' +
+                '</div>' +
+                (body ? '<div class="small bg-white border rounded-2 p-2" style="white-space: pre-wrap;">' + esc(body) + '</div>' : '<div class="small text-muted">Không có đoạn văn.</div>') +
+                (filesHtml ? '<div class="mt-2">' + filesHtml + '</div>' : '') +
+            '</div>';
+        });
+        listEl.innerHTML = html;
+        listEl.querySelectorAll('[data-insert-unit]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var sub = currentSubmissions[Number(btn.dataset.insertUnit)];
+                if (!sub) return;
+                var text = sub.merged_text || sub.narrative || (sub.numeric_value ? 'Số liệu: ' + sub.numeric_value : '');
+                var block = '— ' + sub.unit_name + ': ' + text.trim();
+                if (editorEl.value && !editorEl.value.endsWith('\n')) {
+                    block = '\n' + block;
+                }
+                insertAtCursor(block + '\n');
+            });
+        });
+    }
+
+    function openSynthesis(itemId, itemCode, itemTitle) {
+        currentItemId = itemId;
+        titleEl.textContent = 'Tổng hợp báo cáo — ' + (itemCode || '') + (itemCode ? '. ' : '') + itemTitle;
+        subtitleEl.textContent = 'Đầu mục ' + (itemCode || '') + ' · nhiều đơn vị báo cáo chung 1 nội dung → quản trị soạn văn bản tổng hợp cuối cùng.';
+        editorEl.value = '';
+        savedAtEl.textContent = 'Đang tải…';
+        countEl.textContent = '';
+        listEl.innerHTML = '<div class="text-muted small py-3">Đang tải dữ liệu…</div>';
+        fetch('/tasks/' + taskId + '/items/' + itemId + '/synthesis-data', { headers: { 'Accept': 'application/json' } })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (!data || !data.ok) {
+                    listEl.innerHTML = '<div class="alert alert-danger mb-0">' + esc((data && data.error) || 'Không tải được dữ liệu.') + '</div>';
+                    return;
+                }
+                currentSubmissions = data.submissions || [];
+                editorEl.value = data.item.synthesis || '';
+                savedAtEl.textContent = data.item.synthesis_updated_at ? ('Đã lưu lần cuối: ' + data.item.synthesis_updated_at) : 'Chưa lưu lần nào';
+                countEl.textContent = currentSubmissions.filter(function (s) { return s.has_submission; }).length + '/' + currentSubmissions.length + ' đơn vị đã nộp';
+                renderSubmissions();
+            })
+            .catch(function () {
+                listEl.innerHTML = '<div class="alert alert-danger mb-0">Không kết nối được máy chủ.</div>';
+            });
+    }
+
+    function saveSynthesis(content) {
+        var body = new URLSearchParams();
+        body.append('synthesis_content', content || '');
+        body.append('csrf_token', csrfToken);
+        return fetch('/tasks/' + taskId + '/items/' + currentItemId + '/synthesize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString()
+        }).then(function (response) {
+            if (response.redirected) {
+                window.location.href = response.url;
+                return;
+            }
+            window.location.reload();
+        });
+    }
+
+    function getModal() {
+        if (window.bootstrap && window.bootstrap.Modal) {
+            return window.bootstrap.Modal.getOrCreateInstance(modalEl);
+        }
+        return null;
+    }
+
+    document.querySelectorAll('[data-synthesis-open]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var modal = getModal();
+            if (!modal) {
+                window.alert('Bootstrap chưa sẵn sàng, hãy thử lại.');
+                return;
+            }
+            openSynthesis(btn.dataset.itemId, btn.dataset.itemCode, btn.dataset.itemTitle);
+            modal.show();
+        });
+    });
+
+    document.getElementById('synthesisAutoMergeBtn').addEventListener('click', function () {
+        var parts = [];
+        currentSubmissions.forEach(function (s) {
+            if (!s.has_submission) return;
+            var text = s.merged_text || s.narrative || (s.numeric_value ? 'Số liệu: ' + s.numeric_value : '');
+            if (!text) return;
+            parts.push('— ' + s.unit_name + ': ' + text.trim());
+        });
+        if (!parts.length) {
+            window.alert('Chưa có đơn vị nào nộp nội dung để ghép.');
+            return;
+        }
+        editorEl.value = parts.join('\n\n');
+    });
+
+    document.getElementById('synthesisClearBtn').addEventListener('click', function () {
+        editorEl.value = '';
+        editorEl.focus();
+    });
+
+    document.getElementById('synthesisDeleteBtn').addEventListener('click', function () {
+        if (!window.confirm('Xóa văn bản tổng hợp của đầu mục này? Khi đó xuất Word sẽ gộp tự động như cũ.')) return;
+        saveSynthesis('');
+    });
+
+    document.getElementById('synthesisSaveBtn').addEventListener('click', function () {
+        if (!editorEl.value.trim()) {
+            window.alert('Chưa có nội dung để lưu. Nếu muốn xóa tổng hợp, dùng nút "Xóa tổng hợp".');
+            return;
+        }
+        saveSynthesis(editorEl.value);
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}

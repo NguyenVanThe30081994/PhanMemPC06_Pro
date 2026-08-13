@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-import json
+import html
 import io
+import json
 import os
 import re
 from decimal import Decimal, InvalidOperation
@@ -19,6 +20,12 @@ try:
     from docx import Document as DocxDocument
 except ImportError:
     DocxDocument = None
+try:
+    import fitz as PdfDocument  # pymupdf
+    if not hasattr(PdfDocument, "open"):
+        PdfDocument = None
+except ImportError:
+    PdfDocument = None
 
 from category_helpers import (
     apply_reference_display,
@@ -68,6 +75,18 @@ from task_workspace import (
     task_assignment_display_status,
     task_deadline_display,
     task_workspace_tone,
+)
+from report_cycles import (
+    KIND_LABELS as REPORT_KIND_LABELS,
+    PERIOD_LABELS as REPORT_PERIOD_LABELS,
+    WEEKDAY_LABELS as REPORT_WEEKDAY_LABELS,
+    config_to_json as report_config_to_json,
+    current_cycle as report_current_cycle,
+    cycle_summary_text as report_cycle_summary_text,
+    deadline_for as report_deadline_for,
+    normalize_config as report_normalize_config,
+    parse_config as report_parse_config,
+    task_config as report_task_config,
 )
 from task_import_ai import (
     analyze_task_import_config,
@@ -139,7 +158,7 @@ REPORT_PREFIX = "[BÁO CÁO]"
 REPORT_ATTACHMENT_RE = re.compile(r"\s*\(Đính kèm:\s*([^)]+)\)\s*$")
 TASK_REPORT_ALLOWED_FIELD_TYPES = {"number", "text", "textarea"}
 TASK_REPORT_ALLOWED_TARGET_TYPES = {"all", "unit", "role", "user"}
-TASK_OUTLINE_ALLOWED_EXTENSIONS = {".docx", ".txt"}
+TASK_OUTLINE_ALLOWED_EXTENSIONS = {".docx", ".txt", ".pdf"}
 TASK_MODE_ALLOWED = {"OUTLINE", "FILE", "FORM"}
 TASK_MODE_DEFAULT = "FILE"
 TASK_MODE_LABELS = {
@@ -499,6 +518,48 @@ def _parse_deadline(form):
             return datetime(now.year, month_of_period, 28).date()
 
     return None
+
+def _task_report_period(task):
+    """Cấu hình cách báo cáo của công việc (dict chuẩn hóa)."""
+    try:
+        return report_task_config(task)
+    except Exception:
+        return report_normalize_config({})
+
+def _parse_task_report_period_from_request(form, task_type=""):
+    """Đọc cấu hình 'cách báo cáo' từ form tạo / sửa công việc."""
+    data = dict(form or {})
+    if task_type and not data.get("task_type"):
+        data["task_type"] = task_type
+    try:
+        return report_parse_config(data)
+    except Exception:
+        return report_normalize_config({})
+
+def _task_current_cycle(task, today=None):
+    try:
+        return report_current_cycle(_task_report_period(task), today=today)
+    except Exception:
+        return None
+
+def _task_report_kind_label(task):
+    cfg = _task_report_period(task)
+    kind = str(cfg.get("kind") or "one_time").strip()
+    label = REPORT_KIND_LABELS.get(kind)
+    if not label:
+        return "Báo cáo đột xuất / một lần"
+    period = cfg.get("period")
+    if kind == "periodic" and period in REPORT_PERIOD_LABELS:
+        label = f"{label} — {REPORT_PERIOD_LABELS[period]}"
+    return label
+
+def _computed_task_deadline(form, task_type=""):
+    """Hạn nộp theo 'cách báo cáo' — hạn của chu kỳ hiện tại khi tạo công việc."""
+    try:
+        cfg = _parse_task_report_period_from_request(form, task_type=task_type)
+        return report_deadline_for(cfg)
+    except Exception:
+        return None
 
 def _dedupe_users(users):
     unique_users = []
@@ -891,14 +952,19 @@ def _is_outline_structural_heading(raw_text, cleaned_text):
     if compact in structural_markers:
         return True
 
-    if compact.startswith("cac so, ban, nganh") and compact.endswith("bao cao ket qua"):
+    if compact.startswith("cac so, ban, nganh") and compact.endswith("bao cao ket qua") and len(compact) < 60 and ":" not in compact:
         return True
-    if compact.startswith("cac so, ban, nganh") and compact.endswith("bao cao ve"):
+    if compact.startswith("cac so, ban, nganh") and compact.endswith("bao cao ve") and len(compact) < 60 and ":" not in compact:
         return True
+    # Cảnh giác: dòng nội dung cũng có thể bắt đầu bằng "Các sở, ban, ngành,
+    # Ủy ban nhân dân xã, phường báo cáo..." nhưng LÀ NỘI DUNG cần gán (vd mục
+    # 7.2, 8 trong đề cương). Chỉ coi là tiêu đề mục khi dòng ngắn, kiểu tiêu đề
+    # (kết thúc bằng "báo cáo kết quả" / "báo cáo về") và không có dấu hai chấm.
     if compact.startswith("cac so, ban, nganh, uy ban nhan dan xa, phuong") and not has_bullet_prefix:
-        return True
-    if "mo hinh diem cua de an 06" in compact:
-        return True
+        if len(compact) < 60 and ":" not in compact and (
+            compact.endswith("bao cao ket qua") or compact.endswith("bao cao ve")
+        ):
+            return True
     if compact.startswith("voi chinh phu") or compact.startswith("voi bo, nganh trung uong") or compact.startswith("voi uy ban nhan dan tinh") or compact.startswith("voi so, ban, nganh"):
         return True
 
@@ -948,6 +1014,137 @@ def _parse_outline_docx_titles(file_storage):
 
     return _parse_bulk_child_task_titles("\n".join(candidates))
 
+def _pdf_decode_string_token(token):
+    """Giải mã chuỗi văn bản PDF (nội dung giữa cặp ngoặc) — xử lý escape \\(, \\), \\\\, octal."""
+    out = bytearray()
+    i = 0
+    n = len(token)
+    while i < n:
+        ch = token[i]
+        if ch == 0x5C:  # backslash
+            if i + 1 >= n:
+                break
+            nxt = token[i + 1]
+            simple = {0x6E: 0x0A, 0x72: 0x0D, 0x74: 0x09, 0x62: 0x08, 0x66: 0x0C}  # n r t b f
+            if nxt in simple:
+                out.append(simple[nxt])
+                i += 2
+            elif nxt in (0x28, 0x29, 0x5C):  # ( ) \
+                out.append(nxt)
+                i += 2
+            elif 0x30 <= nxt <= 0x37:  # octal \ddd
+                j = i + 1
+                octal = 0
+                count = 0
+                while j < n and count < 3 and 0x30 <= token[j] <= 0x37:
+                    octal = octal * 8 + (token[j] - 0x30)
+                    j += 1
+                    count += 1
+                out.append(octal & 0xFF)
+                i = j
+            else:
+                out.append(nxt)
+                i += 2
+        else:
+            out.append(ch)
+            i += 1
+    return bytes(out)
+
+
+def _pdf_text_stdlib(data):
+    """Trích văn bản từ PDF bằng thư viện chuẩn (zlib) — fallback khi máy chủ chưa
+    cài pymupdf. Chỉ xử lý được PDF có text stream FlateDecode (không phải ảnh chụp)."""
+    import zlib
+
+    page_texts = []
+    for m in re.finditer(rb"stream\r?\n", data):
+        start = m.end()
+        end_marker = data.find(b"endstream", start)
+        if end_marker < 0:
+            continue
+        raw = data[start:end_marker]
+        header = data[max(0, m.start() - 300):m.start()]
+        if b"/FlateDecode" not in header:
+            continue
+        content = None
+        for candidate in (raw, raw.rstrip(b"\r\n\x00 ")):
+            try:
+                content = zlib.decompress(candidate)
+                break
+            except Exception:
+                continue
+        if not content:
+            continue
+        # Chỉ xử lý content stream thật (có BT/ET đánh dấu bắt đầu văn bản).
+        # Tránh chạy regex trên stream nhị phân (ảnh/font) chứa byte "Tj"/"TJ" ngẫu nhiên.
+        if b"BT" not in content or not (b"Tj" in content or b"TJ" in content):
+            continue
+        text_parts = []
+        for tm in re.finditer(rb"\((?:\\.|[^()])*\)\s*Tj|\[(?:[^\[\]]*)\]\s*TJ", content):
+            token = tm.group(0)
+            if token.endswith(b"Tj"):
+                inner = token[token.find(b"(") + 1:token.rfind(b")")]
+                text_parts.append(_pdf_decode_string_token(inner))
+            else:
+                arr_inner = token[1:token.rfind(b"]")]
+                for sm in re.finditer(rb"\((?:\\.|[^()])*\)", arr_inner):
+                    inner = sm.group(0)[1:-1]
+                    text_parts.append(_pdf_decode_string_token(inner))
+        if text_parts:
+            page_texts.append(b"".join(text_parts).decode("utf-8", errors="replace"))
+    return "\n".join(page_texts)
+
+
+def _parse_outline_pdf_text(file_storage):
+    """Trích dòng chữ từ file PDF: ưu tiên pymupdf, fallback thư viện chuẩn.
+    Trả về (lines, error) — lines rỗng kèm error nếu không đọc được."""
+    try:
+        file_storage.stream.seek(0)
+        data = file_storage.stream.read()
+    except Exception:
+        return [], "Không đọc được file PDF."
+    if not data:
+        return [], "File PDF rỗng."
+    lines = []
+    if PdfDocument is not None:
+        try:
+            document = PdfDocument.open(stream=data, filetype="pdf")
+            try:
+                for page in document:
+                    for line in (str(getattr(page, "get_text", lambda: "")() or "")).splitlines():
+                        cleaned = str(line or "").strip()
+                        if cleaned:
+                            lines.append(cleaned)
+            finally:
+                try:
+                    document.close()
+                except Exception:
+                    pass
+        except Exception:
+            lines = []
+    if not lines:
+        raw_text = _pdf_text_stdlib(data)
+        lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+    if not lines:
+        if PdfDocument is None:
+            return [], (
+                "Máy chủ chưa cài thư viện đọc PDF (pymupdf). Hãy chạy: pip install pymupdf "
+                "trên máy chủ rồi thử lại."
+            )
+        return [], (
+            "File PDF không có nội dung chữ để phân tích (có thể là file ảnh chụp/scanned). "
+            "Hãy tải bản .docx hoặc file PDF có chữ rõ ràng."
+        )
+    return lines, None
+
+
+def _parse_outline_pdf_titles(file_storage):
+    lines, error = _parse_outline_pdf_text(file_storage)
+    if error:
+        raise ValueError(error)
+    return _parse_bulk_child_task_titles("\n".join(lines))
+
+
 def _parse_outline_text_titles(file_storage):
     try:
         file_storage.stream.seek(0)
@@ -972,10 +1169,12 @@ def _parse_outline_upload_titles(file_storage):
 
     extension = os.path.splitext(file_storage.filename or "")[1].lower()
     if extension not in TASK_OUTLINE_ALLOWED_EXTENSIONS:
-        raise ValueError("Chỉ hỗ trợ đề cương dạng .docx hoặc .txt.")
+        raise ValueError("Chỉ hỗ trợ đề cương dạng .docx, .txt hoặc .pdf.")
 
     if extension == ".docx":
         return _parse_outline_docx_titles(file_storage)
+    if extension == ".pdf":
+        return _parse_outline_pdf_titles(file_storage)
     return _parse_outline_text_titles(file_storage)
 
 OUTLINE_ASSIGNEE_HINT_KEYWORDS = (
@@ -1201,30 +1400,25 @@ def _is_outline_heading(text, style_name=""):
 
 
 def _get_heading_level(raw_text):
-    """Xác định cấp độ heading dựa vào số chấm trong số (1, 1.1, 1.1.1).
-    Trả về (level, normalized_number) ví dụ: (2, "1.1") hoặc (0, "") nếu không phải heading.
-    """
+    """Return the hierarchy level and normalized marker for a heading."""
     raw = str(raw_text or "").strip()
     if not raw:
         return (0, "")
-    
-    # Pattern: 1, 1.1, 1.1.1, etc.
-    match = re.match(r"^\s*((?:\d{1,3}\.){1,5})\d*\s+", raw)
-    if match:
-        number_part = match.group(1).rstrip(".")
-        level = number_part.count(".")
-        return (level + 1, number_part)
-    
-    # Roman numerals for top level (I, II, III, IV...)
-    if re.match(r"^\s*[IVXLCDM]+\.\s+", raw):
-        return (1, re.match(r"^\s*([IVXLCDM]+)", raw).group(1))
-    
-    # Letter headings (A, B, C...)
-    if re.match(r"^\s*[A-Z]\.\s+", raw):
-        return (1, re.match(r"^\s*([A-Z])", raw).group(1))
-    
+    # Roman/letter chapters are top-level containers. Chấp nhận dấu chấm tùy
+    # chọn (vd: "III KIẾN NGHỊ, ĐỀ XUẤT") vì nhiều đề cương viết thiếu dấu chấm.
+    roman_match = re.match(r"^\s*([IVXLCDM]+)\.?\s+", raw)
+    if roman_match:
+        return (1, roman_match.group(1))
+    letter_match = re.match(r"^\s*([A-Z])\.\s+", raw)
+    if letter_match:
+        return (1, letter_match.group(1))
+    # Numeric headings: 1., 1), 1.1, 1.1., 1.1.1, ...
+    # Numeric levels start at 2 so they nest below Roman/letter chapters.
+    numeric_match = re.match(r"^\s*(\d{1,3}(?:\.\d{1,3})*)[\.\)]?\s+(.+)$", raw)
+    if numeric_match:
+        number_part = numeric_match.group(1)
+        return (number_part.count(".") + 2, number_part)
     return (0, "")
-
 
 def _parse_outline_with_hierarchy(paragraphs, is_docx=False):
     """Parse đề cương với hierarchy đa cấp.
@@ -1281,7 +1475,7 @@ def _parse_outline_with_hierarchy(paragraphs, is_docx=False):
             # Đây là heading
             title = text.strip()
             # Clean the title by removing the number prefix for storage
-            clean_title = re.sub(r"^\s*(?:[IVXLCDM]+|[A-Z]|\d{1,3}(?:\.\d{1,3})*)\.?\s*", "", title).strip()
+            clean_title = re.sub(r"^\s*(?:[IVXLCDM]+|[A-Z]|\d{1,3}(?:\.\d{1,3})*)[\.\)]?\s*", "", title).strip()
             
             new_item = {
                 "level": level,
@@ -1289,6 +1483,7 @@ def _parse_outline_with_hierarchy(paragraphs, is_docx=False):
                 "full_title": title[:255],
                 "number": number,
                 "content_lines": [],
+                "bullets": [],
                 "children": []
             }
             
@@ -1305,29 +1500,89 @@ def _parse_outline_with_hierarchy(paragraphs, is_docx=False):
             
             stack.append((level, new_item))
         else:
-            # Đây là content line (gạch đầu dòng)
-            # Add to current parent's content_lines
+            # Đây là content line (gạch đầu dòng). Giữ nguyên cấp lồng nhau:
+            # - / • / * : gạch đầu dòng cấp 1 (1 nội dung để gán)
+            # +         : nội dung con nằm trong gạch đầu dòng cấp 1 liền trước
             if stack:
                 current_parent = stack[-1][1]
-                # Chỉ thêm nếu không phải heading structural
                 if not _is_outline_structural_heading(text, text):
-                    current_parent["content_lines"].append(text)
+                    _append_outline_bullet(current_parent, text)
             elif items:
-                # Leading content before any heading - add to first item
-                items[0]["content_lines"].append(text)
+                _append_outline_bullet(items[0], text)
     
     return items
 
 
-def _flatten_hierarchy_to_rows(hierarchy_items, catalog=None):
-    """Flatten cây hierarchy thành danh sách rows phẳng cho UI.
+def _append_outline_bullet(item, raw_text):
+    """Thêm một dòng nội dung vào mục, giữ cấu trúc cha/con:
+    gạch đầu dòng '-' là bullet cấp 1; dòng '+' là con của bullet cấp 1 liền trước.
+    Dòng thường (không có ký hiệu) cũng là bullet cấp 1.
+    """
+    text = str(raw_text or "").strip()
+    if not text:
+        return
+    item.setdefault("content_lines", []).append(text)
+    bullets = item.setdefault("bullets", [])
+    if re.match(r"^\s*\+", text):
+        if bullets:
+            bullets[-1].setdefault("children", []).append({"text": text, "type": "plus", "children": []})
+        else:
+            bullets.append({"text": text, "type": "plus", "children": []})
+    else:
+        bullet_type = "dash" if re.match(r"^\s*[-–—•*]", text) else "para"
+        bullets.append({"text": text, "type": bullet_type, "children": []})
 
-    HẠN CHẾ: MỖI gạch đầu dòng (-/–/•) / dấu cộng (+) / đoạn nội dung (content line)
-    được coi là MỘT việc riêng và gán cho đơn vị khác nhau.
-    Không gộp toàn bộ gạch đầu dòng của cùng một mục vào chung 1 content.
+
+def _flatten_hierarchy_to_rows(hierarchy_items, catalog=None):
+    """Chuyển cây đề cương thành danh sách dòng để gán việc.
+
+    Mỗi GẠCH ĐẦU DÒNG cấp 1 ('-', '•', '*') là MỘT nội dung để gán (row riêng).
+    Dòng '+' nằm dưới một gạch đầu dòng là NỘI DUNG CON của gạch đó (row con,
+    có parent_row_index trỏ về row cha). Mặc định gán cho gạch đầu dòng sẽ tự
+    gán cho các nội dung con, nhưng quản trị vẫn sửa được riêng từng dòng con.
+
+    - Tiêu đề row = chính nội dung gạch đầu dòng (đã bỏ ký hiệu), không cần lặp
+      lại tiêu đề mục vì đường dẫn mục đã đủ chi tiết (vd: I. » 1. » 1.1. ...).
+    - Mục lá không có gạch đầu dòng -> tự nó là 1 việc (đầu mục chỉ có tiêu đề).
+    - Mục trung gian (chỉ chứa mục con) -> không tạo việc, chỉ đệ quy xuống mục con.
     """
     rows = []
     seen = set()
+
+    def make_row(text, full_heading, number, level, parent_row_index=None):
+        raw = str(text or "").strip()
+        if not raw:
+            return None
+        # Bỏ ký hiệu gạch đầu dòng ở đầu dòng: '-', '–', '—', '•', '*', '+'
+        title = re.sub(r"^\s*(?:[-–—•*+]\s*|\+\s*)\s*", "", raw).strip()
+        title = re.sub(r"\s+", " ", title).strip(" .:")
+        if len(title) < 3:
+            return None
+        dedupe = _normalize_outline_match_text(f"{full_heading} {title}")
+        if dedupe in seen:
+            return None
+        seen.add(dedupe)
+        full_text = f"{full_heading}\n{raw}" if raw else full_heading
+        assignment = _resolve_outline_assignee_hint(full_text, catalog) if catalog else None
+        number_fields = _extract_number_fields_from_text(raw)
+        return {
+            "title": title[:255],
+            "content": raw[:3000],
+            "heading": full_heading[:255],
+            "level": level,
+            "number": number,
+            "parent_row_index": parent_row_index,
+            "has_numbers": bool(number_fields),
+            "number_fields": number_fields,
+            "skeleton": _outline_skeleton_text(raw[:3000], number_fields),
+            "assign_type": assignment["assign_type"] if assignment else "",
+            "domain": "",
+            "unit_domains": assignment["unit_domains"] if assignment else [],
+            "role_ids": assignment["role_ids"] if assignment else [],
+            "user_ids": assignment["user_ids"] if assignment else [],
+            "assignee_hint": full_text[:500],
+            "assignee_detected": bool(assignment and (assignment["unit_domains"] or assignment["role_ids"] or assignment["user_ids"])),
+        }
 
     def process_item(item, parent_heading=""):
         # Build full heading path
@@ -1335,54 +1590,35 @@ def _flatten_hierarchy_to_rows(hierarchy_items, catalog=None):
         if parent_heading:
             full_heading = f"{parent_heading} » {full_heading}"
 
-        # Mỗi content line -> một row (một việc) riêng, gán đơn vị riêng
-        content_lines = item.get("content_lines") or []
-        if content_lines:
-            for raw_line in content_lines:
-                line = str(raw_line or "").strip()
-                if not line:
-                    continue
-                # Bỏ dấu gạch đầu dòng / dấu cộng ở đầu (kể cả –, —)
-                line = re.sub(r"^\s*(?:[-–—•*+])\s*", "", line).strip()
-                if not line:
-                    continue
-                cleaned_line = _clean_outline_title(line)
-                if len(cleaned_line) < 3:
-                    # Dòng quá ngắn -> lấy tiêu đề mục cha làm tên việc
-                    cleaned_line = _clean_outline_title(item.get("title", ""))
-                if len(cleaned_line) < 3:
-                    continue
+        cleaned_title = _clean_outline_title(item.get("title", ""))
+        number = str(item.get("number") or "").strip()
+        bullets = item.get("bullets") or []
+        has_children = bool(item.get("children"))
 
-                dedupe = _normalize_outline_match_text(cleaned_line)
-                if dedupe in seen:
-                    continue
-                seen.add(dedupe)
-
-                # Nhận diện 'giao cho ai' trên chính dòng đó (mỗi gạch -> đơn vị riêng)
-                full_text = f"{full_heading} {line}"
-                assignment = None
-                if catalog:
-                    assignment = _resolve_outline_assignee_hint(full_text, catalog)
-
-                number_fields = _extract_number_fields_from_text(line)
-
-                rows.append({
-                    "title": cleaned_line[:255],
-                    "content": cleaned_line[:3000],
-                    "heading": full_heading[:255],
-                    "level": item.get("level", 3),
-                    "number": item.get("number", ""),
-                    "has_numbers": bool(number_fields),
-                    "number_fields": number_fields,
-                    "assign_type": assignment["assign_type"] if assignment else "",
-                    "domain": "",
-                    "unit_domains": assignment["unit_domains"] if assignment else [],
-                    "role_ids": assignment["role_ids"] if assignment else [],
-                    "user_ids": assignment["user_ids"] if assignment else [],
-                    "assignee_hint": full_text[:500],
-                    "assignee_detected": bool(assignment and (assignment["unit_domains"] or assignment["role_ids"] or assignment["user_ids"])),
-                })
-
+        if bullets:
+            # Mỗi gạch đầu dòng cấp 1 là 1 nội dung để gán; '+' là nội dung con.
+            for bullet in bullets:
+                parent_row = make_row(bullet.get("text"), full_heading, number, item.get("level", 3))
+                parent_row_index = None
+                if parent_row:
+                    parent_row_index = len(rows)
+                    rows.append(parent_row)
+                for child in bullet.get("children") or []:
+                    child_row = make_row(
+                        child.get("text"),
+                        full_heading,
+                        number,
+                        item.get("level", 3) + 1,
+                        parent_row_index=parent_row_index,
+                    )
+                    if child_row:
+                        rows.append(child_row)
+        elif not has_children and len(cleaned_title) >= 3:
+            # Mục lá không có gạch đầu dòng -> tự nó là 1 việc (đầu mục chỉ có tiêu đề).
+            row_title = f"{number}. {cleaned_title}" if number else cleaned_title
+            row = make_row(row_title, full_heading, number, item.get("level", 1))
+            if row:
+                rows.append(row)
         # Process children
         for child in item.get("children", []):
             process_item(child, full_heading)
@@ -1396,71 +1632,481 @@ def _flatten_hierarchy_to_rows(hierarchy_items, catalog=None):
     return False
 
 
+_OUTLINE_METRIC_KEYWORDS = [
+    "tổng số", "tổng", "số lượng", "số", "đạt", "có", "trên", "dưới", "vượt", "chiếm",
+    "tỷ lệ", "tỉ lệ", "tỷ suất", "tỉ suất", "phần trăm", "%", "bằng", "đến", "trong đó",
+    "lũy kế", "còn", "đã", "được", "giải quyết", "tiếp nhận", "xử lý", "hoàn thành",
+    "tăng", "giảm", "so với", "mức", "chỉ số", "kpi", "chỉ tiêu", "dư nợ", "người",
+    "hồ sơ", "lượt", "trạm", "tài khoản", "đơn vị", "cơ sở", "yêu cầu", "thông tin",
+    "trường hợp", "khoản", "đồng", "tỷ", "triệu", "căn cước", "thẻ", "tài khoản",
+]
+
+_OUTLINE_NUMBER_TOKEN = r"\d{1,3}(?:\.\d{3})*(?:,\d+)?|\d+(?:,\d+)?"
+
+_OUTLINE_UNIT_STOPWORDS = {
+    "và", "của", "trong", "đến", "so", "với", "theo", "đạt", "chiếm", "từ", "đã",
+    "được", "có", "tổng", "số", "là", "các", "khoảng", "gồm", "năm", "tháng", "ngày",
+    "trên", "dưới", "vượt", "bằng", "tăng", "giảm", "còn", "để", "không", "tại", "về",
+    "đồng", "trong đó", "toàn", "tỉnh", "huyện", "xã", "phường", "cấp", "kỳ", "thời điểm",
+}
+
+
+def _mask_outline_dates_and_years(text):
+    """Thay ngày tháng, năm và số hiệu văn bản bằng ký tự cùng độ dài để
+    không trùng với số liệu báo cáo. Phân số thật (54.105/57.417) không bị che."""
+    masked = list(text)
+    for match in re.finditer(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b", text):
+        for i in range(match.start(), match.end()):
+            masked[i] = "#"
+    for match in re.finditer(r"(?<![\d/.])(?:19|20)\d{2}(?![\d/.])", text):
+        for i in range(match.start(), match.end()):
+            masked[i] = "#"
+    # Số hiệu văn bản: 66.7/2025, 18/2023, 05/2025/NQ-CP... (RHS 2-4 chữ số, không phải phân số)
+    for match in re.finditer(r"\d{1,3}(?:\.\d{1,3})*/\d{2,4}(?![\d.,])", text):
+        for i in range(match.start(), match.end()):
+            masked[i] = "#"
+    # Số hiệu văn bản dạng 7709/QĐ-CAT-ANM, 18/CT-TTg: số + "/" theo sau bởi chữ cái
+    for match in re.finditer(r"\d{2,}(?:\.\d+)*/(?=[A-Za-zÀ-Ỹà-ỹ])", text):
+        for i in range(match.start(), match.end()):
+            masked[i] = "#"
+    return "".join(masked)
+
+
+def _outline_number_metric(text, start, end, value):
+    """Đánh giá 1 số/1 cặp số có phải số liệu báo cáo (metric) không."""
+    if value.endswith("%") or "/" in value:
+        return True
+    compact = value.replace(".", "").replace(",", "").replace("%", "")
+    if len(compact) >= 6:
+        return True
+    before = text[max(0, start - 25):start].lower()
+    has_keyword = any(keyword in before for keyword in _OUTLINE_METRIC_KEYWORDS)
+    unit = _outline_number_unit(text, end)
+    if len(compact) >= 3 and (has_keyword or unit):
+        return True
+    if len(compact) == 2 and has_keyword and unit:
+        return True
+    return False
+
+
+def _outline_number_unit(text, end):
+    """Lấy đơn vị theo sau số (vd: %, tỷ đồng, người, hồ sơ)."""
+    after = text[end:end + 40]
+    match = re.match(r"\s*(%|%%)\s*", after)
+    if match:
+        return "%"
+    match = re.match(r"\s*([\w\u00C0-\u1EF9]+(?:\s+[\w\u00C0-\u1EF9]+)?)", after)
+    if not match:
+        return ""
+    unit = match.group(1).strip()
+    first_word = unit.split()[0].lower()
+    if first_word in _OUTLINE_UNIT_STOPWORDS or re.match(r"^(năm|tháng|ngày)$", first_word):
+        return ""
+    if unit.endswith(",") or unit.endswith(";") or unit.endswith("."):
+        unit = unit[:-1]
+    return unit[:30]
+
+
 def _extract_number_fields_from_text(text):
-    """Trích xuất các trường số liệu từ nội dung đề cương."""
+    """Trích xuất các trường số liệu từ nội dung đề cương.
+
+    Trả về danh sách dict: {blank_id, label, value, unit, kind, start, end}.
+    - Cặp X/Y (54.105/57.417) -> 1 ô trống, kind="pair", value="X/Y".
+    - Ngày tháng (13/7/2026), năm (2026), số hiệu văn bản (18/CT-TTg, số 66.7/2025)
+      bị loại.
+    - start/end là khoảng vị trí trong text gốc để thay ô trống / merge lại.
+    """
     if not text:
         return []
-    # Normalize whitespace and remove footnote-like long number sequences (dates)
-    normalized = re.sub(r"\s+", " ", text)
+    masked = _mask_outline_dates_and_years(text)
     fields = []
-    seen = set()
-    # Keywords that strongly indicate a numeric metric
-    metric_keywords = [
-        "tổng số", "tổng", "số lượng", "số", "đạt", "có", "trên", "dưới", "vượt", "chiếm",
-        "tỷ lệ", "tỉ lệ", "tỷ suất", "tỉ suất", "phần trăm", "\%", "bằng", "đến", "trong đó",
-        "lũy kế", "còn", "đã", "được", "giải quyết", "tiếp nhận", "xử lý", "hoàn thành",
-        "tăng", "giảm", "bằng", "so với", "mức", "chỉ số", "kpi", "chỉ tiêu",
-    ]
-    number_pattern = re.compile(r"(\d{1,3}(?:\.\d{3})+(?:,\d+)?%?|\d+(?:,\d+)?%?)")
-    for match in number_pattern.finditer(normalized):
-        value = match.group(1)
-        # Skip years (4 digits starting with 19/20)
-        if re.match(r"^(19|20)\d{2}$", value.replace(",", "").replace(".", "")):
+    seen_spans = set()
+    blank_id = 0
+    number_pattern = re.compile(_OUTLINE_NUMBER_TOKEN)
+    pair_pattern = re.compile(
+        r"(" + _OUTLINE_NUMBER_TOKEN + r")\s*/\s*(" + _OUTLINE_NUMBER_TOKEN + r")"
+    )
+    index = 0
+    while index < len(text):
+        pair = pair_pattern.match(masked, index)
+        if pair:
+            side1 = pair.group(1).replace(".", "").replace(",", "")
+            side2 = pair.group(2).replace(".", "").replace(",", "")
+            if re.match(r"^(19|20)\d{2}$", side1) or re.match(r"^(19|20)\d{2}$", side2):
+                # Cặp chứa năm (số hiệu văn bản 66.7/2025, 18/2023...) — bỏ qua
+                index = pair.end()
+                continue
+            value = pair.group(1) + "/" + pair.group(2)
+            start, end = pair.span()
+            if _outline_number_metric(text, start, end, value):
+                blank_id += 1
+                fields.append(
+                    _outline_build_number_field(text, start, end, value, "pair", blank_id)
+                )
+                seen_spans.add((start, end))
+                index = end
+                continue
+        number = number_pattern.match(masked, index)
+        if not number:
+            index += 1
             continue
-        # Skip single digit unless it has a percent sign
-        if len(value.replace(",", "").replace(".", "").replace("%", "")) < 2 and not value.endswith("%"):
+        value = number.group(0)
+        start, end = number.span()
+        if (start, end) in seen_spans:
+            index = end
             continue
-        # Look at surrounding context (~80 chars before and after)
-        start = max(0, match.start() - 80)
-        end = min(len(normalized), match.end() + 60)
-        context = normalized[start:end]
-        # Skip dates like 17/6/2026 or 06/5/2026
-        if re.search(r"\d{1,2}/\d{1,2}/" + re.escape(value.replace(",", "").replace(".", "")) + r"$", context):
+        # Token khớp thiếu: số dài hơn bị cắt (vd "7709" -> "770") — bỏ qua để tránh sai lệch
+        if end < len(masked) and masked[end].isdigit():
+            index = end
             continue
-        # Build label from the phrase before the number
-        before = normalized[start:match.start()].strip()
-        label = before.split(";")[-1].split(".")[-1].split(",")[-1].strip()
-        label = re.sub(r"^\s*(?:và|hoặc|cùng|các|của|để|được|đã|có|là)\s+", "", label, flags=re.IGNORECASE).strip()
-        # Determine unit from text after number
-        after = normalized[match.end():match.end() + 30]
-        unit_match = re.match(r"\s*([\w\/%]+)", after)
-        unit = unit_match.group(1) if unit_match else ""
-        # Filter only values that look like metrics (have keyword, percent, large number, or clear unit)
-        context_lower = context.lower()
-        is_metric = (
-            value.endswith("%")
-            or any(kw in context_lower for kw in metric_keywords)
-            or (unit and unit not in {value})
-        )
-        if not is_metric:
+        # Số hiệu văn bản dạng 18/CT-TTg, 66.7/2025 — theo sau là "/" (có thể có khoảng trắng)
+        if re.match(r"\s*/", masked[end:]):
+            index = end
             continue
-        if len(label) < 2 or len(label) > 120:
-            # fallback: use a short snippet before number
-            label = before[-60:].strip() if len(before) > 60 else before.strip()
-            label = re.sub(r"^\s*(?:và|hoặc|cùng|của|để|được|đã|có|là)\s+", "", label, flags=re.IGNORECASE).strip()
-        label = re.sub(r"\s+(?:là|của|và|đạt|có|các)$", "", label, flags=re.IGNORECASE).strip()
-        if len(label) < 2:
+        compact = value.replace(".", "").replace(",", "").replace("%", "")
+        if len(compact) < 2 and not value.endswith("%"):
+            index = end
             continue
-        key = (label.lower(), value, unit.lower())
-        if key in seen:
-            continue
-        seen.add(key)
-        fields.append({
-            "label": label[:120],
-            "value": value,
-            "unit": unit[:30],
-        })
+        kind = "percent" if value.endswith("%") else "plain"
+        if _outline_number_metric(text, start, end, value):
+            blank_id += 1
+            fields.append(
+                _outline_build_number_field(text, start, end, value, kind, blank_id)
+            )
+            seen_spans.add((start, end))
+        index = end
     return fields
+
+
+def _outline_build_number_field(text, start, end, value, kind, blank_id):
+    before = text[max(0, start - 80):start].strip()
+    label = before.split(";")[-1].split(".")[-1].split(",")[-1].strip()
+    label = re.sub(
+        r"^\s*(?:và|hoặc|cùng|các|của|để|được|đã|có|là|từ|trong|đến)\s+",
+        "",
+        label,
+        flags=re.IGNORECASE,
+    ).strip()
+    if len(label) < 2 or len(label) > 120:
+        label = before[-60:].strip() if len(before) > 60 else before.strip()
+        label = re.sub(
+            r"^\s*(?:và|hoặc|cùng|các|của|để|được|đã|có|là|từ|trong|đến)\s+",
+            "",
+            label,
+            flags=re.IGNORECASE,
+        ).strip()
+    label = re.sub(r"\s+(?:là|của|và|đạt|có|các)$", "", label, flags=re.IGNORECASE).strip()
+    if len(label) < 2:
+        label = f"Số liệu {blank_id}"
+    unit = _outline_number_unit(text, end)
+    return {
+        "blank_id": blank_id,
+        "label": label[:120],
+        "value": value,
+        "unit": unit[:30],
+        "kind": kind,
+        "start": start,
+        "end": end,
+    }
+
+
+def _parse_vn_number(text):
+    """Parse số theo cả định dạng VN (1.234,5 / 85,5) lẫn quốc tế (85.5 / 1234.5)."""
+    if text is None:
+        return None
+    text = str(text).strip().replace("%", "").replace(" ", "")
+    if not text or not re.match(r"^[\d.,]+$", text):
+        return None
+    try:
+        if "," in text and "." in text:
+            return float(text.replace(".", "").replace(",", "."))
+        if "," in text:
+            return float(text.replace(",", "."))
+        if "." in text:
+            parts = text.split(".")
+            if len(parts) > 2 or (len(parts) == 2 and len(parts[1]) == 3 and len(parts[0]) > 1):
+                return float(text.replace(".", ""))
+            return float(text)
+        return float(text)
+    except ValueError:
+        return None
+
+
+def _parse_outline_blank_value(text):
+    """Giá trị ô trống: chuỗi thô nếu là cặp X/Y, float nếu là số thường; None nếu lỗi."""
+    if not text:
+        return None
+    text = str(text).strip()
+    pair = re.match(r"^([\d.,]+)\s*/\s*([\d.,]+)$", text)
+    if pair and _parse_vn_number(pair.group(1)) is not None and _parse_vn_number(pair.group(2)) is not None:
+        return text
+    return _parse_vn_number(text)
+
+
+def _outline_blank_numeric(value):
+    """Giá trị số của 1 ô trống để cộng gộp (cặp X/Y lấy tử số)."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    match = re.match(r"([\d.,]+)", text)
+    if not match:
+        return None
+    return _parse_vn_number(match.group(1))
+
+
+def _outline_sources_json(sources):
+    if not sources:
+        return None
+    try:
+        return json.dumps([str(source).strip() for source in sources if str(source).strip()], ensure_ascii=False)
+    except Exception:
+        return None
+
+
+def _outline_skeleton_text(text, fields):
+    """Văn bản với mỗi số liệu thay bằng dấu [...] để xem trước trong wizard."""
+    if not fields:
+        return text
+    result = []
+    cursor = 0
+    for field in sorted(fields, key=lambda f: f.get("start", 0)):
+        start = int(field.get("start", 0))
+        end = int(field.get("end", 0))
+        if start < cursor or start > len(text) or end > len(text):
+            continue
+        result.append(text[cursor:start])
+        result.append("[...]")
+        cursor = end
+    result.append(text[cursor:])
+    return "".join(result)
+
+
+def _find_report_secondary_linked_item(content, unit_domains, exclude_task_id):
+    """Tìm đầu mục trùng nội dung ở task đã phát hành để liên kết 'báo cáo phụ'.
+
+    Chỉ liên kết khi đơn vị được giao giống nhau (cùng domain) để việc tự động
+    điền vào các file khi nộp báo cáo là hợp lệ.
+    """
+    normalized = _normalize_outline_match_text(str(content or ""))
+    if not normalized:
+        return None
+    candidates = (
+        TaskItem.query.filter(
+            TaskItem.task_id != exclude_task_id,
+            TaskItem.content.isnot(None),
+            TaskItem.output_type == "OUTLINE",
+        )
+        .order_by(TaskItem.id.desc())
+        .limit(400)
+        .all()
+    )
+    domain_set = set(unit_domains or [])
+    for candidate in candidates:
+        if not candidate.content:
+            continue
+        if _normalize_outline_match_text(str(candidate.content)) != normalized:
+            continue
+        # Cùng người/đơn vị được giao mới liên kết (so user_id thực tế để tránh
+        # lệch khóa đơn vị giữa các nguồn dữ liệu)
+        candidate_assignments = TaskAssignment.query.filter_by(task_id=candidate.task_id, task_item_id=candidate.id).all()
+        candidate_user_ids = {int(getattr(assignment, "user_id", 0) or 0) for assignment in candidate_assignments}
+        if not domain_set or not candidate_user_ids:
+            return None
+        # Đơn vị được giao trong config (unit_domains) -> user thuộc các đơn vị đó
+        target_user_ids = _unit_domain_user_ids(domain_set)
+        if target_user_ids & candidate_user_ids:
+            return candidate
+    return None
+
+
+def _unit_domain_user_ids(domain_set):
+    """Tập user_id thuộc các đơn vị (cùng logic với _resolve_assignees_by_mode)."""
+    user_ids = set()
+    for domain in domain_set:
+        for user in _users_for_unit(domain):
+            user_ids.add(user.id)
+    return user_ids
+
+
+def _propagate_submission_to_linked_items(task, item, assignment, submission):
+    """Nộp báo cáo 1 đầu mục -> tự động điền vào các đầu mục liên kết (báo cáo phụ)."""
+    if not item or not assignment or not submission:
+        return
+    linked_items = []
+    if getattr(item, "linked_item_id", None):
+        linked = db.session.get(TaskItem, item.linked_item_id)
+        if linked and linked.id != item.id:
+            linked_items.append(linked)
+    for linked in (getattr(item, "linked_items", None) or []):
+        if linked.id != item.id and linked not in linked_items:
+            linked_items.append(linked)
+    for linked in linked_items:
+        linked_assignment = TaskAssignment.query.filter_by(
+            task_id=linked.task_id,
+            task_item_id=linked.id,
+            user_id=assignment.user_id,
+        ).first()
+        if not linked_assignment:
+            continue
+        existing = (
+            TaskSubmission.query.filter_by(
+                task_id=linked.task_id,
+                task_item_id=linked.id,
+                assignment_id=linked_assignment.id,
+            )
+            .order_by(TaskSubmission.id.desc())
+            .first()
+        )
+        target_submission = existing
+        if existing:
+            existing.narrative_content = submission.narrative_content
+            existing.numeric_value = submission.numeric_value
+            existing.payload_json = submission.payload_json
+            existing.status = submission.status
+            existing.submitted_at = submission.submitted_at
+            existing.updated_at = datetime.now()
+        else:
+            target_submission = TaskSubmission(
+                task_id=linked.task_id,
+                task_item_id=linked.id,
+                assignment_id=linked_assignment.id,
+                submitted_by=assignment.user_id,
+                submission_type=submission.submission_type,
+                status=submission.status,
+                narrative_content=submission.narrative_content,
+                numeric_value=submission.numeric_value,
+                payload_json=submission.payload_json,
+                submitted_at=submission.submitted_at,
+            )
+            db.session.add(target_submission)
+            db.session.flush()
+        linked_assignment.status = "submitted"
+        linked_assignment.submitted_at = datetime.now()
+        linked_assignment.updated_at = datetime.now()
+        linked_assignment.last_submission_id = getattr(target_submission, "id", None)
+        db.session.add(
+            TaskComment(
+                task_id=linked.task_id,
+                user_id=assignment.user_id,
+                user_name=session.get("fullname", "Người dùng"),
+                content="[TỰ ĐỘNG] Đã điền báo cáo từ đầu mục liên kết (báo cáo phụ).",
+            )
+        )
+
+
+def _outline_merged_content(content, fields, values):
+    """Ghép giá trị đã nộp vào văn bản gốc tại đúng vị trí ô trống."""
+    if not content:
+        return content
+    values = values or {}
+    if "[...]" in content:
+        # Nội dung là bản mẫu chứa marker [...] — thay từng marker bằng giá trị nộp
+        sorted_fields = sorted(fields or [], key=lambda f: int(f.get("start", 0) or 0))
+        parts = content.split("[...]")
+        merged = [parts[0]]
+        for idx in range(len(parts) - 1):
+            field = sorted_fields[idx] if idx < len(sorted_fields) else {}
+            blank_id = field.get("blank_id")
+            submitted = values.get(str(blank_id), values.get(blank_id, ""))
+            if submitted in (None, ""):
+                submitted = field.get("value", "")
+            merged.append(str(submitted))
+            merged.append(parts[idx + 1])
+        return "".join(merged)
+    if not fields:
+        return content
+    result = []
+    cursor = 0
+    for field in sorted(fields, key=lambda f: f.get("start", 0)):
+        start = int(field.get("start", 0))
+        end = int(field.get("end", 0))
+        if start < cursor or start > len(content) or end > len(content):
+            continue
+        result.append(content[cursor:start])
+        blank_id = field.get("blank_id")
+        submitted = values.get(str(blank_id), values.get(blank_id, ""))
+        if submitted in (None, ""):
+            submitted = field.get("value", "")
+        result.append(str(submitted))
+        cursor = end
+    result.append(content[cursor:])
+    return "".join(result)
+
+
+def _outline_submission_values(submission):
+    """Lấy dict values (blank_id -> giá trị) từ 1 submission."""
+    payload = _parse_task_submission_payload(submission) if submission else {}
+    if not isinstance(payload, dict):
+        return {}
+    values = payload.get("values")
+    return values if isinstance(values, dict) else {}
+
+
+def _outline_blank_input_html(blank_id, submitted, placeholder, unit=None, label=None):
+    """Một ô nhập inline cho 1 ô trống số liệu.
+
+    Nhãn/đơn vị nằm sẵn trong văn bản xung quanh marker nên không chèn thêm span
+    (tránh lặp chữ); placeholder giữ số gốc làm tham chiếu cho đơn vị điền.
+    """
+    if submitted is None:
+        submitted = ""
+    width = (max(len(str(submitted)), len(placeholder or "")) * 9 + 30) if (submitted or placeholder) else 90
+    return (
+        f'<input class="form-control form-control-sm d-inline-block outline-blank-input" '
+        f'name="report_number_value_{blank_id}" type="text" '
+        f'style="width: {width}px;" '
+        f'value="{html.escape(str(submitted))}" '
+        f'placeholder="{html.escape(placeholder or "")}" data-outline-blank>'
+    )
+
+
+def _render_blank_editor_html(content, fields, values=None):
+    """HTML cho đơn vị: câu văn với ô nhập inline tại từng số liệu.
+
+    - Nội dung chứa marker [...] (bản mẫu đã xóa số): thay từng marker bằng ô nhập.
+    - Nội dung chứa số gốc (dữ liệu cũ): chèn ô nhập theo start/end của fields.
+    values: dict blank_id(str/int) -> giá trị đã nộp.
+    """
+    if not content:
+        return ""
+    values = values or {}
+    if "[...]" in content:
+        sorted_fields = sorted(fields or [], key=lambda f: int(f.get("start", 0) or 0))
+        parts = content.split("[...]")
+        result = [html.escape(parts[0])]
+        for idx in range(len(parts) - 1):
+            field = sorted_fields[idx] if idx < len(sorted_fields) else {"blank_id": idx + 1, "value": "", "unit": "", "label": "Số liệu"}
+            blank_id = field.get("blank_id") or (idx + 1)
+            submitted = values.get(str(blank_id), values.get(blank_id, ""))
+            result.append(
+                _outline_blank_input_html(
+                    blank_id, submitted, field.get("value", "") or "",
+                    field.get("unit", "") or "", field.get("label", "") or "",
+                )
+            )
+            result.append(html.escape(parts[idx + 1]))
+        return "".join(result)
+    if not fields:
+        return html.escape(content)
+    result = []
+    cursor = 0
+    for field in sorted(fields, key=lambda f: f.get("start", 0)):
+        start = int(field.get("start", 0))
+        end = int(field.get("end", 0))
+        if start < cursor or start > len(content) or end > len(content):
+            continue
+        result.append(html.escape(content[cursor:start]))
+        blank_id = field.get("blank_id")
+        submitted = values.get(str(blank_id), values.get(blank_id, ""))
+        result.append(
+            _outline_blank_input_html(
+                blank_id, submitted, field.get("value", "") or "",
+                field.get("unit", "") or "", field.get("label", "") or "",
+            )
+        )
+        cursor = end
+    result.append(html.escape(content[cursor:]))
+    return "".join(result)
 
 
 def _split_outline_paragraphs_into_blocks(paragraphs, is_docx=False):
@@ -1503,8 +2149,239 @@ def _split_outline_paragraphs_into_blocks(paragraphs, is_docx=False):
         })
     return blocks
 
+OUTLINE_TABLE_ROLE_LABELS = {
+    "stt": "Số thứ tự",
+    "content": "Nội dung nhiệm vụ",
+    "lead": "Đơn vị chủ trì",
+    "coordinate": "Đơn vị phối hợp",
+    "deadline": "Thời gian",
+    "product": "Sản phẩm, kết quả",
+    "note": "Ghi chú",
+    "other": "Cột khác",
+}
+
+
+def _table_build_schema(header_cells):
+    """Dựng cấu trúc cột bảng từ dòng tiêu đề: mỗi cột có index/header/role/visible.
+
+    - role: tự nhận diện qua _table_column_role (content/lead/coordinate/deadline/...)
+    - visible: cột có hiển thị cho đơn vị nhận hay không (mặc định hiện content/lead/
+      coordinate/deadline; cột Stt, Sản phẩm, Ghi chú, cột khác mặc định ẩn — quản trị
+      có thể tích/bỏ tích trong wizard).
+    """
+    roles = _table_column_role(header_cells)
+    schema = []
+    for idx, header in enumerate(header_cells):
+        role = next((role for role, col_idx in roles.items() if col_idx == idx), "other")
+        if role == "index":
+            role = "stt"
+        visible = role in ("content", "lead", "coordinate", "deadline")
+        schema.append(
+            {
+                "index": idx,
+                "header": re.sub(r"\s+", " ", str(header or "").strip())[:200],
+                "role": role,
+                "visible": visible,
+            }
+        )
+    return schema
+
+
+def _table_column_role(cells):
+    """Dò vai trò từng cột của bảng theo dòng tiêu đề (bảng không có cột Stt).
+    Trả về {vai_trò: chỉ_số_cột} (vd: {"content": 0, "lead": 1, "deadline": 2})."""
+    roles = {}
+    for idx, header in enumerate(cells):
+        key = remove_accents(str(header or "").strip().lower())
+        key = re.sub(r"[^a-z0-9 ]", " ", key)
+        key = re.sub(r"\s+", " ", key).strip()
+        if key in ("stt", "tt", "so", "so thu tu"):
+            roles.setdefault("index", idx)
+        elif key == "noi dung" or "noi dung" in key or "nhiem vu" in key or "cong viec" in key or key == "viec":
+            roles.setdefault("content", idx)
+        elif "chu tri" in key or key in ("don vi", "on vi") or ("thuc hien" in key and ("don vi" in key or "on vi" in key)):
+            roles.setdefault("lead", idx)
+        elif "phoi hop" in key:
+            roles.setdefault("coordinate", idx)
+        elif "thoi gian" in key or "thoi han" in key or "thoi diem" in key:
+            roles.setdefault("deadline", idx)
+        elif "san pham" in key or "ket qua" in key:
+            roles.setdefault("product", idx)
+        elif "ghi chu" in key:
+            roles.setdefault("note", idx)
+    return roles
+
+
+def _table_header_based_rows(table, catalog=None, seen=None):
+    """Xử lý bảng KHÔNG có cột số thứ tự (Stt/La Mã): dò vai trò cột theo tiêu đề
+    (vd: Nhiệm vụ | Đơn vị | Thời hạn) và biến mỗi dòng dữ liệu thành 1 nội dung gán.
+    """
+    seen = seen if seen is not None else set()
+    rows = []
+    data_rows = list(table.rows)
+    if not data_rows:
+        return rows
+    first_cells = [re.sub(r"\s+", " ", (c.text or "").strip().replace("\n", " ")) for c in data_rows[0].cells]
+    roles = _table_column_role(first_cells)
+    schema = _table_build_schema(first_cells)
+    start = 1 if roles else 0
+    for row in data_rows[start:]:
+        cells = [re.sub(r"\s+", " ", (c.text or "").strip().replace("\n", " ")) for c in row.cells]
+        if not any(cells):
+            continue
+        if roles:
+            content = cells[roles["content"]] if roles.get("content", -1) >= 0 else ""
+            lead = cells[roles["lead"]] if roles.get("lead", -1) >= 0 else ""
+            coordinate = cells[roles["coordinate"]] if roles.get("coordinate", -1) >= 0 else ""
+            deadline = cells[roles["deadline"]] if roles.get("deadline", -1) >= 0 else ""
+            product = cells[roles["product"]] if roles.get("product", -1) >= 0 else ""
+            if not content:
+                # Không tìm thấy cột nội dung rõ ràng -> lấy ô có nội dung dài nhất
+                content = max(cells, key=len) if cells else ""
+        else:
+            content = max(cells, key=len) if cells else ""
+            lead = coordinate = deadline = product = ""
+        if not content:
+            continue
+        unit_domains = []
+        if catalog and lead:
+            assignment = _resolve_outline_assignee_hint(f"Cơ quan chủ trì: {lead}", catalog)
+            if assignment:
+                unit_domains = assignment.get("unit_domains") or []
+        content_parts = [content]
+        if lead:
+            content_parts.append(f"Cơ quan chủ trì: {lead}")
+        if coordinate:
+            content_parts.append(f"Cơ quan phối hợp: {coordinate}")
+        if deadline:
+            content_parts.append(f"Thời gian: {deadline}")
+        if product:
+            content_parts.append(f"Sản phẩm, kết quả: {product}")
+        raw = f"- {' | '.join(content_parts)}"
+        dedupe = _normalize_outline_match_text(f" {content}")
+        if dedupe in seen:
+            continue
+        seen.add(dedupe)
+        rows.append(
+            {
+                "title": content[:255],
+                "content": raw[:3000],
+                "heading": "",
+                "level": 2,
+                "number": "",
+                "parent_row_index": None,
+                "has_numbers": False,
+                "number_fields": [],
+                "assign_type": "unit" if unit_domains else "",
+                "domain": "",
+                "unit_domains": unit_domains,
+                "role_ids": [],
+                "user_ids": [],
+                "assignee_hint": f"Cơ quan chủ trì: {lead}" if lead else "",
+                "assignee_detected": bool(unit_domains),
+                "table_schema": schema,
+                "table_cells": {str(idx): cell for idx, cell in enumerate(cells)},
+            }
+        )
+    return rows
+
+
+def _table_rows_to_outline_rows(document, catalog=None):
+    """Chuyển các BẢNG nhiệm vụ trong đề cương (cột: Stt | Nội dung nhiệm vụ |
+    Cơ quan, đơn vị chủ trì | Cơ quan, đơn vị phối hợp | Thời gian | Sản phẩm, kết quả | Ghi chú)
+    thành các dòng gán việc:
+    - Dòng mục (ô đầu là số La Mã I, II, III...) -> tiêu đề mục (heading).
+    - Dòng nhiệm vụ (ô đầu là số 1, 2, 3...) -> 1 nội dung để gán, ĐƠN VỊ CHỦ TRÌ
+      được gán sẵn từ cột "Cơ quan, đơn vị chủ trì" (khớp với danh mục đơn vị).
+    - Bảng không có cột Stt -> dò vai trò cột theo tiêu đề (fallback).
+    """
+    rows = []
+    seen = set()
+    for table in document.tables:
+        current_heading = ""
+        table_had_numeric = False
+        header_cells = [re.sub(r"\s+", " ", (c.text or "").strip().replace("\n", " ")) for c in table.rows[0].cells] if table.rows else []
+        schema = _table_build_schema(header_cells)
+        roles = _table_column_role(header_cells)
+        for row in table.rows:
+            cells = [re.sub(r"\s+", " ", (c.text or "").strip().replace("\n", " ")) for c in row.cells]
+            if not cells or not cells[0]:
+                continue
+            first = cells[0].strip()
+            if first.lower().startswith("stt") or first.lower() == "tt":
+                continue
+            # Dòng mục: ô đầu là số La Mã
+            if re.match(r"^[IVXLCDM]+$", first):
+                title = next((c for c in cells[1:] if c and c.strip() and c.strip() != first), "")
+                if title:
+                    current_heading = f"{first}. {title.strip()}"[:255]
+                continue
+            # Dòng nhiệm vụ: ô đầu là số thứ tự
+            if re.match(r"^\d{1,3}$", first):
+                content_index = roles.get("content")
+                lead_index = roles.get("lead")
+                coordinate_index = roles.get("coordinate")
+                deadline_index = roles.get("deadline")
+                product_index = roles.get("product")
+                if content_index is None:
+                    content_index = 1 if len(cells) > 1 else 0
+                content = cells[content_index].strip() if content_index < len(cells) else ""
+                lead = cells[lead_index].strip() if lead_index is not None and lead_index < len(cells) else ""
+                coordinate = cells[coordinate_index].strip() if coordinate_index is not None and coordinate_index < len(cells) else ""
+                deadline = cells[deadline_index].strip() if deadline_index is not None and deadline_index < len(cells) else ""
+                product = cells[product_index].strip() if product_index is not None and product_index < len(cells) else ""
+                if not content:
+                    continue
+                # Gán sẵn đơn vị chủ trì (chỉ cột Chủ trì, không lấy cột Phối hợp)
+                unit_domains = []
+                if catalog and lead:
+                    assignment = _resolve_outline_assignee_hint(f"Cơ quan chủ trì: {lead}", catalog)
+                    if assignment:
+                        unit_domains = assignment.get("unit_domains") or []
+                content_parts = [content]
+                if lead:
+                    content_parts.append(f"Cơ quan chủ trì: {lead}")
+                if coordinate:
+                    content_parts.append(f"Cơ quan phối hợp: {coordinate}")
+                if deadline:
+                    content_parts.append(f"Thời gian: {deadline}")
+                if product:
+                    content_parts.append(f"Sản phẩm, kết quả: {product}")
+                raw = f"- {' | '.join(content_parts)}"
+                dedupe = _normalize_outline_match_text(f"{current_heading} {content}")
+                if dedupe in seen:
+                    continue
+                seen.add(dedupe)
+                table_had_numeric = True
+                rows.append(
+                    {
+                        "title": content[:255],
+                        "content": raw[:3000],
+                        "heading": current_heading[:255],
+                        "level": 2,
+                        "number": first,
+                        "parent_row_index": None,
+                        "has_numbers": False,
+                        "number_fields": [],
+                        "assign_type": "unit" if unit_domains else "",
+                        "domain": "",
+                        "unit_domains": unit_domains,
+                        "role_ids": [],
+                        "user_ids": [],
+                        "assignee_hint": f"Cơ quan chủ trì: {lead}",
+                        "assignee_detected": bool(unit_domains),
+                        "table_schema": schema,
+                        "table_cells": {str(idx): cell for idx, cell in enumerate(cells)},
+                    }
+                )
+        # Bảng không có dòng số thứ tự nào -> thử dò cột theo tiêu đề
+        if not table_had_numeric:
+            rows.extend(_table_header_based_rows(table, catalog=catalog, seen=seen))
+    return rows
+
+
 def _parse_outline_docx_rows(file_storage):
-    """Parse Word docx với hierarchy awareness."""
+    """Parse Word docx với hierarchy awareness (đoạn văn + bảng nhiệm vụ)."""
     if DocxDocument is None:
         raise ValueError("Máy chủ chưa cài thư viện đọc file Word (.docx).")
 
@@ -1515,11 +2392,95 @@ def _parse_outline_docx_rows(file_storage):
     except Exception:
         raise ValueError("Không đọc được file đề cương Word. Hãy thử lại với file .docx rõ nội dung đầu mục.")
 
-    paragraphs = list(document.paragraphs)
-    # Parse với hierarchy
-    hierarchy_items = _parse_outline_with_hierarchy(paragraphs, is_docx=True)
     catalog = _task_assignment_catalog()
-    return _flatten_hierarchy_to_rows(hierarchy_items, catalog=catalog)
+    paragraphs = list(document.paragraphs)
+    hierarchy_items = _parse_outline_with_hierarchy(paragraphs, is_docx=True)
+    rows = _flatten_hierarchy_to_rows(hierarchy_items, catalog=catalog)
+    # Gộp thêm các dòng từ BẢNG nhiệm vụ (nếu file Word có bảng)
+    if getattr(document, "tables", None):
+        table_rows = _table_rows_to_outline_rows(document, catalog=catalog)
+        rows.extend(table_rows)
+    return rows
+
+
+def _parse_outline_pdf_rows(file_storage):
+    """Parse file PDF (báo cáo / đề cương): trích chữ từng trang -> dòng -> cây mục lục."""
+    lines, error = _parse_outline_pdf_text(file_storage)
+    if error:
+        raise ValueError(error)
+
+    catalog = _task_assignment_catalog()
+    hierarchy_items = _parse_outline_with_hierarchy(lines, is_docx=False)
+    rows = _flatten_hierarchy_to_rows(hierarchy_items, catalog=catalog)
+    # Gộp thêm dòng từ các bảng trong PDF nếu có (bảng nhiệm vụ dạng chữ)
+    try:
+        file_storage.stream.seek(0)
+        document = PdfDocument.open(stream=file_storage.stream.read(), filetype="pdf")
+        for page in document:
+            try:
+                for table in (getattr(page, "find_tables", lambda: None)() or {}).tables:
+                    data = table.extract()
+                    if not data or not data[0] or not any(data[0]):
+                        continue
+                    headers = [re.sub(r"\s+", " ", str(c or "").strip().replace("\n", " ")) for c in data[0]]
+                    roles = _table_column_role(headers)
+                    schema = _table_build_schema(headers)
+                    seen = {_normalize_outline_match_text(str(r.get("title") or "")) for r in rows}
+                    for data_row in data[1:]:
+                        cells = [re.sub(r"\s+", " ", str(c or "").strip().replace("\n", " ")) for c in data_row]
+                        if not any(cells):
+                            continue
+                        content = cells[roles["content"]] if roles.get("content", -1) >= 0 else (max(cells, key=len) if cells else "")
+                        if not content:
+                            continue
+                        lead = cells[roles["lead"]] if roles.get("lead", -1) >= 0 else ""
+                        deadline = cells[roles["deadline"]] if roles.get("deadline", -1) >= 0 else ""
+                        coordinate = cells[roles["coordinate"]] if roles.get("coordinate", -1) >= 0 else ""
+                        product = cells[roles["product"]] if roles.get("product", -1) >= 0 else ""
+                        if _normalize_outline_match_text(content) in seen:
+                            continue
+                        seen.add(_normalize_outline_match_text(content))
+                        unit_domains = []
+                        if catalog and lead:
+                            assignment = _resolve_outline_assignee_hint(f"Cơ quan chủ trì: {lead}", catalog)
+                            if assignment:
+                                unit_domains = assignment.get("unit_domains") or []
+                        content_parts = [content]
+                        if lead:
+                            content_parts.append(f"Cơ quan chủ trì: {lead}")
+                        if coordinate:
+                            content_parts.append(f"Cơ quan phối hợp: {coordinate}")
+                        if deadline:
+                            content_parts.append(f"Thời gian: {deadline}")
+                        if product:
+                            content_parts.append(f"Sản phẩm, kết quả: {product}")
+                        rows.append(
+                            {
+                                "title": content[:255],
+                                "content": f"- {' | '.join(content_parts)}"[:3000],
+                                "heading": "",
+                                "level": 2,
+                                "number": "",
+                                "parent_row_index": None,
+                                "has_numbers": False,
+                                "number_fields": [],
+                                "assign_type": "unit" if unit_domains else "",
+                                "domain": "",
+                                "unit_domains": unit_domains,
+                                "role_ids": [],
+                                "user_ids": [],
+                                "assignee_hint": f"Cơ quan chủ trì: {lead}" if lead else "",
+                                "assignee_detected": bool(unit_domains),
+                                "table_schema": schema,
+                                "table_cells": {str(idx): cell for idx, cell in enumerate(cells)},
+                            }
+                        )
+            except Exception:
+                continue
+        document.close()
+    except Exception:
+        pass
+    return rows
 
 
 def _blocks_to_outline_rows(blocks):
@@ -1558,6 +2519,7 @@ def _blocks_to_outline_rows(blocks):
                 "heading": heading[:255],
                 "has_numbers": bool(number_fields),
                 "number_fields": number_fields,
+                "skeleton": _outline_skeleton_text(content[:2000], number_fields),
                 "assign_type": assignment["assign_type"] if assignment else "",
                 "domain": "",
                 "unit_domains": assignment["unit_domains"] if assignment else [],
@@ -1602,10 +2564,12 @@ def _parse_outline_upload_rows(file_storage):
 
     extension = os.path.splitext(file_storage.filename or "")[1].lower()
     if extension not in TASK_OUTLINE_ALLOWED_EXTENSIONS:
-        raise ValueError("Chỉ hỗ trợ đề cương dạng .docx hoặc .txt.")
+        raise ValueError("Chỉ hỗ trợ đề cương dạng .docx, .txt hoặc .pdf.")
 
     if extension == ".docx":
         return _parse_outline_docx_rows(file_storage)
+    if extension == ".pdf":
+        return _parse_outline_pdf_rows(file_storage)
     return _parse_outline_text_rows(file_storage)
 
 def _blueprint_title_from_filename(filename, fallback):
@@ -3632,6 +4596,7 @@ def _task_import_publish_payload(config):
         "priority": canonicalize_category_value(config.get("priority") or "Trung bình", _task_priority_options(), prefer_stable=True),
         "task_type": canonicalize_category_value(config.get("task_type") or "Công việc thường xuyên", _task_type_options(), prefer_stable=True),
         "deadline": _parse_deadline(MultiDict([("deadline", config.get("deadline") or "")])),
+        "report_period_json": None,
         "assign_type": _task_import_working_assign_type(config.get("assign_type"), "unit"),
         "unit_domains": _requested_unit_domains(
             MultiDict([("child_domains", value) for value in (config.get("unit_domains") or [])] + ([("child_domain", domain)] if domain else []))
@@ -3651,6 +4616,26 @@ def _task_import_publish_payload(config):
         "report_schema": None,
         "assignees": [],
     }
+
+    try:
+        report_period = report_parse_config(
+            {
+                "task_type": payload["task_type"],
+                "report_deadline": config.get("deadline") or "",
+                "report_period_kind": config.get("report_period_kind") or "",
+                "report_period": config.get("report_period") or "",
+                "report_weekday": config.get("report_weekday") or "",
+                "report_day_of_month": config.get("report_day_of_month") or "",
+                "report_month_of_year": config.get("report_month_of_year") or "",
+                "report_start_date": config.get("report_start_date") or "",
+                "report_end_date": config.get("report_end_date") or "",
+                "report_milestones": config.get("report_milestones") or [],
+            }
+        )
+        if report_period:
+            payload["report_period_json"] = report_config_to_json(report_period)
+    except Exception:
+        payload["report_period_json"] = None
 
     manager_form = MultiDict(
         [("manager_scope_mode", payload["manager_scope_mode"])]
@@ -3782,6 +4767,8 @@ def _publish_task_import_draft(draft):
         initial_status="Chưa tiếp nhận",
         task_mode=payload["task_mode"],
     )
+    if payload.get("report_period_json"):
+        new_task.report_period_json = payload["report_period_json"]
     if payload["report_schema"]:
         new_task.report_schema_json = _json_dump(payload["report_schema"])
 
@@ -3817,6 +4804,13 @@ def _publish_task_import_draft(draft):
                     guide_text = json.dumps(number_fields, ensure_ascii=False)
                 except Exception:
                     guide_text = None
+            sources = item.get("sources") or []
+            report_sources_json = None
+            if sources:
+                try:
+                    report_sources_json = json.dumps(sources, ensure_ascii=False)
+                except Exception:
+                    report_sources_json = None
             task_item = TaskItem(
                 task_id=new_task.id,
                 item_code=str(index),
@@ -3829,9 +4823,20 @@ def _publish_task_import_draft(draft):
                 attachment_required=bool(item["attachment_required"]),
                 deadline=new_task.deadline,
                 sort_order=item.get("sort_order", index - 1),
+                report_sources_json=report_sources_json,
             )
             db.session.add(task_item)
             db.session.flush()
+            table_cells = item.get("table_cells") or {}
+            if table_cells:
+                task_item.table_cells_json = _json_dump(table_cells)
+                schema = item.get("table_schema")
+                if schema and not new_task.outline_table_schema_json:
+                    new_task.outline_table_schema_json = _json_dump(schema)
+            if item.get("report_secondary") and item_content:
+                linked_item = _find_report_secondary_linked_item(item_content, item.get("unit_domains") or [], new_task.id)
+                if linked_item:
+                    task_item.linked_item_id = linked_item.id
             _create_assignment_records(
                 new_task,
                 item["assignees"],
@@ -6602,6 +7607,70 @@ def _task_detail_context(task, summary, mode, can_manage_task_view, can_submit, 
         outline_groups=outline_groups,
     )
 
+def _outline_table_schema_map(task):
+    """Đọc cấu trúc cột bảng của task (đã lưu khi tạo từ đề cương dạng bảng)."""
+    if not task:
+        return None
+    raw = str(getattr(task, "outline_table_schema_json", "") or "").strip()
+    if not raw:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        return None
+    if not isinstance(parsed, list):
+        return None
+    schema_map = {}
+    for col in parsed:
+        if not isinstance(col, dict):
+            continue
+        index_value = col.get("index")
+        if index_value is not None:
+            schema_map[str(index_value)] = col
+    return schema_map or None
+
+
+def _outline_item_table_cells(item):
+    """Đọc ô dữ liệu theo cột của đầu mục (nếu đầu mục được tạo từ bảng)."""
+    if not item:
+        return {}
+    raw = str(getattr(item, "table_cells_json", "") or "").strip()
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _render_outline_table_html(schema_map, cells, fallback_content=""):
+    """Dựng bảng tái hiện (chỉ các cột được tích hiển thị) cho tài khoản đơn vị nhận.
+
+    schema_map: {chỉ_số_cột: {index, header, role, visible}} từ task.
+    cells: {chỉ_số_cột: giá trị} của đầu mục.
+    """
+    if not schema_map or not cells:
+        return ""
+    columns = sorted(schema_map.values(), key=lambda col: int(col.get("index") or 0))
+    columns = [col for col in columns if col.get("visible")]
+    if not columns:
+        return ""
+    header_cells = "".join(
+        f"<th class='text-nowrap'>{html.escape(str(col.get('header') or ''))}</th>" for col in columns
+    )
+    body_cells = []
+    for col in columns:
+        value = str(cells.get(str(col.get("index")), "") or "").strip()
+        if not value and col.get("role") == "content":
+            value = str(fallback_content or "").strip()
+        body_cells.append(f"<td>{html.escape(value)}</td>")
+    return (
+        "<div class='table-responsive'><table class='table table-sm table-bordered outline-table-render mb-0'>"
+        f"<thead><tr>{header_cells}</tr></thead><tbody><tr>{''.join(body_cells)}</tr></tbody></table></div>"
+    )
+
+
 def _parse_outline_item_rows(task, current_uid):
     rows = []
     for item in _task_items_for_task(task):
@@ -6616,23 +7685,75 @@ def _parse_outline_item_rows(task, current_uid):
             candidate_text = str(candidate or "").strip()
             if not candidate_text:
                 continue
+            if candidate_text.startswith("{") or candidate_text.startswith("["):
+                # guide_text dạng JSON (trường số liệu) — không hiển thị thô
+                continue
             if re.sub(r"\s+", " ", candidate_text).strip().lower() == re.sub(r"\s+", " ", str(item.title or "")).strip().lower():
                 continue
             secondary_text = candidate_text
             break
+        my_submission = latest_submissions.get(getattr(my_assignment, "id", None))
+        number_fields = _outline_item_number_fields(item)
+        my_submission_payload = _parse_task_submission_payload(my_submission) if my_submission else {}
+        values = my_submission_payload.get("values") if isinstance(my_submission_payload, dict) else None
+        if not isinstance(values, dict):
+            values = {}
+        content = str(getattr(item, "content", "") or "")
+        table_cells = _outline_item_table_cells(item)
+        table_render_html = ""
+        if table_cells:
+            table_render_html = _render_outline_table_html(_outline_table_schema_map(task), table_cells, content)
+        if table_render_html:
+            # Bảng đã tái hiện đầy đủ các cột -> không lặp lại nội dung gộp ở secondary_text
+            secondary_text = ""
         rows.append(
             {
                 "item": item,
                 "assignments": assignments,
                 "my_assignment": my_assignment,
-                "my_submission": latest_submissions.get(getattr(my_assignment, "id", None)),
+                "my_submission": my_submission,
+                "my_submission_payload": my_submission_payload,
+                "number_fields": number_fields,
+                "blank_editor_html": _render_blank_editor_html(content, number_fields, values) if item.report_kind == "number" else "",
                 "submitted_count": sum(1 for assignment in assignments if _task_is_submitted(assignment)),
                 "total_count": len(assignments),
                 "latest_submissions": latest_submissions,
                 "secondary_text": secondary_text,
+                "table_render_html": table_render_html,
             }
         )
     return rows
+
+def _task_item_synthesis_text(item):
+    """Văn bản tổng hợp của đầu mục (quản trị soạn) — rỗng nếu chưa tổng hợp."""
+    if not item:
+        return ""
+    return str(getattr(item, "synthesis_content", None) or "").strip()
+
+
+def _outline_item_number_fields(item):
+    """Lấy danh sách trường số liệu của đầu mục (từ guide_text JSON, hoặc dò lại từ nội dung)."""
+    if not item:
+        return []
+    guide = str(getattr(item, "guide_text", "") or "").strip()
+    if guide:
+        try:
+            parsed = json.loads(guide)
+            if isinstance(parsed, dict):
+                fields = parsed.get("fields") or []
+            elif isinstance(parsed, list):
+                fields = parsed
+            else:
+                fields = []
+            fields = [
+                f for f in fields
+                if isinstance(f, dict) and str(f.get("label") or "").strip()
+            ]
+            if fields:
+                return fields
+        except Exception:
+            pass
+    return _extract_number_fields_from_text(str(getattr(item, "content", "") or ""))
 
 def _parse_outline_item_configs_from_request(form):
     titles = form.getlist("item_title")
@@ -6646,16 +7767,47 @@ def _parse_outline_item_configs_from_request(form):
     domains_values = form.getlist("item_domains")
     role_ids_values = form.getlist("item_role_ids")
     user_ids_values = form.getlist("item_user_ids")
+    parent_values = form.getlist("item_parent")
+    inherit_values = form.getlist("item_inherit")
+    report_secondary_values = form.getlist("item_report_secondary")
+    sources_values = form.getlist("item_sources")
+    heading_values = form.getlist("item_heading")
+    table_cells_values = form.getlist("item_table_cells")
+    table_schema = []
+    try:
+        raw_schema = str(form.get("item_table_schema") or "").strip()
+        if raw_schema:
+            parsed_schema = json.loads(raw_schema)
+            if isinstance(parsed_schema, list):
+                table_schema = [
+                    {
+                        "index": int(col.get("index", 0)),
+                        "header": str(col.get("header") or "")[:200],
+                        "role": str(col.get("role") or "other").strip() or "other",
+                        "visible": bool(col.get("visible")),
+                    }
+                    for col in parsed_schema
+                    if isinstance(col, dict)
+                ]
+    except Exception:
+        table_schema = []
     configs = []
     seen = set()
 
     for index, raw_title in enumerate(titles):
         if enabled_indexes and str(index) not in enabled_indexes:
             continue
-        cleaned_title = _clean_outline_title(raw_title)
+        # Giữ số hiệu mục (vd: "1.1. Các Sở...") để các mục cùng tên ở phần khác
+        # nhau của đề cương không bị gộp nhầm; chỉ bỏ dấu đầu dòng nếu có.
+        cleaned_title = re.sub(r"^\s*(?:[-–—•*+]\s*|\+\s*)\s*", "", str(raw_title or "").strip())
+        cleaned_title = re.sub(r"\s+", " ", cleaned_title).strip(" .:")
         if not cleaned_title:
             continue
-        dedupe_key = cleaned_title.lower()
+        # Với dòng bullet, các mục con cùng tên có thể lặp lại ở nhiều mục khác
+        # nhau trong đề cương -> khử trùng theo (heading, title) chứ không theo title.
+        raw_parent = str(parent_values[index] if index < len(parent_values) else "").strip()
+        raw_heading = str(heading_values[index] if index < len(heading_values) else "").strip()
+        dedupe_key = (cleaned_title.lower(), raw_heading.lower(), raw_parent)
         if dedupe_key in seen:
             continue
         seen.add(dedupe_key)
@@ -6678,10 +7830,19 @@ def _parse_outline_item_configs_from_request(form):
             number_fields = json.loads(raw_number_fields) if raw_number_fields else []
         except Exception:
             number_fields = []
+        raw_table_cells = str(table_cells_values[index] if index < len(table_cells_values) else "").strip()
+        try:
+            table_cells = json.loads(raw_table_cells) if raw_table_cells else {}
+            if not isinstance(table_cells, dict):
+                table_cells = {}
+        except Exception:
+            table_cells = {}
+        parent_index = int(raw_parent) if raw_parent.isdigit() else None
         configs.append(
             {
+                "form_index": index,
                 "title": cleaned_title[:255],
-                "content": content_text[:2000],
+                "content": content_text[:3000],
                 "report_kind": report_kind,
                 "number_fields": number_fields,
                 "attachment_required": str(index) in attachment_indexes,
@@ -6690,6 +7851,19 @@ def _parse_outline_item_configs_from_request(form):
                 "unit_domains": unit_domains,
                 "role_ids": sorted({int(value) for value in raw_role_ids.split(",") if value.strip().isdigit()}),
                 "user_ids": sorted({int(value) for value in raw_user_ids.split(",") if value.strip().isdigit()}),
+                "parent_index": parent_index,
+                "inherit": str(index) in inherit_values,
+                "report_secondary": (
+                    index < len(report_secondary_values)
+                    and str(report_secondary_values[index]).strip() == "1"
+                ),
+                "sources": [
+                    source.strip()
+                    for source in str(sources_values[index] if index < len(sources_values) else "").split(",")
+                    if source.strip()
+                ],
+                "table_schema": table_schema if table_cells else [],
+                "table_cells": table_cells,
             }
         )
     return configs
@@ -6718,6 +7892,9 @@ def _get_outline_import_preview(task_id):
         rows.append(
             {
                 "title": title[:255],
+                "content": str(item.get("content") or "").strip()[:3000],
+                "heading": str(item.get("heading") or "").strip()[:255],
+                "parent_row_index": item.get("parent_row_index"),
                 "report_kind": report_kind,
                 "attachment_required": bool(item.get("attachment_required")),
                 "assign_type": assign_type,
@@ -6979,7 +8156,7 @@ def _tasks_page_v2():
             domain=domain,
             title=title,
             content=content,
-            deadline=_parse_deadline(request.form),
+            deadline=_computed_task_deadline(request.form, task_type=task_type) or _parse_deadline(request.form),
             file_path=attachment_name,
             author_id=session["uid"],
             author_name=session.get("fullname", "Quản trị"),
@@ -6988,7 +8165,10 @@ def _tasks_page_v2():
             initial_status="Chưa tiếp nhận",
             task_mode=task_mode,
             form_provider=form_provider if task_mode == "FORM" else "internal",
-                    )
+        )
+        report_period = _parse_task_report_period_from_request(request.form, task_type=task_type)
+        if report_period:
+            new_task.report_period_json = report_config_to_json(report_period)
         if report_schema:
             new_task.report_schema_json = json.dumps(report_schema, ensure_ascii=False)
         if task_mode == "FORM" and form_provider == "google":
@@ -7054,31 +8234,23 @@ def _tasks_page_v2():
                     ]
 
             if outline_item_configs:
-                resolved_item_assignments = []
-                for item_config in outline_item_configs:
-                    item_assignees, item_error_message, item_assign_type, item_role_ids = _resolve_outline_item_assignment(
-                        item_config, request.form, new_task
-                    )
-                    if item_error_message:
-                        flash(f'Nội dung "{item_config.get("title", "")}": {item_error_message}', "danger")
-                        db.session.rollback()
-                        return redirect(url_for("tasks_bp.tasks"))
-                    resolved_item_assignments.append(
-                        {"assignees": item_assignees, "assign_type": item_assign_type, "role_ids": item_role_ids}
-                    )
+                created_item_by_form_index = {}
                 for index, item_config in enumerate(outline_item_configs, start=1):
-                    assignment_meta = resolved_item_assignments[index - 1]
                     item_content = str(item_config.get("content") or "").strip()
                     number_fields = item_config.get("number_fields") or []
-                    # Store number fields as JSON guide text for number-kind items, or as reference
                     guide_text = None
                     if number_fields:
                         try:
                             guide_text = json.dumps(number_fields, ensure_ascii=False)
                         except Exception:
                             guide_text = None
+                    parent_item_id = None
+                    parent_index = item_config.get("parent_index")
+                    if parent_index is not None and parent_index in created_item_by_form_index:
+                        parent_item_id = created_item_by_form_index[parent_index]
                     task_item = TaskItem(
                         task_id=new_task.id,
+                        parent_item_id=parent_item_id,
                         item_code=str(index),
                         title=item_config["title"],
                         content=item_content or None,
@@ -7089,20 +8261,65 @@ def _tasks_page_v2():
                         attachment_required=bool(item_config.get("attachment_required")),
                         deadline=new_task.deadline,
                         sort_order=index,
+                        report_sources_json=_outline_sources_json(item_config.get("sources") or []),
                     )
                     db.session.add(task_item)
                     db.session.flush()
+                    table_cells = item_config.get("table_cells") or {}
+                    if table_cells:
+                        task_item.table_cells_json = json.dumps(table_cells, ensure_ascii=False)
+                        schema = item_config.get("table_schema") or []
+                        if schema and not new_task.outline_table_schema_json:
+                            new_task.outline_table_schema_json = json.dumps(schema, ensure_ascii=False)
+                    if item_config.get("report_secondary") and item_content:
+                        linked_item = _find_report_secondary_linked_item(
+                            item_content,
+                            item_config.get("unit_domains") or [],
+                            new_task.id,
+                        )
+                        if linked_item:
+                            task_item.linked_item_id = linked_item.id
+                    created_item_by_form_index[item_config["form_index"]] = task_item.id
+                    if (
+                        item_config.get("inherit")
+                        and parent_index is not None
+                        and parent_index in created_item_by_form_index
+                    ):
+                        # Dòng con kế thừa gán từ mục cha: tạo assignment giống cha
+                        parent_item = TaskItem.query.filter_by(id=created_item_by_form_index[parent_index]).first()
+                        if parent_item:
+                            parent_assignments = TaskAssignment.query.filter_by(
+                                task_id=new_task.id, task_item_id=parent_item.id
+                            ).all()
+                            for parent_assignment in parent_assignments:
+                                db.session.add(
+                                    TaskAssignment(
+                                        task_id=new_task.id,
+                                        task_item_id=task_item.id,
+                                        user_id=parent_assignment.user_id,
+                                        assignee_type=parent_assignment.assignee_type,
+                                        role_id=parent_assignment.role_id,
+                                        title_snapshot=item_config["title"],
+                                        status="assigned",
+                                        is_required=True,
+                                        assigned_at=datetime.now(),
+                                    )
+                                )
+                            continue
+                    item_assignees, item_error_message, item_assign_type, item_role_ids = _resolve_outline_item_assignment(
+                        item_config, request.form, new_task
+                    )
+                    if item_error_message:
+                        flash(f'Nội dung "{item_config.get("title", "")}": {item_error_message}', "danger")
+                        db.session.rollback()
+                        return redirect(url_for("tasks_bp.tasks"))
                     _create_assignment_records(
                         new_task,
-                        assignment_meta["assignees"],
-                        assign_type=assignment_meta["assign_type"],
+                        item_assignees,
+                        assign_type=item_assign_type,
                         task_item=task_item,
                         title_snapshot=task_item.title,
-                        role_id=(
-                            assignment_meta["role_ids"][0]
-                            if len(assignment_meta["role_ids"]) == 1
-                            else None
-                        ),
+                        role_id=item_role_ids[0] if len(item_role_ids) == 1 else None,
                     )
             elif blueprint_items:
                 for index, item_config in enumerate(blueprint_items, start=1):
@@ -7447,6 +8664,9 @@ def _task_detail_v2(tid):
         summary=detail_page_context["summary"],
         detail_context=detail_page_context["detail_context"],
         status_labels=TASK_ASSIGNMENT_STATUS_LABELS,
+        report_period=_task_report_period(task),
+        report_kind_label=_task_report_kind_label(task),
+        current_cycle=_task_current_cycle(task),
     )
 
 def _create_outline_items_v2(tid):
@@ -7492,23 +8712,9 @@ def _create_outline_items_v2(tid):
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
     current_count = TaskItem.query.filter_by(task_id=parent_task.id).count()
-    resolved_assignments = []
 
-    for item_config in item_configs:
-        assignees, error_message, assign_type, role_ids = _resolve_outline_item_assignment(item_config, request.form, parent_task)
-        if error_message:
-            flash(f'Nội dung "{item_config["title"]}": {error_message}', "danger")
-            return redirect(url_for("tasks_bp.task_detail", tid=tid))
-        resolved_assignments.append(
-            {
-                "assignees": assignees,
-                "assign_type": assign_type,
-                "role_ids": role_ids,
-            }
-        )
-
+    created_item_by_form_index = {}
     for index, item_config in enumerate(item_configs, start=1):
-        assignment_meta = resolved_assignments[index - 1]
         item_content = str(item_config.get("content") or "").strip()
         number_fields = item_config.get("number_fields") or []
         guide_text = None
@@ -7517,8 +8723,13 @@ def _create_outline_items_v2(tid):
                 guide_text = json.dumps(number_fields, ensure_ascii=False)
             except Exception:
                 guide_text = None
+        parent_item_id = None
+        parent_index = item_config.get("parent_index")
+        if parent_index is not None and parent_index in created_item_by_form_index:
+            parent_item_id = created_item_by_form_index[parent_index]
         task_item = TaskItem(
             task_id=parent_task.id,
+            parent_item_id=parent_item_id,
             item_code=str(current_count + index),
             title=item_config["title"],
             content=item_content or None,
@@ -7532,13 +8743,44 @@ def _create_outline_items_v2(tid):
         )
         db.session.add(task_item)
         db.session.flush()
+        created_item_by_form_index[item_config.get("form_index", index - 1)] = task_item.id
+        if (
+            item_config.get("inherit")
+            and parent_index is not None
+            and parent_index in created_item_by_form_index
+        ):
+            # Dòng con kế thừa gán từ mục cha: tạo assignment giống cha
+            parent_item = TaskItem.query.filter_by(id=created_item_by_form_index[parent_index]).first()
+            if parent_item:
+                parent_assignments = TaskAssignment.query.filter_by(
+                    task_id=parent_task.id, task_item_id=parent_item.id
+                ).all()
+                for parent_assignment in parent_assignments:
+                    db.session.add(
+                        TaskAssignment(
+                            task_id=parent_task.id,
+                            task_item_id=task_item.id,
+                            user_id=parent_assignment.user_id,
+                            assignee_type=parent_assignment.assignee_type,
+                            role_id=parent_assignment.role_id,
+                            title_snapshot=item_config["title"],
+                            status="assigned",
+                            is_required=True,
+                            assigned_at=datetime.now(),
+                        )
+                    )
+                continue
+        assignees, error_message, assign_type, role_ids = _resolve_outline_item_assignment(item_config, request.form, parent_task)
+        if error_message:
+            flash(f'Nội dung "{item_config["title"]}": {error_message}', "danger")
+            return redirect(url_for("tasks_bp.task_detail", tid=tid))
         _create_assignment_records(
             parent_task,
-            assignment_meta["assignees"],
-            assign_type=assignment_meta["assign_type"],
+            assignees,
+            assign_type=assign_type,
             task_item=task_item,
             title_snapshot=item_config["title"],
-            role_id=assignment_meta["role_ids"][0] if len(assignment_meta["role_ids"]) == 1 else None,
+            role_id=role_ids[0] if len(role_ids) == 1 else None,
         )
 
     db.session.commit()
@@ -7586,6 +8828,9 @@ def _preview_outline_import_v2(tid):
         preview_rows.append(
             {
                 "title": row["title"],
+                "content": row.get("content") or "",
+                "heading": row.get("heading") or "",
+                "parent_row_index": row.get("parent_row_index"),
                 "report_kind": default_report_kind,
                 "attachment_required": bool(attachment_required),
                 "assign_type": row.get("assign_type") or "",
@@ -7669,16 +8914,34 @@ def _submit_task_report_v2(tid):
     current_user = db.session.get(User, session["uid"])
 
     if mode == "OUTLINE" and item and item.report_kind == "number":
+        # Nhận số liệu theo từng ô trống (report_number_value_<blank_id>)
+        per_field_values = {}
+        for field_key, raw_field in request.form.items():
+            if field_key.startswith("report_number_value_"):
+                field_idx = field_key[len("report_number_value_"):]
+                field_text = str(raw_field or "").strip()
+                if field_text:
+                    parsed = _parse_outline_blank_value(field_text)
+                    if parsed is None:
+                        flash("Số liệu không hợp lệ.", "danger")
+                        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+                    per_field_values[field_idx] = parsed
         raw_value = (request.form.get("report_number") or "").strip()
-        if not raw_value:
-            flash("Cần nhập số liệu cho đầu mục này.", "danger")
-            return redirect(url_for("tasks_bp.task_detail", tid=tid))
-        try:
-            numeric_value = float(raw_value.replace(",", ""))
-        except ValueError:
-            flash("Số liệu không hợp lệ.", "danger")
-            return redirect(url_for("tasks_bp.task_detail", tid=tid))
-        payload["reported_value"] = numeric_value
+        if per_field_values:
+            if not raw_value:
+                raw_value = str(next(iter(per_field_values.values())))
+            payload["values"] = per_field_values
+            numeric_value = _outline_blank_numeric(raw_value)
+            payload["reported_value"] = numeric_value
+        else:
+            if not raw_value:
+                flash("Cần nhập số liệu cho đầu mục này.", "danger")
+                return redirect(url_for("tasks_bp.task_detail", tid=tid))
+            numeric_value = _outline_blank_numeric(raw_value)
+            if numeric_value is None:
+                flash("Số liệu không hợp lệ.", "danger")
+                return redirect(url_for("tasks_bp.task_detail", tid=tid))
+            payload["reported_value"] = numeric_value
 
     if mode == "FORM":
         missing_labels = []
@@ -7749,6 +9012,10 @@ def _submit_task_report_v2(tid):
         payload_json=json.dumps(payload, ensure_ascii=False) if payload else None,
         submitted_at=datetime.now(),
     )
+    current_cycle = _task_current_cycle(task)
+    if current_cycle:
+        submission.cycle_key = str(current_cycle.get("key") or "")[:50] or None
+        submission.cycle_label = str(current_cycle.get("label") or "")[:100] or None
     db.session.add(submission)
     db.session.flush()
 
@@ -7810,6 +9077,7 @@ def _submit_task_report_v2(tid):
             content=f"[BÁO CÁO] {comment_text}",
         )
     )
+    _propagate_submission_to_linked_items(task, item, assignment, submission)
     db.session.commit()
     flash("Đã gửi báo cáo.", "success")
     return redirect(url_for("tasks_bp.task_detail", tid=tid))
@@ -7903,12 +9171,29 @@ def _build_outline_progress_matrix(task, current_uid):
                     unit_assignments.append(assignment)
             unit_submitted = sum(1 for assignment in unit_assignments if _task_is_submitted(assignment))
             item_submitted += unit_submitted
+            cell_numbers = []
+            for assignment in unit_assignments:
+                submission = row["latest_submissions"].get(assignment.id)
+                if not submission or item.report_kind != "number":
+                    continue
+                values = _outline_submission_values(submission)
+                first_value = next(iter(values.values()), None)
+                cell_numbers.append(
+                    {
+                        "unit_name": unit_name,
+                        "values": values,
+                        "first_value": first_value,
+                        "numeric": _outline_blank_numeric(first_value),
+                        "submitted": _task_is_submitted(assignment),
+                    }
+                )
             cells.append(
                 {
                     "unit_name": unit_name,
                     "submitted_count": unit_submitted,
                     "total_count": len(unit_assignments),
                     "done": bool(unit_assignments) and unit_submitted >= len(unit_assignments),
+                    "numbers": cell_numbers,
                     "assignments": [
                         {
                             "assignment": assignment,
@@ -7922,6 +9207,17 @@ def _build_outline_progress_matrix(task, current_uid):
                     ],
                 }
             )
+        aggregate_total = None
+        aggregate_count = 0
+        if item.report_kind == "number":
+            numeric_values = []
+            for cell in cells:
+                for number in cell["numbers"]:
+                    if number.get("numeric") is not None:
+                        numeric_values.append(number["numeric"])
+            aggregate_count = len(numeric_values)
+            if numeric_values:
+                aggregate_total = sum(numeric_values)
         matrix_rows.append(
             {
                 "item": item,
@@ -7930,6 +9226,8 @@ def _build_outline_progress_matrix(task, current_uid):
                 "total_count": item_total,
                 "done": item_total > 0 and item_submitted >= item_total,
                 "percent": round(item_submitted / item_total * 100) if item_total else 0,
+                "aggregate_total": aggregate_total,
+                "aggregate_count": aggregate_count,
             }
         )
 
@@ -7970,6 +9268,7 @@ def _export_outline_word_v2(tid):
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
     rows = _parse_outline_item_rows(task, session["uid"])
+    table_schema_map = _outline_table_schema_map(task)
     document = DocxDocument()
     document.add_heading(str(task.title or f"Công việc #{task.id}"), level=0)
 
@@ -7992,14 +9291,62 @@ def _export_outline_word_v2(tid):
     for index, row in enumerate(rows, start=1):
         item = row["item"]
         item_code = str(getattr(item, "item_code", None) or index)
+        content = str(getattr(item, "content", "") or "")
         document.add_heading(f"{item_code}. {item.title}", level=1)
-        guide = str(getattr(item, "guide_text", None) or "").strip()
-        if guide:
-            guide_paragraph = document.add_paragraph()
-            guide_run = guide_paragraph.add_run(guide)
-            guide_run.italic = True
+        # Tái hiện bảng (chỉ các cột được tích hiển thị) nếu đầu mục từ đề cương dạng bảng
+        item_table_cells = _outline_item_table_cells(item)
+        if table_schema_map and item_table_cells:
+            columns = sorted(table_schema_map.values(), key=lambda col: int(col.get("index") or 0))
+            columns = [col for col in columns if col.get("visible")]
+            if columns:
+                outline_table = document.add_table(rows=2, cols=len(columns))
+                outline_table.style = "Table Grid"
+                for col_index, col in enumerate(columns):
+                    outline_table.rows[0].cells[col_index].text = str(col.get("header") or "")
+                    value = str(item_table_cells.get(str(col.get("index")), "") or "").strip()
+                    if not value and col.get("role") == "content":
+                        value = content
+                    outline_table.rows[1].cells[col_index].text = value
         if not row["assignments"]:
             document.add_paragraph("Chưa giao đơn vị nào cho đầu mục này.")
+        synthesis = _task_item_synthesis_text(item)
+        if synthesis:
+            document.add_paragraph(synthesis)
+        number_fields = _outline_item_number_fields(item)
+        submitted_with_values = []
+        for assignment in row["assignments"]:
+            submission = row["latest_submissions"].get(assignment.id)
+            if not submission:
+                continue
+            user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
+            submitted_with_values.append((assignment, submission, user, _outline_submission_values(submission)))
+        # Văn bản tổng hợp: nội dung gốc với số liệu đã nộp ghép vào
+        if item.report_kind == "number" and number_fields and submitted_with_values:
+            merged_parts = []
+            for position, (assignment, submission, user, values) in enumerate(submitted_with_values, start=1):
+                unit_name = _task_assignee_unit_name(user)
+                merged = _outline_merged_content(content, number_fields, values)
+                merged_parts.append(f"Số liệu {position} - {unit_name}: {merged.strip()}")
+            merged_paragraph = document.add_paragraph()
+            merged_run = merged_paragraph.add_run("\n".join(merged_parts))
+            merged_run.bold = True
+            # Cộng gộp khi quản trị bật
+            if item.allow_aggregate:
+                numeric_values = [
+                    _outline_blank_numeric(value)
+                    for values in (v for _, _, _, v in submitted_with_values)
+                    for value in values.values()
+                ]
+                numeric_values = [value for value in numeric_values if value is not None]
+                if numeric_values:
+                    aggregate_paragraph = document.add_paragraph()
+                    aggregate_run = aggregate_paragraph.add_run(
+                        f"Tổng cộng: {sum(numeric_values):,.0f}".replace(",", ".")
+                    )
+                    aggregate_run.bold = True
+        # Đã có văn bản tổng hợp của quản trị -> không lặp lại nội dung từng đơn vị.
+        if synthesis:
+            continue
         for assignment in row["assignments"]:
             user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
             unit_name = _task_assignee_unit_name(user)
@@ -8011,7 +9358,18 @@ def _export_outline_word_v2(tid):
             if not submission:
                 document.add_paragraph("Chưa có nội dung báo cáo.")
                 continue
-            if item.report_kind == "number" and submission.numeric_value is not None:
+            if item.report_kind == "number" and number_fields:
+                values = _outline_submission_values(submission)
+                field_lines = []
+                for field in number_fields:
+                    blank_id = field.get("blank_id")
+                    submitted = values.get(str(blank_id), values.get(blank_id, ""))
+                    if submitted in (None, ""):
+                        submitted = field.get("value", "")
+                    field_lines.append(f"- {field.get('label', '')}: {submitted} {field.get('unit', '')}".strip())
+                if field_lines:
+                    document.add_paragraph("\n".join(field_lines))
+            elif item.report_kind == "number" and submission.numeric_value is not None:
                 document.add_paragraph(f"Số liệu: {submission.numeric_value:g}")
             if submission.narrative_content:
                 document.add_paragraph(str(submission.narrative_content))
@@ -8034,6 +9392,142 @@ def _export_outline_word_v2(tid):
         download_name=f"bao_cao_tong_hop_{safe_name}_{task.id}.docx",
         mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
+
+@tasks_bp.route("/tasks/<int:tid>/items/<int:item_id>/aggregate", methods=["POST"])
+def toggle_task_item_aggregate(tid, item_id):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+    item = TaskItem.query.filter_by(id=item_id, task_id=tid).first()
+    if not item:
+        flash("Không tìm thấy đầu mục.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+    current_user = db.session.get(User, session["uid"])
+    perms = _current_perms()
+    can_manage = bool(
+        bool(session.get("is_admin"))
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+    )
+    if not can_manage:
+        flash("Bạn không có quyền thay đổi cài đặt đầu mục này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+    item.allow_aggregate = not bool(item.allow_aggregate)
+    item.updated_at = datetime.now()
+    db.session.commit()
+    flash("Đã bật cộng gộp số liệu cho đầu mục." if item.allow_aggregate else "Đã tắt cộng gộp số liệu.", "success")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid) + "#pane-outline-matrix")
+
+@tasks_bp.route("/tasks/<int:tid>/items/<int:item_id>/synthesis-data")
+def task_item_synthesis_data(tid, item_id):
+    """Dữ liệu cho màn tổng hợp: từng đơn vị đã nộp gì cho đầu mục này."""
+    if not session.get("uid"):
+        return jsonify({"ok": False, "error": "Chưa đăng nhập."}), 401
+
+    _ensure_task_schema()
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return jsonify({"ok": False, "error": "Không tìm thấy công việc."}), 404
+    item = TaskItem.query.filter_by(id=item_id, task_id=tid).first()
+    if not item:
+        return jsonify({"ok": False, "error": "Không tìm thấy đầu mục."}), 404
+
+    current_user = db.session.get(User, session["uid"])
+    perms = _current_perms()
+    can_manage = bool(
+        bool(session.get("is_admin"))
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+    )
+    if not can_manage:
+        return jsonify({"ok": False, "error": "Bạn không có quyền tổng hợp báo cáo."}), 403
+
+    number_fields = _outline_item_number_fields(item)
+    content = str(getattr(item, "content", "") or "")
+    assignments = _task_assignments_query(task, task_item_id=item.id).all()
+    submissions = []
+    for assignment in assignments:
+        submission = _latest_assignment_submission(assignment)
+        user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
+        values = _outline_submission_values(submission)
+        merged_text = ""
+        if item.report_kind == "number" and number_fields and submission:
+            merged_text = _outline_merged_content(content, number_fields, values).strip()
+        files = []
+        for file in (getattr(submission, "files", None) or []):
+            files.append({"name": file.original_name or file.stored_name, "id": file.id})
+        submissions.append(
+            {
+                "assignment_id": assignment.id,
+                "unit_name": _task_assignee_unit_name(user),
+                "submitter_name": getattr(user, "fullname", None) or getattr(user, "username", None) or "Cán bộ",
+                "status": _task_assignment_status_label(assignment.status),
+                "submitted_at": submission.submitted_at.strftime("%d/%m/%Y %H:%M") if submission and submission.submitted_at else "",
+                "narrative": str(getattr(submission, "narrative_content", "") or "").strip() if submission else "",
+                "merged_text": merged_text,
+                "numeric_value": ("%g" % submission.numeric_value) if submission and submission.numeric_value is not None else "",
+                "files": files,
+                "has_submission": bool(submission and (_submission_has_report_content(submission) or merged_text or files)),
+            }
+        )
+
+    return jsonify(
+        {
+            "ok": True,
+            "item": {
+                "id": item.id,
+                "item_code": getattr(item, "item_code", None) or "",
+                "title": getattr(item, "title", "") or "",
+                "report_kind": item.report_kind or "narrative",
+                "synthesis": _task_item_synthesis_text(item),
+                "synthesis_updated_at": item.synthesis_updated_at.strftime("%d/%m/%Y %H:%M") if getattr(item, "synthesis_updated_at", None) else "",
+            },
+            "submissions": submissions,
+        }
+    )
+
+@tasks_bp.route("/tasks/<int:tid>/items/<int:item_id>/synthesize", methods=["POST"])
+def save_task_item_synthesis(tid, item_id):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+    item = TaskItem.query.filter_by(id=item_id, task_id=tid).first()
+    if not item:
+        flash("Không tìm thấy đầu mục.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    current_user = db.session.get(User, session["uid"])
+    perms = _current_perms()
+    can_manage = bool(
+        bool(session.get("is_admin"))
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+    )
+    if not can_manage:
+        flash("Bạn không có quyền tổng hợp báo cáo của đầu mục này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    synthesis = (request.form.get("synthesis_content") or "").strip()
+    item.synthesis_content = synthesis or None
+    item.synthesis_updated_at = datetime.now() if synthesis else None
+    item.updated_at = datetime.now()
+    db.session.commit()
+    if synthesis:
+        flash(f"Đã lưu văn bản tổng hợp cho đầu mục {item.item_code or item.title}.", "success")
+    else:
+        flash(f"Đã xóa văn bản tổng hợp của đầu mục {item.item_code or item.title} — xuất Word sẽ gộp tự động như cũ.", "warning")
+    return redirect(url_for("tasks_bp.task_detail", tid=tid) + "#pane-outline-matrix")
 
 def _return_task_assignment_v2(tid, assignment_id):
     task = Task.query.filter_by(id=tid).first()
@@ -8530,6 +10024,7 @@ def _purge_task(task):
     task_id, task_item_id = _task_scope_identity(task)
     participant_query = TaskParticipant.query.filter(TaskParticipant.task_id == task_id)
     submission_query = TaskSubmission.query.filter(TaskSubmission.task_id == task_id)
+    assignment_query = TaskAssignment.query.filter(TaskAssignment.task_id == task_id)
     form_field_query = TaskFormField.query.filter(TaskFormField.task_id == task_id)
     if task_item_id:
         participant_query = participant_query.filter(TaskParticipant.task_item_id == task_item_id)
@@ -8540,7 +10035,17 @@ def _purge_task(task):
     submission_ids = [submission_id for submission_id, in submission_query.with_entities(TaskSubmission.id).all()]
     if submission_ids:
         TaskSubmissionFile.query.filter(TaskSubmissionFile.submission_id.in_(submission_ids)).delete(synchronize_session=False)
+    # Gỡ tham chiếu last_submission_id trước khi xóa submission để tránh vi phạm
+    # khóa ngoại task_assignment.last_submission_id -> task_submission.id
+    # (PRAGMA foreign_keys=ON được bật ở mọi kết nối SQLite).
+    TaskAssignment.query.filter(
+        TaskAssignment.task_id == task_id,
+        TaskAssignment.last_submission_id.isnot(None),
+    ).update({TaskAssignment.last_submission_id: None}, synchronize_session=False)
     submission_query.delete(synchronize_session=False)
+    # Xóa assignment sau khi đã xóa submission (submission.assignment_id trỏ vào
+    # assignment) và trước khi xóa task_item (assignment.task_item_id trỏ vào item).
+    assignment_query.delete(synchronize_session=False)
     participant_query.delete(synchronize_session=False)
     form_field_query.delete(synchronize_session=False)
     if getattr(task, "parent_task_id", None):
@@ -9336,7 +10841,11 @@ def import_workflow_blueprint():
 
 @tasks_bp.route("/tasks/outline-parse", methods=["POST"])
 def parse_outline_file_for_create():
-    """Phân tích đề cương ngay trong bước tạo công việc (wizard)."""
+    """Phân tích đề cương ngay trong bước tạo công việc (wizard).
+
+    Hỗ trợ nhiều file (file chính + file phụ): nội dung trùng giữa các file
+    được gộp thành 1 đầu mục kèm cờ report_secondary + danh sách file nguồn.
+    """
     if not session.get("uid"):
         return jsonify({"ok": False, "error": "Phiên làm việc đã hết hạn."}), 401
 
@@ -9345,16 +10854,65 @@ def parse_outline_file_for_create():
     if not (bool(session.get("is_admin")) or _can_process_task_module(perms)):
         return jsonify({"ok": False, "error": "Bạn không có quyền tạo công việc."}), 403
 
-    outline_file = request.files.get("outline_file")
-    if not outline_file or not outline_file.filename:
-        return jsonify({"ok": False, "error": "Cần chọn file đề cương trước khi phân tích."}), 400
+    outline_files = request.files.getlist("outline_file")
+    outline_files = [file for file in outline_files if file and file.filename]
+    if not outline_files:
+        return jsonify({"ok": False, "error": "Cần chọn ít nhất một file đề cương trước khi phân tích."}), 400
     try:
-        rows = _parse_outline_upload_rows(outline_file)
+        parsed_groups = []
+        for outline_file in outline_files:
+            rows = _parse_outline_upload_rows(outline_file)
+            parsed_groups.append((outline_file.filename, rows))
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
-    if not rows:
-        return jsonify({"ok": False, "error": "Không tìm thấy đầu mục hợp lệ trong file đề cương."}), 400
-    return jsonify({"ok": True, "rows": rows})
+    except Exception:
+        # Không được để lọt exception -> 500 HTML khiến trình duyệt báo
+        # "The string did not match the expected pattern" (JSON.parse vỡ).
+        current_app.logger.exception("Lỗi phân tích đề cương")
+        return (
+            jsonify({"ok": False, "error": "Lỗi hệ thống khi phân tích file. Hãy kiểm tra nhật ký server hoặc thử file khác."}),
+            500,
+        )
+    merged_rows = _merge_outline_rows_groups(parsed_groups)
+    if not merged_rows:
+        return jsonify({"ok": False, "error": "Không tìm thấy đầu mục hợp lệ trong các file đề cương."}), 400
+    return jsonify({"ok": True, "rows": merged_rows, "merged": len(parsed_groups) > 1})
+
+
+def _merge_outline_rows_groups(groups):
+    """Gộp kết quả parse nhiều file: nội dung trùng (title+content) thành 1 đầu mục.
+
+    groups: list[(filename, rows)]. Row gộp có thêm report_secondary + sources.
+    """
+    merged = {}
+    order = []
+    for filename, rows in groups:
+        for row in rows or []:
+            title = str(row.get("title") or "")
+            content = str(row.get("content") or "")
+            key = _normalize_outline_match_text(f"{title} {content}")
+            if not key:
+                continue
+            if key in merged:
+                entry = merged[key]
+                entry["sources"].add(filename)
+                # Giữ row giàu thông tin hơn (có gợi ý đơn vị / số liệu)
+                existing = entry["row"]
+                if not existing.get("unit_domains") and row.get("unit_domains"):
+                    entry["row"] = row
+                elif not existing.get("number_fields") and row.get("number_fields"):
+                    entry["row"] = row
+                continue
+            merged[key] = {"row": dict(row), "sources": {filename}}
+            order.append(key)
+    result = []
+    for key in order:
+        entry = merged[key]
+        row = entry["row"]
+        row["report_secondary"] = len(entry["sources"]) > 1
+        row["sources"] = sorted(entry["sources"])
+        result.append(row)
+    return result
 
 @tasks_bp.route("/tasks/form-template-preview", methods=["POST"])
 def preview_form_template_fields_for_create():
@@ -9523,6 +11081,19 @@ def edit_task_config(tid):
     if priority:
         task.priority = priority
     task.content = description
+
+    # Cách báo cáo (loại công việc + chu kỳ / hạn nộp) — chỉ cập nhật khi form
+    # gửi lên một cấu hình JSON rõ ràng (modal sửa cấu hình hiện chưa prefill
+    # dữ liệu công việc, nên không được ghi đè cấu hình đang có)
+    if request.form.get("report_period_json"):
+        report_period = _parse_task_report_period_from_request(request.form, task_type=task_type or task.task_type)
+        if report_period:
+            task.report_period_json = report_config_to_json(report_period)
+            computed_deadline = report_deadline_for(report_period)
+            if computed_deadline:
+                task.deadline = computed_deadline
+            elif report_period.get("kind") == "ongoing":
+                task.deadline = None
 
     # Cập nhật scope nếu có
     viewer_scope_mode = request.form.get("viewer_scope_mode", "").strip()

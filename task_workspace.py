@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from datetime import date
 
+from report_cycles import cycle_summary_text
+
 
 def task_assignment_display_status(status, status_labels, normalize_status):
     raw_value = str(status or "").strip()
@@ -260,13 +262,23 @@ def build_task_workspace_attrs(task, summary, current_uid, current_status_text, 
     if len(preview_text) > 160:
         preview_text = f"{preview_text[:157]}..."
 
+    cycle_text = ""
+    try:
+        cycle_text = cycle_summary_text(task, today=today)
+    except Exception:
+        cycle_text = ""
+    if cycle_text:
+        workspace_deadline_text = cycle_text
+    else:
+        workspace_deadline_text = task_deadline_display(task_deadline, today=today)
+
     return {
         "is_complete": is_complete,
         "workspace_role": workspace_role,
         "workspace_status_text": workspace_status_text,
         "workspace_tone": task_workspace_tone(workspace_status_text, is_overdue=is_overdue),
         "workspace_action_label": workspace_action_label,
-        "workspace_deadline_text": task_deadline_display(task_deadline, today=today),
+        "workspace_deadline_text": workspace_deadline_text,
         "workspace_needs_attention": needs_attention,
         "workspace_due_soon": due_soon,
         "workspace_preview_text": preview_text or "Chưa có mô tả.",

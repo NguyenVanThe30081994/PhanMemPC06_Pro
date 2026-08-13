@@ -77,9 +77,7 @@
             left: 0;
             right: 0;
             height: 60px;
-            background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.8);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            background: var(--bg-surface);
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -334,12 +332,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background:
-                radial-gradient(circle at 32% 26%, rgba(255,255,255,0.96) 0 10%, transparent 11%),
-                linear-gradient(180deg, #ff9b68 0%, #ff7f50 55%, #f46a3d 100%);
-            box-shadow:
-                inset 0 -3px 0 rgba(212, 88, 38, 0.3),
-                0 10px 20px rgba(244, 106, 61, 0.22);
+            background: #f97316;
         }
         .mobile-bell-link .mobile-bell-wrap::before {
             content: "";
@@ -355,7 +348,6 @@
         .mobile-bell-icon {
             font-size: 22px;
             color: #fff7ef;
-            text-shadow: 0 1px 0 rgba(204, 91, 42, 0.18);
         }
         .mobile-notif-badge {
             position: absolute;
@@ -366,7 +358,7 @@
             padding: 0 6px;
             border-radius: 999px;
             border: 3px solid var(--bg-surface);
-            background: linear-gradient(180deg, #f46f43 0%, #dd5a31 100%) !important;
+            background: #f97316 !important;
             color: #fff !important;
             font-size: 11px;
             font-weight: 800;
@@ -376,22 +368,19 @@
             justify-content: center;
             white-space: nowrap;
             box-sizing: border-box;
-            box-shadow: 0 6px 14px rgba(221, 90, 49, 0.24);
         }
         
         .sidebar-profile {
-            background:
-                linear-gradient(135deg, rgba(37, 99, 235, 0.16), rgba(37, 99, 235, 0.04)),
-                var(--bg-body);
-            border: 1px solid rgba(37, 99, 235, 0.14);
-            border-radius: 18px;
+            background: var(--bg-body);
+            border: 1px solid var(--border);
+            border-radius: 16px;
             padding: 14px;
         }
 
         .sidebar-avatar {
             width: 42px;
             height: 42px;
-            border-radius: 14px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -400,16 +389,14 @@
             font-size: 14px;
             font-weight: 800;
             letter-spacing: 0.04em;
-            box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
         }
 
         .sidebar-section {
-            background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.72);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 10px;
-            margin-bottom: 12px;
-            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 8px;
+            margin-bottom: 8px;
         }
 
         .sidebar-section-label {
@@ -434,25 +421,23 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 12px 14px;
-            border-radius: 16px;
+            padding: 11px 14px;
+            border-radius: 12px;
             color: var(--text-main);
             text-decoration: none;
             font-weight: 700;
-            transition: background 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
+            transition: background-color 0.15s ease, color 0.15s ease;
         }
 
         .sidebar-nav-link:hover,
         .sidebar-nav-link:active {
             background: var(--primary-light);
             color: var(--primary);
-            transform: translateX(2px);
         }
 
         .sidebar-nav-link.active {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            background: var(--primary);
             color: #fff;
-            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.2);
         }
 
         .sidebar-nav-link.text-danger:hover,
@@ -464,7 +449,7 @@
         .sidebar-nav-icon {
             width: 38px;
             height: 38px;
-            border-radius: 12px;
+            border-radius: 10px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -539,7 +524,7 @@
         {% block content %}{% endblock %}
     </main>
 
-    <div class="offcanvas offcanvas-start border-0 shadow-lg" tabindex="-1" id="mobileMenu" style="width: 280px; background: var(--bg-surface) !important; backdrop-filter: blur(20px);">
+    <div class="offcanvas offcanvas-start border-0" tabindex="-1" id="mobileMenu" style="width: 280px; background: var(--bg-surface) !important;">
         <div class="offcanvas-header p-3 d-flex flex-column align-items-start">
             <div class="d-flex justify-content-between w-100 align-items-center mb-2">
                 <div class="d-flex align-items-center gap-2">

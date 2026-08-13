@@ -12,7 +12,6 @@ from models import (
     TaskFormField,
     TaskItem,
     TaskParticipant,
-    TaskReportLink,
     TaskSubmission,
     User,
     db,
@@ -36,12 +35,14 @@ class TaskOutlineWordExportTests(unittest.TestCase):
         with app.app_context():
             if self.task_id:
                 TaskComment.query.filter_by(task_id=self.task_id).delete()
+                TaskAssignment.query.filter_by(task_id=self.task_id).update(
+                    {TaskAssignment.last_submission_id: None}, synchronize_session=False
+                )
                 TaskSubmission.query.filter_by(task_id=self.task_id).delete()
                 TaskAssignment.query.filter_by(task_id=self.task_id).delete()
                 TaskItem.query.filter_by(task_id=self.task_id).delete()
                 TaskParticipant.query.filter_by(task_id=self.task_id).delete()
                 TaskFormField.query.filter_by(task_id=self.task_id).delete()
-                TaskReportLink.query.filter_by(task_id=self.task_id).delete()
                 Task.query.filter_by(id=self.task_id).delete()
             for user_id in self.created_user_ids:
                 User.query.filter_by(id=user_id).delete()

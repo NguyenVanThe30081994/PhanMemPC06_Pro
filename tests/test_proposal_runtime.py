@@ -13,19 +13,10 @@ from flask import session
 from sqlalchemy import text
 from app import app
 from models import (
-    ReportCycle,
-    ReportInstance,
-    ReportingPeriod,
-    ReportTemplate,
-    ReportTemplateField,
-    ReportTemplateVersion,
-    ReportType,
-    ReportUnit,
     Task,
     TaskAssignment,
     TaskItem,
     TaskParticipant,
-    TaskReportLink,
     TaskSubmission,
     User,
     db,
@@ -37,19 +28,6 @@ from routes.tasks import (
     _sync_task_runtime_models,
     _task_runtime_bridge_needs_sync,
 )
-from routes.reporting import (
-    _delete_legacy_form_template,
-    _finalize_due_daily_cycles,
-    _finalize_due_daily_cycles_job,
-    _get_cycle_instance,
-    _report_type,
-    _resolve_entry_submission_state,
-    _resolve_working_submission_state,
-    _save_submission,
-    _ensure_reporting_period,
-    _purge_cycle,
-)
-from report_engine import build_preview_workbook, parse_workbook
 from utils import has_module_permission, is_unit_match, normalize_permission_payload
 
 
@@ -70,6 +48,8 @@ class ProposalRuntimeTests(unittest.TestCase):
             sess['role_id'] = user.role_id
             sess['must_change'] = False
             sess['is_admin'] = True
+            sess['session_version'] = int(user.session_version or 0)
+            sess['csrf_token'] = 'proposal-runtime-test-csrf'
             sess['last_active'] = datetime.now().timestamp()
             sess['login_nonce'] = 'test-session-token'
         return client, user
@@ -93,13 +73,11 @@ class ProposalRuntimeTests(unittest.TestCase):
         self.assertTrue(has_module_permission(normalized, "contact", "view"))
         self.assertFalse(has_module_permission(normalized, "contact", "process"))
 
-    def test_task_runtime_backfill_creates_task_items_participants_submissions_and_links(self):
+    def test_task_runtime_backfill_creates_task_items_participants_submissions(self):
         with app.app_context():
             user = User.query.filter_by(is_active=True).order_by(User.id.asc()).first()
             self.assertIsNotNone(user, "Cần có ít nhất một user active để test runtime bridge.")
 
-            template = ReportTemplate.query.order_by(ReportTemplate.id.asc()).first()
-            linked_template_ids = [template.id] if template else []
             now_token = datetime.now().strftime("%Y%m%d%H%M%S%f")
 
             task = Task(
@@ -111,7 +89,6 @@ class ProposalRuntimeTests(unittest.TestCase):
                 priority="Cao",
                 task_type="Công việc thường xuyên",
                 initial_status="Đang thực hiện",
-                linked_report_templates_json=json.dumps(linked_template_ids, ensure_ascii=False) if linked_template_ids else None,
                 created_at=datetime.now(),
             )
             db.session.add(task)
@@ -164,18 +141,15 @@ class ProposalRuntimeTests(unittest.TestCase):
                     TaskParticipant.is_active.is_(True),
                 ).count()
                 submission_count = _query_task_scope(TaskSubmission, task).count()
-                report_link_count = _query_task_scope(TaskReportLink, task).count()
 
                 self.assertEqual(task_item_count, 1)
                 self.assertEqual(participant_count, 1)
                 self.assertEqual(submission_count, 1)
-                self.assertEqual(report_link_count, len(linked_template_ids))
                 self.assertFalse(_task_runtime_bridge_needs_sync(task))
             finally:
                 TaskItem.query.filter_by(task_id=task.id).delete(synchronize_session=False)
                 TaskSubmission.query.filter_by(task_id=task.id).delete(synchronize_session=False)
                 TaskParticipant.query.filter_by(task_id=task.id).delete(synchronize_session=False)
-                TaskReportLink.query.filter_by(task_id=task.id).delete(synchronize_session=False)
                 Task.query.filter_by(parent_task_id=task.id).delete(synchronize_session=False)
                 TaskAssignment.query.filter_by(task_id=task.id).delete(synchronize_session=False)
                 Task.query.filter_by(id=task.id).delete(synchronize_session=False)
@@ -220,7 +194,6 @@ class ProposalRuntimeTests(unittest.TestCase):
             finally:
                 TaskSubmission.query.filter_by(task_id=task.id).delete(synchronize_session=False)
                 TaskParticipant.query.filter_by(task_id=task.id).delete(synchronize_session=False)
-                TaskReportLink.query.filter_by(task_id=task.id).delete(synchronize_session=False)
                 TaskItem.query.filter_by(task_id=task.id).delete(synchronize_session=False)
                 TaskAssignment.query.filter_by(task_id=task.id).delete(synchronize_session=False)
                 Task.query.filter_by(id=task.id).delete(synchronize_session=False)
@@ -275,7 +248,6 @@ class ProposalRuntimeTests(unittest.TestCase):
             with app.app_context():
                 TaskSubmission.query.filter_by(task_id=task_id).delete(synchronize_session=False)
                 TaskParticipant.query.filter_by(task_id=task_id).delete(synchronize_session=False)
-                TaskReportLink.query.filter_by(task_id=task_id).delete(synchronize_session=False)
                 TaskItem.query.filter_by(task_id=task_id).delete(synchronize_session=False)
                 TaskAssignment.query.filter_by(task_id=task_id).delete(synchronize_session=False)
                 Task.query.filter_by(id=task_id).delete(synchronize_session=False)
@@ -429,7 +401,11 @@ class ProposalRuntimeTests(unittest.TestCase):
             child_id = child_task.id
 
         try:
-            response = client.post(f"/tasks/{child_id}/delete", follow_redirects=False)
+            response = client.post(
+                f"/tasks/{child_id}/delete",
+                data={"csrf_token": "proposal-runtime-test-csrf"},
+                follow_redirects=False,
+            )
             self.assertEqual(response.status_code, 302)
             self.assertTrue(response.headers.get("Location", "").endswith(f"/tasks/{parent_id}"))
         finally:
