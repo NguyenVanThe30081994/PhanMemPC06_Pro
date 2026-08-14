@@ -242,6 +242,15 @@ body {
     background: var(--primary-soft) !important;
 }
 
+.desktop-subnav-link.active {
+    background: var(--primary) !important;
+    color: #fff !important;
+}
+
+.desktop-subnav-link.active small {
+    color: #fff !important;
+}
+
 /* Top navbar: flat */
 .top-navbar {
     background: var(--bg-surface) !important;

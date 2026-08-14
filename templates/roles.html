@@ -113,7 +113,12 @@
                                     <div class="fw-bold text-dark">{{ u.username }}</div>
                                 </td>
                                 <td class="fw-bold">{{ u.unit_area_display or u.unit_area }}</td>
-                                <td><span class="pc06-soft-tag neutral">{{ u.role.name if u.role else 'Chưa cấp' }}</span></td>
+                                <td>
+                                    <span class="pc06-soft-tag neutral">{{ u.role.name if u.role else 'Chưa cấp' }}</span>
+                                    {% if u.extra_role_names %}
+                                    <div class="tiny text-muted mt-1"><i class="fa-solid fa-plus me-1"></i>{{ u.extra_role_names }}</div>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     <span class="pc06-status-badge {% if u.is_active %}done{% else %}neutral{% endif %}">
                                         {{ 'Hoạt động' if u.is_active else 'Vô hiệu hóa' }}
@@ -122,7 +127,7 @@
                                 <td class="pe-4 text-end">
                                     {% if can_manage_roles %}
                                     <div class="d-flex justify-content-end gap-2">
-                                        <button class="btn btn-light btn-circle btn-circle-sm border shadow-sm" title="Chỉnh sửa" onclick='openEditUser({{ u.id }}, "{{ u.username }}", "{{ u.fullname }}", "{{ u.unit_area }}", {{ u.role_id }})'>
+                                        <button class="btn btn-light btn-circle btn-circle-sm border shadow-sm" title="Chỉnh sửa" onclick='openEditUser({{ u.id }}, {{ u.username|tojson }}, {{ u.fullname|tojson }}, {{ u.unit_area|tojson }}, {{ u.role_id }}, {{ u.email|tojson }}, {{ u.extra_role_ids|tojson }})'>
                                             <i class="fa-solid fa-pen-to-square tiny text-primary"></i>
                                         </button>
                                         <a href="/admin/user/toggle-status/{{ u.id }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm" title="{{ 'Khóa tài khoản' if u.is_active else 'Mở khóa' }}">
@@ -178,6 +183,15 @@
                                 <i class="fa-solid fa-user-gear"></i>
                                 Phân quyền
                             </button>
+                            {% if r.name not in ['Quản trị hệ thống', 'admin_system'] %}
+                            <form method="POST" class="d-inline m-0" onsubmit="return confirm('Xóa vai trò này?')">
+                                <input type="hidden" name="action" value="delete_role">
+                                <input type="hidden" name="role_id" value="{{ r.id }}">
+                                <button type="submit" class="btn btn-bdhvs light text-danger" title="Xóa vai trò">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </form>
+                            {% endif %}
                             {% endif %}
                         </div>
                     </article>
@@ -330,6 +344,10 @@
                         <label class="form-label fw-bold text-dark small">HỌ VÀ TÊN</label>
                         <input type="text" name="fullname" class="form-control" required>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">EMAIL GOOGLE <span class="text-muted fw-normal">(để đăng nhập Google, không bắt buộc)</span></label>
+                        <input type="email" name="email" class="form-control" placeholder="canbo@example.com">
+                    </div>
                     <div class="row g-3">
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">ĐƠN VỊ</label>
@@ -348,6 +366,12 @@
                                 {% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}
                             </select>
                         </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label fw-bold text-dark small">VAI TRÒ PHỤ <span class="text-muted fw-normal">(tùy chọn — quyền = hợp của vai trò chính + phụ)</span></label>
+                        <select name="extra_roles" class="form-select border-0 bg-light py-2 rounded-3 shadow-sm" multiple size="4">
+                            {% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}
+                        </select>
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-0">
@@ -384,6 +408,10 @@
                         <label class="form-label fw-bold text-dark small">HỌ VÀ TÊN</label>
                         <input type="text" name="fullname" id="edit_fullname" class="form-control" required>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">EMAIL GOOGLE <span class="text-muted fw-normal">(để đăng nhập Google, không bắt buộc)</span></label>
+                        <input type="email" name="email" id="edit_email" class="form-control" placeholder="canbo@example.com">
+                    </div>
                     <div class="row g-3">
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">ĐƠN VỊ</label>
@@ -400,6 +428,12 @@
                                 {% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}
                             </select>
                         </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label fw-bold text-dark small">VAI TRÒ PHỤ <span class="text-muted fw-normal">(quyền = hợp của vai trò chính + phụ)</span></label>
+                        <select name="extra_roles" id="edit_extra_roles" class="form-select border-0 bg-light py-2 rounded-3 shadow-sm" multiple size="4">
+                            {% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}
+                        </select>
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-0">
@@ -487,12 +521,17 @@ function openEditPerms(rid, name, perms) {
     new bootstrap.Modal(document.getElementById('editPermsModal')).show();
 }
 
-function openEditUser(id, user, full, unit, rid) {
+function openEditUser(id, user, full, unit, rid, email, extraIds) {
     document.getElementById('edit_user_id').value = id;
     document.querySelector('#editUserModal [name="username"]').value = user;
     document.querySelector('#editUserModal [name="fullname"]').value = full;
+    document.getElementById('edit_email').value = email || '';
     document.getElementById('edit_unit').value = unit;
     document.getElementById('edit_role_select').value = rid;
+    const extra = Array.isArray(extraIds) ? extraIds.map(Number) : [];
+    document.querySelectorAll('#edit_extra_roles option').forEach((opt) => {
+        opt.selected = extra.includes(Number(opt.value));
+    });
     new bootstrap.Modal(document.getElementById('editUserModal')).show();
 }
 

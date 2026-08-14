@@ -125,6 +125,89 @@ class ModuleFieldBinding(db.Model):
     group = db.relationship('CategoryGroup', backref='field_bindings')
 
 
+class Unit(db.Model):
+    """Đơn vị hành chính/đơn vị công tác (phân cấp cha-con).
+
+    Thay thế dần chuỗi unit_key/unit_area trên User. Có quan hệ cây để
+    thực hiện data-scope: user thuộc đơn vị con nhìn thấy dữ liệu của
+    đơn vị mình + toàn bộ nhánh con.
+    """
+    __tablename__ = 'unit'
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(100), unique=True, index=True)
+    name = db.Column(db.String(255), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('unit.id'), index=True)
+    level = db.Column(db.String(30), default='commune')  # province | district | commune
+    is_active = db.Column(db.Boolean, default=True)
+    sort_order = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    parent = db.relationship('Unit', remote_side=[id], backref='children')
+
+
+class UserRole(db.Model):
+    """Vai trò phụ của user (ngoài vai trò chính User.role_id).
+
+    Cho phép 1 người mang nhiều vai trò; quyền hiệu lực = hợp của
+    vai trò chính + tất cả vai trò phụ. unit_id để gán vai trò phụ theo
+    đơn vị (vd: vừa Cán bộ CAT vừa kiêm Cán bộ CAX ở 1 xã).
+    """
+    __tablename__ = 'user_role'
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'role_id', 'unit_id', name='uq_user_role_unit'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    role_id = db.Column(db.Integer, db.ForeignKey('app_role.id'), nullable=False, index=True)
+    unit_id = db.Column(db.Integer, db.ForeignKey('unit.id'), nullable=True, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    user = db.relationship('User', backref='user_roles')
+    role = db.relationship('AppRole', backref='user_role_links')
+    unit = db.relationship('Unit', backref='user_role_links')
+
+
+class Delegation(db.Model):
+    """Ủy quyền tạm thời: người có quyền xử lý ủy quyền cho người khác.
+
+    module_code = None nghĩa là ủy quyền toàn bộ (mọi module).
+    Khi còn hiệu lực (is_active + trong khoảng from_date..to_date),
+    người được ủy quyền được xử lý như người ủy quyền.
+    """
+    __tablename__ = 'delegation'
+
+    id = db.Column(db.Integer, primary_key=True)
+    delegator_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    delegatee_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    module_code = db.Column(db.String(50), index=True)  # None = toàn bộ
+    from_date = db.Column(db.Date, nullable=False)
+    to_date = db.Column(db.Date, nullable=False)
+    note = db.Column(db.String(500))
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    delegator = db.relationship('User', foreign_keys=[delegator_id], backref='delegations_given')
+    delegatee = db.relationship('User', foreign_keys=[delegatee_id], backref='delegations_received')
+
+
+class PermissionLog(db.Model):
+    """Nhật ký riêng cho các thay đổi phân quyền (cấp/thu hồi vai trò, sửa quyền, ủy quyền)."""
+    __tablename__ = 'permission_log'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, index=True)
+    username = db.Column(db.String(100))
+    action = db.Column(db.String(50))  # add_role | edit_role_perms | assign_role | revoke_role | add_extra_role | remove_extra_role | delegate | revoke_delegation | set_unit
+    target_type = db.Column(db.String(30))  # role | user | delegation | unit
+    target_name = db.Column(db.String(255))
+    details = db.Column(db.Text)
+    ip = db.Column(db.String(64))
+    created_at = db.Column(db.DateTime, default=datetime.now, index=True)
+
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, index=True)
@@ -134,11 +217,13 @@ class User(db.Model):
     role_id = db.Column(db.Integer, db.ForeignKey('app_role.id'))
     unit_area = db.Column(db.String(100))
     unit_key = db.Column(db.String(100), index=True)
+    unit_id = db.Column(db.Integer, db.ForeignKey('unit.id'), nullable=True, index=True)
     is_active = db.Column(db.Boolean, default=True)
     phone = db.Column(db.String(20))  # SĐT Zalo format E.164 (+84...)
     must_change_password = db.Column(db.Boolean, default=True)
     session_version = db.Column(db.Integer, default=0)
     role = db.relationship('AppRole', backref='users')
+    unit = db.relationship('Unit', backref='users')
     def set_password(self, p): self.password_hash = generate_password_hash(p, method='pbkdf2:sha256')
     def check_password(self, p): return check_password_hash(self.password_hash, p)
 
@@ -421,6 +506,7 @@ class DocumentLib(db.Model):
     title = db.Column(db.String(255))
     category = db.Column(db.String(100))
     filename = db.Column(db.String(255))
+    created_by = db.Column(db.Integer, index=True)  # User.id — người tạo (object-level control)
     uploaded_at = db.Column(db.DateTime, default=datetime.now)
 
 
@@ -443,6 +529,7 @@ class NotificationDoc(db.Model):
     video_url = db.Column(db.String(500))
     has_attachment = db.Column(db.Boolean, default=False)
     posted_by = db.Column(db.String(100))
+    created_by = db.Column(db.Integer, index=True)  # User.id — người tạo (object-level control)
     uploaded_at = db.Column(db.DateTime, default=datetime.now)
 
 

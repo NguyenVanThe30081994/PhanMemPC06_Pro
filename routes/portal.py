@@ -21,6 +21,7 @@ from category_helpers import (
     stable_form_category_options as shared_stable_form_category_options,
     sync_record_categories as shared_sync_record_categories,
 )
+from permissions import current_is_admin
 from utils import (
     has_module_permission,
     infer_notification_source,
@@ -109,23 +110,43 @@ def _get_current_user_unit():
     return session.get('unit_area') or session.get('unit') or 'N/A'
 
 
+def _user_unit_scope_names():
+    """Tên các đơn vị trong cây đơn vị của user hiện tại (data-scope theo phân cấp).
+
+    Ví dụ user thuộc Công an tỉnh sẽ thấy Công an tỉnh + toàn bộ nhánh con.
+    """
+    try:
+        from models import Unit
+        from utils import unit_subtree_ids
+        from permissions import current_user
+        user = current_user()
+        if not user or not user.unit_id:
+            return []
+        ids = unit_subtree_ids(user.unit_id)
+        if not ids:
+            return []
+        names = [name for (name,) in db.session.query(Unit.name).filter(Unit.id.in_(ids)).all() if name]
+        return names
+    except Exception:
+        return []
+
+
 def _normalized_portal_perms(perms=None, is_admin=None, role_name=''):
-    is_admin = bool(session.get('is_admin')) if is_admin is None else bool(is_admin)
+    from permissions import current_is_admin
+    is_admin = current_is_admin() if is_admin is None else bool(is_admin)
     return normalize_permission_payload(perms or {}, is_admin=is_admin, role_name=role_name)
 
 
 def _current_portal_permissions():
-    role = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
-    perms = json.loads(role.perms) if role and role.perms else {}
-    role_name = role.name if role else ''
-    is_admin = bool(session.get('is_admin'))
-    perms = _normalized_portal_perms(perms, is_admin=is_admin, role_name=role_name)
-    return perms, is_admin
+    from permissions import current_authz
+    authz = current_authz()
+    return authz["perms"], authz["is_admin"]
 
 
 def _can_manage_notify(perms=None, is_admin=None):
+    from permissions import current_is_admin
     perms = perms or {}
-    is_admin = bool(session.get('is_admin')) if is_admin is None else bool(is_admin)
+    is_admin = current_is_admin() if is_admin is None else bool(is_admin)
     return bool(
         has_module_permission(perms, 'notify', 'process', is_admin=is_admin)
         or has_module_permission(perms, 'sys', 'process', is_admin=is_admin)
@@ -134,8 +155,9 @@ def _can_manage_notify(perms=None, is_admin=None):
 
 
 def _can_manage_contacts(perms=None, is_admin=None):
+    from permissions import current_is_admin
     perms = perms or {}
-    is_admin = bool(session.get('is_admin')) if is_admin is None else bool(is_admin)
+    is_admin = current_is_admin() if is_admin is None else bool(is_admin)
     return bool(
         has_module_permission(perms, 'contact', 'process', is_admin=is_admin)
         or has_module_permission(perms, 'sys', 'process', is_admin=is_admin)
@@ -604,6 +626,7 @@ def notifications_board():
             video_url=video_url,
             has_attachment=bool(fn),
             posted_by=session.get('fullname', ''),
+            created_by=session.get('uid'),
         )
         db.session.add(doc)
         db.session.commit()
@@ -691,11 +714,12 @@ def notifications_board_edit(doc_id):
         return redirect(url_for('auth_bp.login'))
 
     perms, is_admin = _current_portal_permissions()
-    if not _can_manage_notify(perms, is_admin):
+    doc = NotificationDoc.query.get_or_404(doc_id)
+    from permissions import can_manage_module_object
+    if not (_can_manage_notify(perms, is_admin) or can_manage_module_object('notify', doc.created_by)):
         flash('Bạn không có quyền sửa thông báo.', 'danger')
         return redirect(url_for('portal_bp.notifications_board'))
 
-    doc = NotificationDoc.query.get_or_404(doc_id)
     notify_category_items = _module_category_options('notify', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
 
     try:
@@ -735,11 +759,12 @@ def notifications_board_delete(doc_id):
         return redirect(url_for('auth_bp.login'))
 
     perms, is_admin = _current_portal_permissions()
-    if not _can_manage_notify(perms, is_admin):
+    doc = NotificationDoc.query.get_or_404(doc_id)
+    from permissions import can_manage_module_object
+    if not (_can_manage_notify(perms, is_admin) or can_manage_module_object('notify', doc.created_by)):
         flash('Bạn không có quyền xóa thông báo.', 'danger')
         return redirect(url_for('portal_bp.notifications_board'))
 
-    doc = NotificationDoc.query.get_or_404(doc_id)
     title = doc.title or ''
     db.session.delete(doc)
     db.session.commit()
@@ -785,7 +810,11 @@ def contacts():
     scoped_query = Contact.query
 
     if not can_manage_contacts:
-        user_unit_matches = list(_category_match_values(user_unit, unit_items)) or [user_unit]
+        subtree_names = _user_unit_scope_names()
+        if subtree_names:
+            user_unit_matches = list(_category_match_values(subtree_names, unit_items)) or subtree_names
+        else:
+            user_unit_matches = list(_category_match_values(user_unit, unit_items)) or [user_unit]
         scoped_query = scoped_query.filter(Contact.unit_name.in_(user_unit_matches))
     else:
         user_unit_matches = _category_match_values(user_unit, unit_items)
@@ -907,12 +936,16 @@ def contact_delete(cid):
     
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = _normalized_portal_perms(json.loads(role_obj.perms) if role_obj and role_obj.perms else {}, role_name=role_obj.name if role_obj else '')
-    is_contact_lead = _can_manage_contacts(perms, session.get('is_admin'))
+    is_contact_lead = _can_manage_contacts(perms, current_is_admin())
     user_unit = _get_current_user_unit()
 
     c = Contact.query.get_or_404(cid)
     unit_items = _module_category_options('contacts', 'unit_name', 'Đơn vị')
-    user_unit_matches = _category_match_values(user_unit, unit_items)
+    subtree_names = _user_unit_scope_names()
+    if subtree_names:
+        user_unit_matches = list(_category_match_values(subtree_names, unit_items)) or subtree_names
+    else:
+        user_unit_matches = list(_category_match_values(user_unit, unit_items)) or []
     if not is_contact_lead and (c.unit_name or '') not in user_unit_matches:
         flash('Bạn không có quyền xóa liên lạc của đơn vị khác!', 'danger')
         return redirect(url_for('portal_bp.contacts'))
@@ -932,7 +965,7 @@ def contact_delete_bulk():
 
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = _normalized_portal_perms(json.loads(role_obj.perms) if role_obj and role_obj.perms else {}, role_name=role_obj.name if role_obj else '')
-    is_contact_lead = _can_manage_contacts(perms, session.get('is_admin'))
+    is_contact_lead = _can_manage_contacts(perms, current_is_admin())
 
     if not is_contact_lead:
         flash('Bạn không có quyền xóa danh bạ hàng loạt!', 'danger')
@@ -980,7 +1013,7 @@ def contact_add():
     
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = _normalized_portal_perms(json.loads(role_obj.perms) if role_obj and role_obj.perms else {}, role_name=role_obj.name if role_obj else '')
-    is_contact_lead = _can_manage_contacts(perms, session.get('is_admin'))
+    is_contact_lead = _can_manage_contacts(perms, current_is_admin())
     user_unit = _get_current_user_unit()
 
     name = request.form.get('name')
@@ -1048,7 +1081,7 @@ def contact_preview_import():
     
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = _normalized_portal_perms(json.loads(role_obj.perms) if role_obj and role_obj.perms else {}, role_name=role_obj.name if role_obj else '')
-    is_admin = session.get('is_admin')
+    is_admin = current_is_admin()
     can_import_contacts = _can_manage_contacts(perms, is_admin)
     if not can_import_contacts:
         return {'error': 'Permission denied'}, 403
@@ -1078,7 +1111,7 @@ def contact_import():
 
     role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
     perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
-    is_admin = session.get('is_admin')
+    is_admin = current_is_admin()
     can_import_contacts = _can_manage_contacts(perms, is_admin)
 
     if not can_import_contacts:

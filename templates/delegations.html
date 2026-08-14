@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Ủy quyền{% endblock %}
+
+{% block content %}
+<div class="pc06-page-shell">
+    <div class="pc06-page-summary-bar">
+        <div class="pc06-page-summary">
+            <h1>Ủy quyền tạm thời</h1>
+            <p>Người có quyền xử lý (lãnh đạo, chỉ huy) ủy quyền xử lý công việc cho cán bộ trong một khoảng thời gian. Người được ủy quyền hưởng đúng quyền của người ủy quyền, không vượt quá.</p>
+        </div>
+        {% if is_admin or can_module('task', 'process') %}
+        <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addDelegationModal">
+            <i class="fa-solid fa-user-shield me-1"></i> Tạo ủy quyền
+        </button>
+        {% endif %}
+    </div>
+
+    <section class="pc06-panel">
+        <div class="pc06-panel-head">
+            <div>
+                <h2>Danh sách ủy quyền</h2>
+                <p>Ủy quyền đã hết hạn hoặc bị thu hồi được đánh dấu rõ.</p>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="tiny text-muted text-uppercase">
+                    <tr>
+                        <th class="ps-4">Người ủy quyền</th>
+                        <th>Người được ủy quyền</th>
+                        <th>Phạm vi</th>
+                        <th>Thời gian</th>
+                        <th class="text-center">Trạng thái</th>
+                        <th class="pe-4 text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in delegations %}
+                    <tr class="{% if not d.is_active or d.is_expired %}opacity-50{% endif %}">
+                        <td class="ps-4 py-3 fw-bold">{{ d.delegator_name }}</td>
+                        <td>{{ d.delegatee_name }}</td>
+                        <td><span class="pc06-soft-tag {% if d.module_code == 'Toàn bộ' %}primary{% else %}neutral{% endif %}">{{ d.module_code }}</span></td>
+                        <td class="small text-muted">{{ d.from_date.strftime('%d/%m/%Y') if d.from_date }} → {{ d.to_date.strftime('%d/%m/%Y') if d.to_date }}</td>
+                        <td class="text-center">
+                            {% if not d.is_active %}
+                            <span class="pc06-status-badge neutral">Đã thu hồi</span>
+                            {% elif d.is_expired %}
+                            <span class="pc06-status-badge neutral">Hết hạn</span>
+                            {% else %}
+                            <span class="pc06-status-badge done">Đang hiệu lực</span>
+                            {% endif %}
+                        </td>
+                        <td class="pe-4 text-end">
+                            {% if d.is_active and not d.is_expired and (is_admin or d.delegator_id == my_user_id) %}
+                            <form method="POST" class="d-inline m-0" onsubmit="return confirm('Thu hồi ủy quyền này?')">
+                                <input type="hidden" name="action" value="revoke">
+                                <input type="hidden" name="delegation_id" value="{{ d.id }}">
+                                <button type="submit" class="btn btn-light btn-circle btn-circle-sm border shadow-sm" title="Thu hồi ủy quyền">
+                                    <i class="fa-solid fa-ban tiny text-danger"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="py-5 text-center text-muted">Chưa có ủy quyền nào.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+{% if is_admin or can_module('task', 'process') %}
+<!-- Add Delegation Modal -->
+<div class="modal fade" id="addDelegationModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <form method="POST">
+                <input type="hidden" name="action" value="create">
+                <div class="modal-header modal-header-pill primary">
+                    <h5 class="modal-title fw-bold">TẠO ỦY QUYỀN</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        {% if is_admin %}
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-dark small">NGƯỜI ỦY QUYỀN</label>
+                            <select name="delegator_id" class="form-select" required>
+                                {% for u in users %}<option value="{{ u.id }}" {% if u.id == my_user_id %}selected{% endif %}>{{ u.fullname }} ({{ u.username }})</option>{% endfor %}
+                            </select>
+                        </div>
+                        {% else %}
+                        <input type="hidden" name="delegator_id" value="{{ my_user_id }}">
+                        {% endif %}
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-dark small">NGƯỜI ĐƯỢC ỦY QUYỀN</label>
+                            <select name="delegatee_id" class="form-select" required>
+                                <option value="" disabled selected>Chọn cán bộ</option>
+                                {% for u in users %}{% if u.id != my_user_id %}<option value="{{ u.id }}">{{ u.fullname }} ({{ u.username }})</option>{% endif %}{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold text-dark small">PHẠM VI</label>
+                            <select name="module_code" class="form-select">
+                                <option value="">Toàn bộ (mọi chức năng)</option>
+                                <option value="task" selected>Công việc</option>
+                                <option value="notify">Thông báo</option>
+                                <option value="contact">Danh bạ</option>
+                                <option value="link">QR và liên kết</option>
+                                <option value="form">Quản lý báo cáo</option>
+                                <option value="stat">Tiến độ báo cáo</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-dark small">TỪ NGÀY</label>
+                            <input type="date" name="from_date" class="form-control" value="{{ today.isoformat() }}">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-dark small">ĐẾN NGÀY</label>
+                            <input type="date" name="to_date" class="form-control" value="{{ today.isoformat() }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold text-dark small">GHI CHÚ</label>
+                            <input type="text" name="note" class="form-control" placeholder="VD: Ủy quyền xử lý công việc khi đi công tác">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">XÁC NHẬN</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

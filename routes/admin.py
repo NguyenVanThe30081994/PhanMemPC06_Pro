@@ -38,6 +38,7 @@ from utils import (
     has_module_permission,
     init_db,
     log_action,
+    log_permission_change,
     normalize_permission_payload,
     role_permission_form_payload,
     render_auto_template as render_template,
@@ -224,14 +225,45 @@ def _user_import_commander_columns(df, has_header=True):
 
 
 def _get_admin_perms():
-    role_id = session.get('role_id')
-    role = db.session.get(AppRole, role_id) if role_id else None
-    if role and role.perms:
+    from permissions import current_authz
+    authz = current_authz()
+    return authz["perms"]
+
+
+def _resolve_unit_id(unit_key, unit_area):
+    """Tìm Unit.id theo unit_key hoặc unit_area (dữ liệu cũ)."""
+    from models import Unit
+    if unit_key:
+        unit = Unit.query.filter_by(code=unit_key).first()
+        if unit:
+            return unit.id
+    if unit_area:
+        unit = Unit.query.filter(Unit.name == unit_area).first()
+        if unit:
+            return unit.id
+    return None
+
+
+def _replace_user_extra_roles(user, extra_role_ids):
+    """Đồng bộ vai trò phụ (UserRole, không gắn đơn vị) của user theo form."""
+    from models import UserRole
+    from utils import log_permission_change
+    new_ids = set()
+    for raw in (extra_role_ids or []):
         try:
-            return normalize_permission_payload(role.perms, is_admin=session.get('is_admin'), role_name=getattr(role, 'name', ''))
+            rid = int(raw)
         except Exception:
-            return {}
-    return {}
+            continue
+        if rid and rid != int(user.role_id or 0):
+            new_ids.add(rid)
+    for user_role in list(user.user_roles or []):
+        if user_role.unit_id is None and user_role.role_id not in new_ids:
+            db.session.delete(user_role)
+            log_permission_change('remove_extra_role', 'user', user.username, f'role_id={user_role.role_id}')
+    for rid in new_ids:
+        if not UserRole.query.filter_by(user_id=user.id, role_id=rid, unit_id=None).first():
+            db.session.add(UserRole(user_id=user.id, role_id=rid))
+            log_permission_change('add_extra_role', 'user', user.username, f'role_id={rid}')
 
 
 def _build_role_user_query(selected_role_id=None, selected_unit='', search_query=''):
@@ -520,11 +552,11 @@ def index():
             include_zero=True,
             category_options=contact_group_items,
         )
-        is_admin = bool(session.get('is_admin'))
-        role_obj = db.session.get(AppRole, session.get('role_id')) if session.get('role_id') else None
-        role_name = role_obj.name if role_obj else 'Thành viên'
-        perms = json.loads(role_obj.perms) if role_obj and role_obj.perms else {}
-        perms = normalize_permission_payload(perms, is_admin=is_admin, role_name=role_name)
+        from permissions import current_authz
+        authz = current_authz()
+        is_admin = authz['is_admin']
+        role_name = authz['role_name']
+        perms = authz['perms']
 
         def can_module(module_code, tier='view'):
             return has_module_permission(perms, module_code, tier=tier, is_admin=is_admin, role_name=role_name)
@@ -704,14 +736,16 @@ def index():
 
 @admin_bp.route('/admin/db-tool', methods=['GET', 'POST'])
 def db_tool():
-    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    from permissions import can_module
+    if not can_module('sys', 'view'): return redirect(url_for('auth_bp.login'))
     return render_template('db_tool.html')
 
 
 @admin_bp.route('/admin/categories')
 def category_admin():
     """Trang quản lý danh mục tập trung"""
-    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    from permissions import can_module
+    if not can_module('sys', 'view'): return redirect(url_for('auth_bp.login'))
     from models import Category
     categories = Category.query.order_by(Category.type, Category.order, Category.name).all()
     return render_template('category_admin.html', categories=categories)
@@ -719,7 +753,8 @@ def category_admin():
 
 @admin_bp.route('/admin/db-manage', methods=['POST'])
 def db_manage():
-    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    from permissions import can_module
+    if not can_module('sys', 'process'): return redirect(url_for('auth_bp.login'))
     action = request.form.get('action')
     try:
         if action == 'reset':
@@ -751,7 +786,8 @@ def db_manage():
 @admin_bp.route('/roles', methods=['GET', 'POST'])
 def roles():
     perms = _get_admin_perms()
-    is_admin = bool(session.get('is_admin'))
+    from permissions import current_is_admin
+    is_admin = current_is_admin()
     can_view_roles = has_module_permission(perms, 'user', 'view', is_admin=is_admin)
 
     if not can_view_roles:
@@ -759,8 +795,9 @@ def roles():
         return redirect(url_for('admin_bp.index'))
 
     if request.method == 'POST':
-        if not is_admin:
-            flash('Chỉ quản trị viên mới được thay đổi tài khoản và vai trò.', 'danger')
+        from permissions import can_module
+        if not can_module('user', 'process'):
+            flash('Bạn không có quyền thay đổi tài khoản và vai trò.', 'danger')
             return redirect(url_for('admin_bp.roles'))
         action = request.form.get('action')
         try:
@@ -769,7 +806,9 @@ def roles():
                 p_list = request.form.getlist('perms')
                 p_json = json.dumps({p: 1 for p in p_list}, ensure_ascii=False)
                 db.session.add(AppRole(name=name, perms=p_json))
+                db.session.flush()
                 log_action(session['uid'], session['fullname'], "Thêm vai trò", "Vai trò", name)
+                log_permission_change('add_role', 'role', name, ', '.join(p_list))
             elif action == 'edit_perms':
                 rid = request.form['role_id']
                 p_list = request.form.getlist('perms')
@@ -777,6 +816,23 @@ def roles():
                 if r:
                     r.perms = json.dumps({p: 1 for p in p_list}, ensure_ascii=False)
                     log_action(session['uid'], session['fullname'], "Sửa quyền vai trò", "Vai trò", r.name)
+                    log_permission_change('edit_role_perms', 'role', r.name, ', '.join(p_list))
+            elif action == 'delete_role':
+                rid = request.form.get('role_id', type=int)
+                r = db.session.get(AppRole, rid)
+                if r:
+                    if r.name in ('Quản trị hệ thống', 'admin_system'):
+                        flash('Không thể xóa vai trò Quản trị hệ thống.', 'danger')
+                        return redirect(url_for('admin_bp.roles'))
+                    user_count = User.query.filter_by(role_id=r.id).count()
+                    if user_count:
+                        flash(f'Không thể xóa vai trò đang có {user_count} tài khoản sử dụng.', 'danger')
+                        return redirect(url_for('admin_bp.roles'))
+                    name = r.name
+                    db.session.delete(r)
+                    log_permission_change('delete_role', 'role', name)
+                    flash(f'Đã xóa vai trò {name}.', 'success')
+                    return redirect(url_for('admin_bp.roles'))
             elif action == 'add_user':
                 username = request.form.get('username')
                 fullname = request.form.get('fullname')
@@ -803,9 +859,14 @@ def roles():
                             flash(password_error, 'danger')
                             return redirect(url_for('admin_bp.roles'))
                         u = User(username=username, fullname=fullname, unit_area=unit, unit_key=unit_key, role_id=role_id)
+                        u.email = (request.form.get('email') or '').strip() or None
+                        u.unit_id = _resolve_unit_id(unit_key, unit)
                         u.set_password(password)
                         db.session.add(u)
+                        db.session.flush()
+                        _replace_user_extra_roles(u, request.form.getlist('extra_roles'))
                         log_action(session['uid'], session['fullname'], "Thêm tài khoản", "Tài khoản", u.username)
+                        log_permission_change('assign_role', 'user', u.username, f'role_id={role_id}', user_id=session['uid'])
                         if generated_password:
                             flash(
                                 f'Tài khoản {u.username} được tạo với mật khẩu tạm thời: {generated_password}',
@@ -817,6 +878,7 @@ def roles():
                 if u:
                     u.username = request.form.get('username')
                     u.fullname = request.form.get('fullname')
+                    u.email = (request.form.get('email') or '').strip() or None
                     resolved_unit, resolved_key = _resolve_user_unit_value(
                         u.fullname,
                         request.form.get('unit'),
@@ -824,7 +886,9 @@ def roles():
                     )
                     u.unit_area = resolved_unit
                     u.unit_key = resolved_key
+                    u.unit_id = _resolve_unit_id(resolved_key, resolved_unit)
                     u.role_id = request.form.get('role_id')
+                    _replace_user_extra_roles(u, request.form.getlist('extra_roles'))
                     pwd = request.form.get('password')
                     if pwd and pwd.strip() and pwd != '******':
                         is_valid_password, password_error = validate_password(pwd)
@@ -835,6 +899,7 @@ def roles():
                         u.must_change_password = True
                         u.session_version = int(getattr(u, 'session_version', 0) or 0) + 1
                     log_action(session['uid'], session['fullname'], "Sửa tài khoản", "Tài khoản", u.username)
+                    log_permission_change('assign_role', 'user', u.username, f'role_id={u.role_id}', user_id=session['uid'])
             db.session.commit()
             flash('Thao tác thành công!', 'success')
         except Exception as e:
@@ -871,6 +936,13 @@ def roles():
     users = users_query.order_by(User.fullname.asc(), User.username.asc()).all()
     users = sync_record_categories(users, unit_options, attr_name='unit_area', prefer_stable=True)
     users = apply_reference_display(users, 'unit_area', unit_options, display_attr='unit_area_display', fallback_label='Chưa có đơn vị')
+    for user in users:
+        setattr(user, 'extra_role_ids', [ur.role_id for ur in (user.user_roles or []) if ur.unit_id is None])
+        setattr(
+            user,
+            'extra_role_names',
+            ', '.join(ur.role.name for ur in (user.user_roles or []) if ur.unit_id is None and ur.role),
+        )
 
     from sqlalchemy import func
     raw_role_counts = db.session.query(
@@ -903,8 +975,9 @@ def roles():
 
 @admin_bp.route('/admin/users/export')
 def export_users():
-    if not session.get('is_admin'):
-        flash('Chỉ quản trị viên mới được xuất danh sách tài khoản.', 'danger')
+    from permissions import can_module
+    if not can_module('user', 'view'):
+        flash('Bạn không có quyền xuất danh sách tài khoản.', 'danger')
         return redirect(url_for('admin_bp.roles'))
     if not HAS_PANDAS:
         flash('Máy chủ chưa cài thư viện xuất Excel.', 'danger')
@@ -988,8 +1061,9 @@ def export_users():
 
 @admin_bp.route('/admin/user/delete/<int:uid>', methods=['POST'])
 def delete_user(uid):
-    if not session.get('is_admin'):
-        flash('Chỉ quản trị viên mới được xóa tài khoản.', 'danger')
+    from permissions import can_module
+    if not can_module('user', 'process'):
+        flash('Bạn không có quyền xóa tài khoản.', 'danger')
         return redirect(url_for('admin_bp.roles'))
     u = db.session.get(User, uid)
     if u:
@@ -1006,8 +1080,9 @@ def delete_user(uid):
 
 @admin_bp.route('/admin/users/delete-bulk', methods=['POST'])
 def delete_users_bulk():
-    if not session.get('is_admin'):
-        flash('Chỉ quản trị viên mới được xóa tài khoản.', 'danger')
+    from permissions import can_module
+    if not can_module('user', 'process'):
+        flash('Bạn không có quyền xóa tài khoản.', 'danger')
         return redirect(url_for('admin_bp.roles'))
 
     raw_selected = request.form.get('selected_ids', '').strip()
@@ -1048,8 +1123,9 @@ def delete_users_bulk():
 
 @admin_bp.route('/admin/users/reset-password-bulk', methods=['POST'])
 def reset_users_password_bulk():
-    if not session.get('is_admin'):
-        flash('Chỉ quản trị viên mới được reset mật khẩu hàng loạt.', 'danger')
+    from permissions import can_module
+    if not can_module('user', 'process'):
+        flash('Bạn không có quyền reset mật khẩu hàng loạt.', 'danger')
         return redirect(url_for('admin_bp.roles'))
 
     raw_selected = request.form.get('selected_ids', '').strip()
@@ -1114,8 +1190,9 @@ def reset_users_password_bulk():
 
 @admin_bp.route('/admin/user/toggle-status/<int:uid>')
 def toggle_user_status(uid):
-    if not session.get('is_admin'):
-        flash('Chỉ quản trị viên mới được thay đổi trạng thái tài khoản.', 'danger')
+    from permissions import can_module
+    if not can_module('user', 'process'):
+        flash('Bạn không có quyền thay đổi trạng thái tài khoản.', 'danger')
         return redirect(url_for('admin_bp.roles'))
     u = db.session.get(User, uid)
     if u:
@@ -1131,7 +1208,8 @@ def toggle_user_status(uid):
 
 @admin_bp.route('/logs', methods=['GET', 'POST'])
 def logs():
-    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    from permissions import can_module
+    if not can_module('sys', 'view'): return redirect(url_for('auth_bp.login'))
     
     # Get distinct list of users for dropdown filter
     user_list = [u[0] for u in db.session.query(SystemLog.fullname).distinct().order_by(SystemLog.fullname).all() if u[0]]
@@ -1173,7 +1251,8 @@ def logs():
 
 @admin_bp.route('/admin/users/import', methods=['POST'])
 def import_users():
-    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    from permissions import can_module
+    if not can_module('user', 'process'): return redirect(url_for('auth_bp.login'))
     f = request.files.get('import_excel')
     role_id = request.form.get('role_id', 2) # Default to 2 if not selected
     role = db.session.get(AppRole, role_id) if role_id else None
@@ -1280,7 +1359,8 @@ def import_users():
 
 @admin_bp.route('/admin/system/update', methods=['GET', 'POST'])
 def system_update():
-    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    from permissions import can_module
+    if not can_module('sys', 'process'): return redirect(url_for('auth_bp.login'))
     if request.method == 'POST':
         if not current_app.config.get('WEB_SYSTEM_UPDATE_ENABLED', False):
             flash('Đã khóa cập nhật hệ thống qua giao diện web. Hãy triển khai bản vá trực tiếp trên máy chủ.', 'danger')
@@ -1356,7 +1436,8 @@ def system_update():
 
 @admin_bp.route('/admin/system/git-pull', methods=['POST'])
 def git_pull():
-    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    from permissions import can_module
+    if not can_module('sys', 'process'): return redirect(url_for('auth_bp.login'))
     if not current_app.config.get('WEB_GIT_PULL_ENABLED', False):
         flash('Đã khóa Git pull qua giao diện web. Hãy thao tác trực tiếp trên máy chủ.', 'danger')
         return redirect(url_for('admin_bp.system_update'))
@@ -1415,7 +1496,8 @@ def git_pull():
 @admin_bp.route('/admin/git/status')
 def git_status():
     """API: Get git status"""
-    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    from permissions import can_module
+    if not can_module('sys', 'view'): return jsonify({'error': 'Unauthorized'}), 403
     try:
         result = _run_git_command(['status', '--short'])
         return jsonify({'output': result.stdout or 'Không có thay đổi'})
@@ -1425,7 +1507,8 @@ def git_status():
 @admin_bp.route('/admin/git/log')
 def git_log():
     """API: Get recent commits"""
-    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    from permissions import can_module
+    if not can_module('sys', 'view'): return jsonify({'error': 'Unauthorized'}), 403
     try:
         result = _run_git_command(['log', '--oneline', '-5'])
         lines = result.stdout.strip().split('\n')
@@ -1442,7 +1525,8 @@ def git_log():
 @admin_bp.route('/admin/git/remote', methods=['GET', 'POST'])
 def git_remote():
     """API: Get or set git remote"""
-    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    from permissions import can_module
+    if not can_module('sys', 'view'): return jsonify({'error': 'Unauthorized'}), 403
     
     if request.method == 'POST':
         remote_url = request.form.get('remote_url', '').strip()
@@ -1464,7 +1548,11 @@ def git_remote():
 
 @admin_bp.route('/admin/module-categories', methods=['GET', 'POST'])
 def module_categories():
-    if not session.get('is_admin'): return redirect(url_for('auth_bp.login'))
+    from permissions import can_module
+    if not can_module('sys', 'view'): return redirect(url_for('auth_bp.login'))
+    if request.method == 'POST' and not can_module('sys', 'process'):
+        flash('Bạn không có quyền thay đổi danh mục hệ thống.', 'danger')
+        return redirect(url_for('admin_bp.module_categories'))
     
     if request.method == 'POST':
         action = request.form.get('action')
@@ -1675,3 +1763,193 @@ def module_categories():
 def delete_category_old(cat_type, cat_id):
     """Legacy route - chuyển hướng về module_categories"""
     return redirect(url_for('admin_bp.module_categories'))
+
+
+@admin_bp.route('/admin/units', methods=['GET', 'POST'])
+def units():
+    """Quản lý đơn vị (cây phân cấp) — data-scope theo đơn vị."""
+    from permissions import can_module
+    if not can_module('sys', 'view'):
+        flash('Bạn không có quyền truy cập trang đơn vị.', 'warning')
+        return redirect(url_for('admin_bp.index'))
+    from models import Unit
+
+    if request.method == 'POST':
+        if not can_module('sys', 'process'):
+            flash('Bạn không có quyền thay đổi đơn vị.', 'danger')
+            return redirect(url_for('admin_bp.units'))
+        action = request.form.get('action')
+        try:
+            if action == 'add_unit':
+                name = (request.form.get('name') or '').strip()
+                code = (request.form.get('code') or '').strip()
+                parent_id = request.form.get('parent_id', type=int) or None
+                level = (request.form.get('level') or 'commune').strip()
+                if not name:
+                    flash('Thiếu tên đơn vị.', 'danger')
+                    return redirect(url_for('admin_bp.units'))
+                if not code:
+                    code = slugify_code(name)
+                if Unit.query.filter_by(code=code).first():
+                    flash(f'Mã đơn vị {code} đã tồn tại.', 'danger')
+                    return redirect(url_for('admin_bp.units'))
+                unit = Unit(code=code, name=name, parent_id=parent_id, level=level, is_active=True)
+                db.session.add(unit)
+                db.session.flush()
+                log_permission_change('set_unit', 'unit', name, f'code={code} parent={parent_id}')
+                flash(f'Đã thêm đơn vị {name}.', 'success')
+            elif action == 'edit_unit':
+                uid = request.form.get('unit_id', type=int)
+                unit = db.session.get(Unit, uid)
+                if unit:
+                    unit.name = (request.form.get('name') or unit.name).strip()
+                    unit.code = (request.form.get('code') or unit.code).strip()
+                    unit.level = (request.form.get('level') or unit.level).strip()
+                    unit.parent_id = request.form.get('parent_id', type=int) or None
+                    unit.is_active = request.form.get('is_active') == '1'
+                    db.session.flush()
+                    log_permission_change('set_unit', 'unit', unit.name, f'edit id={uid}')
+                    flash('Đã cập nhật đơn vị.', 'success')
+            elif action == 'delete_unit':
+                uid = request.form.get('unit_id', type=int)
+                unit = db.session.get(Unit, uid)
+                if unit:
+                    if unit.children:
+                        flash('Không thể xóa đơn vị còn đơn vị con.', 'danger')
+                        return redirect(url_for('admin_bp.units'))
+                    user_count = User.query.filter_by(unit_id=unit.id).count()
+                    if user_count:
+                        flash(f'Không thể xóa đơn vị còn {user_count} tài khoản.', 'danger')
+                        return redirect(url_for('admin_bp.units'))
+                    name = unit.name
+                    db.session.delete(unit)
+                    log_permission_change('set_unit', 'unit', name, 'delete')
+                    flash(f'Đã xóa đơn vị {name}.', 'success')
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Lỗi: {e}', 'danger')
+        return redirect(url_for('admin_bp.units'))
+
+    units = Unit.query.order_by(Unit.sort_order, Unit.name).all()
+    def _build_tree(root_id=None, depth=0):
+        rows = []
+        for u in units:
+            if (u.parent_id or None) == root_id:
+                u._depth = depth
+                rows.append(u)
+                rows.extend(_build_tree(u.id, depth + 1))
+        return rows
+    tree = _build_tree()
+    for u in tree:
+        setattr(u, 'user_count', User.query.filter_by(unit_id=u.id).count())
+    return render_template(
+        'units.html',
+        units=tree,
+        unit_options=units,
+        total_units=len(units),
+        sidebar_submenu_parent='module_categories',
+        sidebar_submenu_title='Đơn vị',
+        sidebar_submenu_items=[],
+    )
+
+
+@admin_bp.route('/admin/delegations', methods=['GET', 'POST'])
+def delegations():
+    """Quản lý ủy quyền tạm thời: người có quyền xử lý ủy quyền cho người khác."""
+    from permissions import can_module, current_authz
+    authz = current_authz()
+    is_admin = authz['is_admin']
+    if not is_admin and not can_module('task', 'process'):
+        flash('Bạn không có quyền truy cập trang ủy quyền.', 'warning')
+        return redirect(url_for('admin_bp.index'))
+    from models import Delegation
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'revoke':
+            did = request.form.get('delegation_id', type=int)
+            d = db.session.get(Delegation, did)
+            if d and (is_admin or d.delegator_id == session.get('uid')):
+                d.is_active = False
+                log_permission_change('revoke_delegation', 'delegation', f'{d.delegator_id}->{d.delegatee_id}')
+                flash('Đã thu hồi ủy quyền.', 'success')
+            db.session.commit()
+            return redirect(url_for('admin_bp.delegations'))
+        if not (is_admin or can_module('task', 'process')):
+            flash('Bạn không có quyền tạo ủy quyền.', 'danger')
+            return redirect(url_for('admin_bp.delegations'))
+        try:
+            delegator_id = request.form.get('delegator_id', type=int)
+            delegatee_id = request.form.get('delegatee_id', type=int)
+            module_code = (request.form.get('module_code') or '').strip() or None
+            from_date = request.form.get('from_date')
+            to_date = request.form.get('to_date')
+            note = request.form.get('note', '')
+            if not is_admin:
+                delegator_id = session.get('uid')
+            if not delegatee_id:
+                flash('Chưa chọn người được ủy quyền.', 'danger')
+                return redirect(url_for('admin_bp.delegations'))
+            if delegator_id == delegatee_id:
+                flash('Không thể tự ủy quyền cho chính mình.', 'danger')
+                return redirect(url_for('admin_bp.delegations'))
+            from datetime import date
+            d = Delegation(
+                delegator_id=delegator_id,
+                delegatee_id=delegatee_id,
+                module_code=module_code,
+                from_date=from_date or date.today(),
+                to_date=to_date or date.today(),
+                note=note,
+                is_active=True,
+            )
+            db.session.add(d)
+            db.session.flush()
+            delegator = db.session.get(User, delegator_id)
+            delegatee = db.session.get(User, delegatee_id)
+            log_permission_change(
+                'delegate', 'delegation',
+                f'{delegator.username if delegator else delegator_id}->{delegatee.username if delegatee else delegatee_id}',
+                f'module={module_code or "*"} {from_date}..{to_date}',
+            )
+            flash('Đã tạo ủy quyền.', 'success')
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Lỗi: {e}', 'danger')
+        return redirect(url_for('admin_bp.delegations'))
+
+    users = User.query.filter(User.is_active == True).order_by(User.fullname).all()  # noqa: E712
+    delegations = Delegation.query.order_by(Delegation.created_at.desc()).all()
+    from datetime import date
+    today = date.today()
+    rows = []
+    for d in delegations:
+        delegator = db.session.get(User, d.delegator_id)
+        delegatee = db.session.get(User, d.delegatee_id)
+        is_expired = bool(d.to_date and d.to_date < today)
+        rows.append({
+            'id': d.id,
+            'delegator_id': d.delegator_id,
+            'delegator_name': delegator.fullname if delegator else f'#{d.delegator_id}',
+            'delegatee_name': delegatee.fullname if delegatee else f'#{d.delegatee_id}',
+            'module_code': d.module_code or 'Toàn bộ',
+            'from_date': d.from_date,
+            'to_date': d.to_date,
+            'note': d.note,
+            'is_active': d.is_active,
+            'is_expired': is_expired,
+        })
+    my_user = authz['user']
+    return render_template(
+        'delegations.html',
+        users=users,
+        delegations=rows,
+        is_admin=is_admin,
+        my_user_id=my_user.id if my_user else None,
+        today=today,
+        sidebar_submenu_parent='module_categories',
+        sidebar_submenu_title='Ủy quyền',
+        sidebar_submenu_items=[],
+    )

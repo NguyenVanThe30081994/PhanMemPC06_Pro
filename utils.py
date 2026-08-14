@@ -389,6 +389,8 @@ def apply_migrations(app):
         ("user", "must_change_password", "BOOLEAN DEFAULT 1"), 
         ("user", "unit_key", "VARCHAR(100)"),
         ("user", "session_version", "INTEGER DEFAULT 0"),
+        ("user", "email", "VARCHAR(200)"),
+        ("user", "unit_id", "INTEGER"),
         ("app_role", "perms", "TEXT"),
         ("notification", "is_read", "BOOLEAN DEFAULT 0"),
         ("news_doc", "content", "TEXT"),
@@ -474,6 +476,8 @@ def apply_migrations(app):
         ("notification_doc", "video_url", "VARCHAR(500)"),
         ("notification_doc", "has_attachment", "BOOLEAN DEFAULT 0"),
         ("notification_doc", "posted_by", "VARCHAR(100)"),
+        ("notification_doc", "created_by", "INTEGER"),
+        ("document_lib", "created_by", "INTEGER"),
         ("login_security_state", "last_failed_secret_hash", "VARCHAR(64)")
     ]
         inspector = inspect(engine)
@@ -529,6 +533,14 @@ def apply_migrations(app):
         except Exception as e:
             db.session.rollback()
             print(f"Backfill Error on user.unit_key: {e}")
+
+    # --- Seed đơn vị (Unit) từ dữ liệu cũ (unit_key/unit_area) và gắn user ---
+    try:
+        from models import Unit
+        seed_units_from_users()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Seed Unit Error: {e}")
 
     _repair_task_item_fk_constraints(app)
 
@@ -1336,6 +1348,108 @@ def clear_logs(start_date=None, end_date=None):
         q.delete()
         db.session.commit()
     except: db.session.rollback()
+
+
+def seed_units_from_users():
+    """Seed bảng Unit từ unit_key/unit_area hiện có của user và gắn user.unit_id.
+
+    Heuristic phân cấp: đơn vị có cụm 'tỉnh' hoặc cấp cao → parent; còn lại leaf.
+    Chạy được nhiều lần (idempotent) — unit_key trùng thì tái sử dụng.
+    """
+    from models import Unit, User as _User
+
+    # Tập hợp các cặp (unit_key, unit_area) duy nhất từ user
+    rows = db.session.query(_User.unit_key, _User.unit_area).filter(_User.unit_key.isnot(None)).distinct().all()
+    key_to_unit = {}
+    area_to_unit = {}
+
+    def _normalize_code(value):
+        value = (value or '').strip()
+        if not value:
+            return ''
+        import unicodedata as _ud
+        normalized = _ud.normalize('NFD', value)
+        stripped = ''.join(ch for ch in normalized if _ud.category(ch) != 'Mn')
+        return re.sub(r'[^a-zA-Z0-9_]+', '_', stripped.lower()).strip('_')
+
+    def _looks_high_level(name):
+        name = (name or '').lower()
+        return any(marker in name for marker in ('tỉnh', 'tinh', 'công an tỉnh', 'pc06'))
+
+    for unit_key, unit_area in rows:
+        code = unit_key or _normalize_code(unit_area) or f'unit_{abs(hash(unit_area or "")) % 100000}'
+        name = unit_area or unit_key
+        if not code:
+            continue
+        existing = Unit.query.filter_by(code=code).first()
+        if not existing:
+            existing = Unit(code=code, name=name, level='province' if _looks_high_level(name) else 'commune', is_active=True)
+            db.session.add(existing)
+            db.session.flush()
+        key_to_unit[unit_key] = existing.id
+        area_to_unit[(unit_area or '').strip()] = existing.id
+
+    db.session.commit()
+
+    # Gắn user.unit_id theo unit_key (ưu tiên) hoặc unit_area
+    for user in _User.query.all():
+        if user.unit_id:
+            continue
+        unit_id = key_to_unit.get(user.unit_key) or area_to_unit.get((user.unit_area or '').strip())
+        if unit_id:
+            user.unit_id = unit_id
+    db.session.commit()
+    return len(key_to_unit)
+
+
+def unit_subtree_ids(unit_id):
+    """Trả về [unit_id] + tất cả id đơn vị con (đệ quy theo cây cha-con)."""
+    from models import Unit
+    if not unit_id:
+        return []
+    result = []
+    stack = [unit_id]
+    seen = set()
+    while stack:
+        current = stack.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        result.append(current)
+        children = db.session.query(Unit.id).filter(Unit.parent_id == current).all()
+        for (child_id,) in children:
+            stack.append(child_id)
+    return result
+
+
+def log_permission_change(action, target_type, target_name, details='', user_id=None, username=None):
+    """Ghi nhật ký thay đổi phân quyền (bảng permission_log)."""
+    try:
+        from models import PermissionLog
+        from flask import session, request as _req, has_request_context
+        ip = ''
+        if has_request_context():
+            try:
+                ip = _req.remote_addr or ''
+            except Exception:
+                ip = ''
+        entry = PermissionLog(
+            user_id=user_id if user_id is not None else session.get('uid'),
+            username=username if username is not None else session.get('username'),
+            action=action,
+            target_type=target_type,
+            target_name=str(target_name or '')[:255],
+            details=str(details or '')[:2000],
+            ip=ip,
+        )
+        db.session.add(entry)
+        db.session.commit()
+    except Exception as e:
+        print(f"PermissionLog Error: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
 
 
 # ==================== SECURITY FUNCTIONS ====================

@@ -333,6 +333,57 @@ def _register_login_success(username, client_ip):
     _clear_login_security_state(_get_security_state('ip', client_ip), now, client_ip)
     db.session.commit()
 
+
+def _build_login_session(user, client_ip, csrf_rotate=True):
+    """Shared logic to establish a full authenticated session for a user.
+    Returns (response, should_refresh_device_cookie, device_token).
+    """
+    _register_login_success(user.username, client_ip)
+    session.clear()
+    if csrf_rotate:
+        session['csrf_token'] = secrets.token_urlsafe(32)
+    unit_display = resolve_category_display(
+        user.unit_area,
+        module_category_options('contacts', 'unit_name', 'Đơn vị'),
+        fallback_label=user.unit_area or '',
+    )['display_name']
+    session['uid'] = user.id
+    session['username'] = user.username
+    session['fullname'] = user.fullname
+    session['unit'] = unit_display
+    session['unit_area'] = unit_display
+    session['unit_area_ref'] = user.unit_area
+    session['unit_key'] = user.unit_key or extract_unit_key(user.fullname or unit_display or user.username)
+    session['role_id'] = user.role_id
+    session['must_change'] = user.must_change_password
+
+    # KHÔNG lưu is_admin vào session — mỗi request tính lại từ DB (permissions.load_current_authz)
+    # để việc thay đổi/thu hồi vai trò có hiệu lực ngay, không chờ đăng nhập lại.
+    from permissions import user_is_admin
+    is_admin = user_is_admin(user)
+
+    log_action(user.id, user.fullname, "Đăng nhập", "Hệ thống", "Đăng nhập thành công")
+    log_security_event('login_success', f'username={user.username}')
+
+    session['last_active'] = time.time()
+    session['login_nonce'] = secrets.token_urlsafe(16)
+    session.permanent = True
+    device_token, device_key, should_refresh_device_cookie = _register_trusted_device(user, client_ip)
+    _apply_session_security_state(user, client_ip, device_key=device_key)
+
+    if user.must_change_password:
+        flash('Bạn cần đổi mật khẩu trong lần đăng nhập đầu tiên.', 'warning')
+        response = redirect(url_for('auth_bp.change_password'))
+    elif is_admin:
+        flash(f'Chào mừng trở lại, {user.fullname}!', 'success')
+        response = redirect(url_for('admin_bp.index'))
+    else:
+        flash(f'Chào mừng trở lại, {user.fullname}!', 'success')
+        response = redirect(url_for('tasks_bp.tasks'))
+    if should_refresh_device_cookie:
+        _issue_device_cookie(response, device_token)
+    return response
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if session.get('uid'):
@@ -365,56 +416,8 @@ def login():
                 time.sleep(delay_ms / 1000.0)
             flash(_get_lock_message(remaining) if remaining > 0 else 'Thông tin đăng nhập không hợp lệ.', 'danger')
         else:
-            _register_login_success(username, client_ip)
-            session.clear()
-            session['csrf_token'] = secrets.token_urlsafe(32)
-            unit_display = resolve_category_display(
-                usr.unit_area,
-                module_category_options('contacts', 'unit_name', 'Đơn vị'),
-                fallback_label=usr.unit_area or '',
-            )['display_name']
-            session['uid'] = usr.id
-            session['username'] = usr.username
-            session['fullname'] = usr.fullname
-            session['unit'] = unit_display
-            session['unit_area'] = unit_display
-            session['unit_area_ref'] = usr.unit_area
-            session['unit_key'] = usr.unit_key or extract_unit_key(usr.fullname or unit_display or usr.username)
-            session['role_id'] = usr.role_id
-            session['must_change'] = usr.must_change_password
-            
-            # Check if admin
-            role = db.session.get(AppRole, usr.role_id) if usr.role_id else None
-            session['is_admin'] = (role and role.name == 'Quản trị hệ thống') or (usr.username == 'admin')
-            
-            # Log login
-            log_action(usr.id, usr.fullname, "Đăng nhập", "Hệ thống", "Đăng nhập thành công")
-            log_security_event('login_success', f'username={usr.username}')
-            
-            # Init activity timestamp for security monitor
-            session['last_active'] = time.time()
-            session['login_nonce'] = secrets.token_urlsafe(16)
-            session.permanent = True  # Keep session persistent with PERMANENT_SESSION_LIFETIME (30 mins)
-            device_token, device_key, should_refresh_device_cookie = _register_trusted_device(usr, client_ip)
-            _apply_session_security_state(usr, client_ip, device_key=device_key)
-
-            
-            if usr.must_change_password:
-                flash('Bạn cần đổi mật khẩu trong lần đăng nhập đầu tiên.', 'warning')
-                response = redirect(url_for('auth_bp.change_password'))
-                if should_refresh_device_cookie:
-                    _issue_device_cookie(response, device_token)
-                return response
-                
-            flash(f'Chào mừng trở lại, {usr.fullname}!', 'success')
-            target_response = None
-            if session.get('is_admin'):
-                target_response = redirect(url_for('admin_bp.index'))
-            else:
-                target_response = redirect(url_for('tasks_bp.tasks'))
-            if should_refresh_device_cookie:
-                _issue_device_cookie(target_response, device_token)
-            return target_response
+            response = _build_login_session(usr, client_ip)
+            return response
         
     return render_template('login.html')
 

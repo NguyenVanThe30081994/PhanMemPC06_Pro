@@ -50,6 +50,7 @@ from models import (
     User,
     db,
 )
+from permissions import current_is_admin
 from utils import (
     apply_migrations,
     extract_unit_key,
@@ -433,7 +434,7 @@ def _current_perms():
     role = db.session.get(AppRole, session.get("role_id")) if session.get("role_id") else None
     if role and role.perms:
         try:
-            perms = normalize_permission_payload(role.perms, is_admin=session.get("is_admin"), role_name=getattr(role, "name", ""))
+            perms = normalize_permission_payload(role.perms, is_admin=current_is_admin(), role_name=getattr(role, "name", ""))
             if has_request_context():
                 g._task_current_perms_cache = perms
             return perms
@@ -445,21 +446,28 @@ def _current_perms():
 
 def _can_view_task_module(perms=None):
     perms = perms or _current_perms()
-    return has_module_permission(perms, "task", "view", is_admin=session.get("is_admin"))
+    return has_module_permission(perms, "task", "view", is_admin=current_is_admin())
 
 def _can_process_task_module(perms=None):
     perms = perms or _current_perms()
-    return has_module_permission(perms, "task", "process", is_admin=session.get("is_admin"))
+    from permissions import current_delegation_grants
+    return bool(
+        has_module_permission(perms, "task", "process", is_admin=current_is_admin())
+        or current_delegation_grants("task", "process")
+    )
 
 def _can_view_all_tasks(perms=None):
     perms = perms or _current_perms()
-    return has_module_permission(perms, "task", "view", is_admin=session.get("is_admin"))
+    return has_module_permission(perms, "task", "view", is_admin=current_is_admin())
 
 def _can_execute_task_module(perms=None):
     perms = perms or _current_perms()
+    from permissions import current_delegation_grants
     return bool(
-        has_module_permission(perms, "task", "exec", is_admin=session.get("is_admin"))
-        or has_module_permission(perms, "task", "process", is_admin=session.get("is_admin"))
+        has_module_permission(perms, "task", "exec", is_admin=current_is_admin())
+        or has_module_permission(perms, "task", "process", is_admin=current_is_admin())
+        or current_delegation_grants("task", "exec")
+        or current_delegation_grants("task", "process")
     )
 
 def _normalize_status(status):
@@ -5604,7 +5612,7 @@ def _can_manage_task(task, user=None):
     return can_manage_task(
         task,
         session_uid=session.get("uid"),
-        is_admin=bool(session.get("is_admin")),
+        is_admin=bool(current_is_admin()),
         can_process_module=_can_process_task_module(),
         load_manager_scope_fn=_load_manager_scope,
         user=user,
@@ -5618,7 +5626,7 @@ def _can_delete_task(task, is_lead=False):
     return can_delete_task(
         task,
         session_uid=session.get("uid"),
-        is_admin=bool(session.get("is_admin")),
+        is_admin=bool(current_is_admin()),
         is_lead=is_lead,
         can_manage=_can_manage_task(task),
     )
@@ -5638,7 +5646,7 @@ def _can_view_task(task, is_lead=False):
     return can_view_task(
         task,
         session_uid=session.get("uid"),
-        is_admin=bool(session.get("is_admin")),
+        is_admin=bool(current_is_admin()),
         is_lead=is_lead,
         is_executor=_task_user_is_executor(task, session.get("uid")),
         can_manage=_can_manage_task(task),
@@ -8033,7 +8041,7 @@ def _tasks_page_v2():
     perms = _current_perms()
     can_view_all_tasks = _can_view_all_tasks(perms)
     is_lead = _can_process_task_module(perms)
-    is_admin = bool(session.get("is_admin"))
+    is_admin = bool(current_is_admin())
     current_user = db.session.get(User, session["uid"])
 
     task_fields = _task_field_options()
@@ -8517,7 +8525,7 @@ def _task_detail_v2(tid):
     perms = _current_perms()
     can_view_all_tasks = _can_view_all_tasks(perms)
     is_lead = _can_process_task_module(perms)
-    is_admin = bool(session.get("is_admin"))
+    is_admin = bool(current_is_admin())
     current_user = db.session.get(User, session["uid"])
     is_executor = TaskAssignment.query.filter_by(task_id=task.id, user_id=session["uid"]).first() is not None
     can_manage_task_view = bool(is_admin or is_lead or _can_edit_task(task) or _can_manage_task(task, user=current_user))
@@ -9094,7 +9102,7 @@ def _export_form_task_v2(tid):
     current_user = db.session.get(User, session["uid"])
     perms = _current_perms()
     can_manage_task_view = bool(
-        bool(session.get("is_admin"))
+        bool(current_is_admin())
         or _can_process_task_module(perms)
         or _can_edit_task(task)
         or _can_manage_task(task, user=current_user)
@@ -9253,7 +9261,7 @@ def _export_outline_word_v2(tid):
     current_user = db.session.get(User, session["uid"])
     perms = _current_perms()
     can_manage_task_view = bool(
-        bool(session.get("is_admin"))
+        bool(current_is_admin())
         or _can_process_task_module(perms)
         or _can_edit_task(task)
         or _can_manage_task(task, user=current_user)
@@ -9409,7 +9417,7 @@ def toggle_task_item_aggregate(tid, item_id):
     current_user = db.session.get(User, session["uid"])
     perms = _current_perms()
     can_manage = bool(
-        bool(session.get("is_admin"))
+        bool(current_is_admin())
         or _can_process_task_module(perms)
         or _can_edit_task(task)
         or _can_manage_task(task, user=current_user)
@@ -9440,7 +9448,7 @@ def task_item_synthesis_data(tid, item_id):
     current_user = db.session.get(User, session["uid"])
     perms = _current_perms()
     can_manage = bool(
-        bool(session.get("is_admin"))
+        bool(current_is_admin())
         or _can_process_task_module(perms)
         or _can_edit_task(task)
         or _can_manage_task(task, user=current_user)
@@ -9509,7 +9517,7 @@ def save_task_item_synthesis(tid, item_id):
     current_user = db.session.get(User, session["uid"])
     perms = _current_perms()
     can_manage = bool(
-        bool(session.get("is_admin"))
+        bool(current_is_admin())
         or _can_process_task_module(perms)
         or _can_edit_task(task)
         or _can_manage_task(task, user=current_user)
@@ -9541,7 +9549,7 @@ def _return_task_assignment_v2(tid, assignment_id):
     current_user = db.session.get(User, session["uid"])
     perms = _current_perms()
     can_manage_task_view = bool(
-        bool(session.get("is_admin"))
+        bool(current_is_admin())
         or _can_process_task_module(perms)
         or _can_edit_task(task)
         or _can_manage_task(task, user=current_user)
@@ -9575,7 +9583,7 @@ def _create_task_google_form_v2(tid):
     current_user = db.session.get(User, session["uid"])
     perms = _current_perms()
     can_manage_task_view = bool(
-        bool(session.get("is_admin"))
+        bool(current_is_admin())
         or _can_process_task_module(perms)
         or _can_edit_task(task)
         or _can_manage_task(task, user=current_user)
@@ -9648,7 +9656,7 @@ def _update_task_google_form_v2(tid):
     current_user = db.session.get(User, session["uid"])
     perms = _current_perms()
     can_manage_task_view = bool(
-        bool(session.get("is_admin"))
+        bool(current_is_admin())
         or _can_process_task_module(perms)
         or _can_edit_task(task)
         or _can_manage_task(task, user=current_user)
@@ -9749,7 +9757,7 @@ def _publish_task_google_form_v2(tid):
     current_user = db.session.get(User, session["uid"])
     perms = _current_perms()
     can_manage_task_view = bool(
-        bool(session.get("is_admin"))
+        bool(current_is_admin())
         or _can_process_task_module(perms)
         or _can_edit_task(task)
         or _can_manage_task(task, user=current_user)
@@ -9791,7 +9799,7 @@ def _import_task_google_form_structure_v2(tid):
     current_user = db.session.get(User, session["uid"])
     perms = _current_perms()
     can_manage_task_view = bool(
-        bool(session.get("is_admin"))
+        bool(current_is_admin())
         or _can_process_task_module(perms)
         or _can_edit_task(task)
         or _can_manage_task(task, user=current_user)
@@ -9859,7 +9867,7 @@ def _sync_google_form_task_v2(tid):
     current_user = db.session.get(User, session["uid"])
     perms = _current_perms()
     can_manage_task_view = bool(
-        bool(session.get("is_admin"))
+        bool(current_is_admin())
         or _can_process_task_module(perms)
         or _can_edit_task(task)
         or _can_manage_task(task, user=current_user)
@@ -10461,7 +10469,7 @@ def _task_import_ai_analysis(config, use_provider=False):
     return heuristic_analysis
 
 def _can_manage_task_imports(perms=None):
-    return bool(session.get("is_admin") or _can_process_task_module(perms))
+    return bool(current_is_admin() or _can_process_task_module(perms))
 
 def _task_import_drafts_query():
     return TaskImportDraft.query.order_by(TaskImportDraft.updated_at.desc(), TaskImportDraft.id.desc())
@@ -10792,7 +10800,7 @@ def preview_workflow_blueprint():
     _ensure_task_schema()
 
     perms = _current_perms()
-    is_admin = bool(session.get("is_admin"))
+    is_admin = bool(current_is_admin())
     if not (is_admin or _can_process_task_module(perms)):
         return jsonify({"ok": False, "error": "Bạn không có quyền phân tích blueprint."}), 403
 
@@ -10819,7 +10827,7 @@ def import_workflow_blueprint():
     _ensure_task_schema()
 
     perms = _current_perms()
-    is_admin = bool(session.get("is_admin"))
+    is_admin = bool(current_is_admin())
     if not (is_admin or _can_process_task_module(perms)):
         return jsonify({"ok": False, "error": "Bạn không có quyền phân tích tài liệu tham chiếu."}), 403
 
@@ -10851,7 +10859,7 @@ def parse_outline_file_for_create():
 
     _ensure_task_schema()
     perms = _current_perms()
-    if not (bool(session.get("is_admin")) or _can_process_task_module(perms)):
+    if not (bool(current_is_admin()) or _can_process_task_module(perms)):
         return jsonify({"ok": False, "error": "Bạn không có quyền tạo công việc."}), 403
 
     outline_files = request.files.getlist("outline_file")
@@ -10922,7 +10930,7 @@ def preview_form_template_fields_for_create():
 
     _ensure_task_schema()
     perms = _current_perms()
-    if not (bool(session.get("is_admin")) or _can_process_task_module(perms)):
+    if not (bool(current_is_admin()) or _can_process_task_module(perms)):
         return jsonify({"ok": False, "error": "Bạn không có quyền tạo công việc."}), 403
 
     excel_file = request.files.get("excel_file")
@@ -11049,7 +11057,7 @@ def edit_task_config(tid):
 
     perms = _current_perms()
     is_lead = _can_process_task_module(perms)
-    is_admin = bool(session.get("is_admin"))
+    is_admin = bool(current_is_admin())
 
     if not _can_edit_task(task) and not is_admin and not is_lead:
         flash("Bạn không có quyền sửa công việc này.", "danger")
@@ -11162,7 +11170,7 @@ def download_task_submission_file_v2(tid, file_id):
     can_view_all_tasks = _can_view_all_tasks(perms)
     current_user = db.session.get(User, session["uid"])
     can_manage_task_view = bool(
-        bool(session.get("is_admin"))
+        bool(current_is_admin())
         or _can_process_task_module(perms)
         or _can_edit_task(task)
         or _can_manage_task(task, user=current_user)

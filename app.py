@@ -391,6 +391,7 @@ from routes.api import api_bp
 from routes.shortlink import shortlink_bp
 from routes.health import health_bp
 from routes.outline import outline_bp
+from routes.google_auth import google_auth_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
@@ -400,6 +401,7 @@ app.register_blueprint(api_bp)
 app.register_blueprint(shortlink_bp)
 app.register_blueprint(health_bp)
 app.register_blueprint(outline_bp)
+app.register_blueprint(google_auth_bp)
 
 @app.context_processor
 def inject_security_tokens():
@@ -425,6 +427,8 @@ def check_auth():
         'shortlink_bp.get_qr',
         'health_bp.health_check',
         'health_bp.ping',
+        'google_auth_bp.google_login',
+        'google_auth_bp.google_callback',
         'security_txt',
         'security_txt_well_known',
         'favicon',
@@ -493,7 +497,10 @@ def enforce_session_integrity():
 
 @app.before_request
 def enforce_step_up_auth():
-    if not session.get('uid') or not session.get('is_admin'):
+    if not session.get('uid'):
+        return
+    from permissions import current_is_admin
+    if not current_is_admin():
         return
     if request.endpoint == 'auth_bp.reauthenticate':
         return
@@ -525,7 +532,9 @@ def enforce_csrf_protection():
     if request.endpoint and request.endpoint.startswith('static'):
         return
 
-    csrf_exempt_endpoints = set()
+    csrf_exempt_endpoints = {
+        'google_auth_bp.google_callback',  # Google redirects back with its own Referer
+    }
     if request.endpoint in csrf_exempt_endpoints:
         return
 
@@ -556,9 +565,12 @@ def build_session_activity_marker():
 
 @app.context_processor
 def inject_global_data():
-    is_admin = session.get('is_admin', False)
-    role_name = "Thành viên"
-    perms = {}
+    # Authz luôn được tính lại từ DB mỗi request (không tin giá trị cũ trong session)
+    from permissions import load_current_authz
+    authz = load_current_authz()
+    is_admin = authz["is_admin"]
+    role_name = authz["role_name"]
+    perms = authz["perms"]
 
     def can_module(module_code, tier='view'):
         return has_module_permission(perms, module_code, tier=tier, is_admin=is_admin, role_name=role_name)
@@ -583,19 +595,6 @@ def inject_global_data():
             can_any_module=can_any_module,
             can_manage_with_system=can_manage_with_system,
         )
-    
-    # 1. Fetch properties from DB role if available
-    try:
-        rid = session.get('role_id')
-        role = db.session.get(AppRole, rid) if rid else None
-        if role:
-            role_name = role.name
-            if role.perms:
-                perms = json.loads(role.perms)
-    except Exception:
-        pass
-
-    perms = normalize_permission_payload(perms, is_admin=is_admin, role_name=role_name)
 
     return dict(
         perms=perms,

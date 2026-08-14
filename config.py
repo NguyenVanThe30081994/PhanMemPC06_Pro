@@ -100,3 +100,13 @@ GOOGLE_FORMS_ENABLED = os.environ.get('GOOGLE_FORMS_ENABLED', 'False').lower() =
 GOOGLE_FORMS_CREDENTIALS_FILE = os.environ.get('GOOGLE_FORMS_CREDENTIALS_FILE', '')
 GOOGLE_FORMS_CREDENTIALS_JSON = os.environ.get('GOOGLE_FORMS_CREDENTIALS_JSON', '')
 GOOGLE_FORMS_IMPERSONATED_USER = os.environ.get('GOOGLE_FORMS_IMPERSONATED_USER', '')
+
+# Google OAuth (đăng nhập bằng tài khoản Google)
+# Cấu hình tại https://console.cloud.google.com/apis/credentials → OAuth 2.0 Client ID
+GOOGLE_OAUTH_CLIENT_ID = (os.environ.get('GOOGLE_OAUTH_CLIENT_ID') or '').strip()
+GOOGLE_OAUTH_CLIENT_SECRET = (os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET') or '').strip()
+GOOGLE_OAUTH_REDIRECT_URI = (os.environ.get('GOOGLE_OAUTH_REDIRECT_URI') or '').strip()
+# Nếu trống, tự suy ra từ host: {scheme}://{host}/auth/google/callback
+GOOGLE_OAUTH_ALLOWED_DOMAINS = [
+    d.strip().lower() for d in (os.environ.get('GOOGLE_OAUTH_ALLOWED_DOMAINS') or '').split(',') if d.strip()
+]

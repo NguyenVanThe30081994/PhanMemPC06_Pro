@@ -128,10 +128,11 @@ def get_categories():
 
 @api_bp.route('/api/categories', methods=['POST'])
 def create_category():
-    """Tạo danh mục mới (Admin only)"""
+    """Tạo danh mục mới (cần quyền hệ thống)"""
     from models import Category
+    from permissions import can_module
     
-    if not session.get('is_admin'):
+    if not can_module('sys', 'process'):
         return jsonify({'error': 'Unauthorized'}), 403
     
     data = request.get_json()
@@ -152,10 +153,11 @@ def create_category():
 
 @api_bp.route('/api/categories/<int:cid>', methods=['PUT'])
 def update_category(cid):
-    """Cập nhật danh mục (Admin only)"""
+    """Cập nhật danh mục (cần quyền hệ thống)"""
     from models import Category
+    from permissions import can_module
     
-    if not session.get('is_admin'):
+    if not can_module('sys', 'process'):
         return jsonify({'error': 'Unauthorized'}), 403
     
     cat = Category.query.get_or_404(cid)
@@ -182,10 +184,11 @@ def update_category(cid):
 
 @api_bp.route('/api/categories/<int:cid>', methods=['DELETE'])
 def delete_category(cid):
-    """Xóa danh mục (Admin only)"""
+    """Xóa danh mục (cần quyền hệ thống)"""
     from models import Category
+    from permissions import can_module
     
-    if not session.get('is_admin'):
+    if not can_module('sys', 'process'):
         return jsonify({'error': 'Unauthorized'}), 403
     
     cat = Category.query.get_or_404(cid)
