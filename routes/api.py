@@ -271,8 +271,13 @@ def get_custom_satellite_points():
     try:
         from models import CustomSatellitePoint
         meta = _ensure_custom_satellite_storage_ready()
-        db.create_all()
-        
+    except RuntimeError as exc:
+        # Thông báo hướng dẫn cấu hình hosting (không chứa thông tin nhạy cảm)
+        return jsonify({'error': str(exc)}), 500
+    except Exception:
+        return jsonify({'error': 'Không thể tải danh sách điểm vệ tinh.'}), 500
+
+    try:
         points = CustomSatellitePoint.query.all()
         res = {}
         for p in points:
@@ -293,16 +298,20 @@ def get_custom_satellite_points():
             'databaseUriMasked': meta['database_uri_masked'],
             'sqlitePath': meta['sqlite_path'],
         })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        return jsonify({'error': 'Không thể tải danh sách điểm vệ tinh.'}), 500
 
 @api_bp.route('/api/custom-satellite-points', methods=['POST'])
 def save_custom_satellite_point():
     try:
         from models import CustomSatellitePoint
         meta = _ensure_custom_satellite_storage_ready()
-        db.create_all()
-        
+    except RuntimeError as exc:
+        return jsonify({'error': str(exc)}), 500
+    except Exception:
+        return jsonify({'error': 'Không thể lưu điểm vệ tinh.'}), 500
+
+    try:
         data = request.get_json() or {}
         route_id = data.get('route_id')
         key = data.get('key')
@@ -311,10 +320,10 @@ def save_custom_satellite_point():
         lat = data.get('lat')
         lng = data.get('lng')
         parent_key = data.get('parentKey')
-        
+
         if not route_id or not key or not name or lat is None or lng is None or not parent_key:
             return jsonify({'error': 'Missing required fields'}), 400
-            
+
         existing = CustomSatellitePoint.query.filter_by(key=key).first()
         if existing:
             existing.route_id = route_id
@@ -334,7 +343,7 @@ def save_custom_satellite_point():
                 parent_key=parent_key
             )
             db.session.add(new_point)
-            
+
         db.session.commit()
         return jsonify({
             'status': 'success',
@@ -342,22 +351,26 @@ def save_custom_satellite_point():
             'databaseUriMasked': meta['database_uri_masked'],
             'sqlitePath': meta['sqlite_path'],
         })
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Không thể lưu điểm vệ tinh.'}), 500
 
 @api_bp.route('/api/custom-satellite-points/delete', methods=['POST'])
 def delete_custom_satellite_point():
     try:
         from models import CustomSatellitePoint
         meta = _ensure_custom_satellite_storage_ready()
-        db.create_all()
-        
+    except RuntimeError as exc:
+        return jsonify({'error': str(exc)}), 500
+    except Exception:
+        return jsonify({'error': 'Không thể xóa điểm vệ tinh.'}), 500
+
+    try:
         data = request.get_json() or {}
         key = data.get('key')
         if not key:
             return jsonify({'error': 'Missing key'}), 400
-            
+
         existing = CustomSatellitePoint.query.filter_by(key=key).first()
         if existing:
             db.session.delete(existing)
@@ -370,9 +383,9 @@ def delete_custom_satellite_point():
             })
         else:
             return jsonify({'error': 'Point not found'}), 404
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Không thể xóa điểm vệ tinh.'}), 500
 
 
 @api_bp.route('/api/diagnose-db')
@@ -426,13 +439,17 @@ def diagnose_db():
         })
     except Exception as e:
         import traceback
-        error_details = traceback.format_exc()
+        # Chỉ log chi tiết phía server, không trả traceback ra client (B3)
+        try:
+            from flask import current_app
+            current_app.logger.error('diagnose-db failed: %s', traceback.format_exc())
+        except Exception:
+            pass
         return jsonify({
             'status': 'error',
             'database_uri': locals().get('masked_uri', 'unknown'),
             'connection_test': 'failed',
-            'error_message': str(e),
-            'traceback': error_details
+            'error_message': 'Kiểm tra kết nối cơ sở dữ liệu thất bại.',
         }), 500
 
 
@@ -478,6 +495,6 @@ def resolve_maps_url():
             current_url = loc
             
         return jsonify({'status': 'error', 'message': 'Không tìm thấy tọa độ từ link Google Maps này'}), 400
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': f'Lỗi khi xử lý link: {str(e)}'}), 500
+    except Exception:
+        return jsonify({'status': 'error', 'message': 'Không thể xử lý link Google Maps này.'}), 500
 

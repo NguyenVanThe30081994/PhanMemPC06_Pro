@@ -1,5 +1,14 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-14 (Pha 0 — An toàn bảo mật ngay)
+Triển khai theo `docs/BAO_CAO_DANH_GIA_TOAN_DIEN_2026-08.md` (mục B: vấn đề bảo mật xử lý sớm).
+- **B1**: Đưa `save_custom_satellite_point` và `delete_custom_satellite_point` khỏi `public_endpoints` trong `check_auth` (`app.py`). Trước đây hai endpoint này cho phép bất kỳ ai ghi/xóa điểm vệ tinh trong DB mà không cần đăng nhập. Endpoint đọc `get_custom_satellite_points` vẫn giữ public để bản đồ hiển thị.
+- **B2**: Bỏ các lời gọi `db.create_all()` trong request handler (`routes/api.py`) — bảng đã được tạo trong `init_db()` lúc khởi động.
+- **B3**: Không trả nguyên văn `str(e)` / traceback ra client ở các endpoint vệ tinh, `diagnose-db` và `resolve-maps-url` (`routes/api.py`, `routes/health.py`). Chi tiết lỗi chỉ log phía server.
+- **CI**: Thêm job chạy `python3 -m unittest discover tests` làm điều kiện bắt buộc trước bước FTP deploy (`.github/workflows/deploy.yml`).
+- **B5**: Thêm `.freebuff/` vào `.gitignore`.
+- Test hồi quy: `tests/test_satellite_api_security.py` (endpoint ghi/xóa yêu cầu đăng nhập → 401, endpoint đọc public vẫn hoạt động).
+
 ## 2026-08-04 (wizard tạo công việc 4 bước)
 - Chuyển hộp thoại "Tạo công việc" từ dạng liệt kê nhiều ô cấu hình sang wizard 4 bước: `1. Loại công việc -> 2. Tải nguồn -> 3. Cấu hình -> 4. Phát hành`.
 - Mỗi loại công việc có giao diện riêng:

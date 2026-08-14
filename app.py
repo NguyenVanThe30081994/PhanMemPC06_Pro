@@ -420,8 +420,8 @@ def check_auth():
         'auth_bp.login',
         'portal_bp.martyr_adn_map',
         'api_bp.get_custom_satellite_points',
-        'api_bp.save_custom_satellite_point',
-        'api_bp.delete_custom_satellite_point',
+        # LƯU Ý BẢO MẬT (B1): save/delete custom-satellite-points từng ở đây,
+        # cho phép ghi/xóa DB không cần đăng nhập. Đã yêu cầu đăng nhập.
         'api_bp.resolve_maps_url',
         'shortlink_bp.redirect_short_link',
         'shortlink_bp.get_qr',

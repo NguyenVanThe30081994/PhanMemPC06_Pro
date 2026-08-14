@@ -12,6 +12,7 @@ __pycache__/
 *.bak3
 *.orig
 *.rej
+.freebuff/
 
 # Environments
 .env

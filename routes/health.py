@@ -15,8 +15,9 @@ def health_check():
         # Check database connection
         db.session.execute('SELECT 1')
         db_status = 'ok'
-    except Exception as e:
-        db_status = f'error: {str(e)}'
+    except Exception:
+        # Không trả chi tiết lỗi DB ra endpoint public (B3)
+        db_status = 'error'
     
     # Check disk space
     try:
