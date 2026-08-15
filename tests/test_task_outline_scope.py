@@ -32,7 +32,11 @@ class TaskOutlineScopeRouteTests(unittest.TestCase):
 
     def _create_user(self, fullname, unit_area, unit_key):
         with app.app_context():
-            role = AppRole.query.order_by(AppRole.id.asc()).first()
+            # Vai trò hạn chế (chỉ xem/thực thi) để người dùng đúng nghĩa
+            # "người nhận việc", không phải quản trị — vì is_admin/permissions
+            # được tính từ role_id trong DB. Nếu chọn vai trò quản trị, scope
+            # ẩn đầu mục của đơn vị khác sẽ không bao giờ kích hoạt.
+            role = AppRole.query.filter_by(name="Cán bộ CAX").first() or AppRole.query.order_by(AppRole.id.asc()).first()
             username = f"outline_scope_{uuid.uuid4().hex[:8]}"
             user = User(
                 username=username,

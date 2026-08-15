@@ -168,8 +168,8 @@ class TaskImportDraftRouteTests(unittest.TestCase):
             ],
         }
 
-        with patch("routes.tasks.build_google_forms_service", return_value=object()), patch(
-            "routes.tasks.load_google_form_into_builder",
+        with patch("services.blueprint_parsing.build_google_forms_service", return_value=object()), patch(
+            "services.blueprint_parsing.load_google_form_into_builder",
             return_value={"builder_schema": {"form_info": {"title": "Google Form báo cáo nhanh"}}, "form_payload": form_payload},
         ):
             response = self.client.post(

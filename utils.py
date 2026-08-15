@@ -507,6 +507,39 @@ def apply_migrations(app):
                 except Exception as e:
                     print(f"Migration Error on {table}.{col}: {e}")
 
+        # Index cho các truy vấn nóng (lọc/sắp xếp theo deadline, trạng thái,
+        # đơn nhận việc, thông báo chưa đọc...). `index=True` trong models.py
+        # chỉ áp dụng khi tạo bảng mới; khối này bù cho DB đã tồn tại
+        # (MySQL production lẫn SQLite local). Lỗi được bỏ qua an toàn vì
+        # index chỉ tăng tốc, không thay đổi hành vi.
+        index_migrations = [
+            ("ix_task_deadline", "task", "deadline"),
+            ("ix_task_parent_task_id", "task", "parent_task_id"),
+            ("ix_task_assignment_task_id", "task_assignment", "task_id"),
+            ("ix_task_assignment_user_id", "task_assignment", "user_id"),
+            ("ix_task_assignment_status", "task_assignment", "status"),
+            ("ix_task_assignment_assigned_at", "task_assignment", "assigned_at"),
+            ("ix_notification_user_id", "notification", "user_id"),
+            ("ix_notification_is_read", "notification", "is_read"),
+            ("ix_task_submission_status", "task_submission", "status"),
+        ]
+        with engine.begin() as conn:
+            for index_name, table, column in index_migrations:
+                if table not in existing_tables:
+                    continue
+                try:
+                    existing_index_names = {
+                        idx.get("name") for idx in inspector.get_indexes(table)
+                    }
+                    if index_name in existing_index_names:
+                        continue
+                    conn.execute(text(
+                        f"CREATE INDEX {index_name} ON {quote_identifier(table)} "
+                        f"({quote_identifier(column)})"
+                    ))
+                except Exception as e:
+                    print(f"Index Migration Error on {table}.{column}: {e}")
+
         try:
             user_columns = existing_columns.get("user")
             if user_columns is None and "user" in existing_tables:
@@ -699,7 +732,18 @@ def init_db(app):
     with app.app_context():
         db.create_all()
         apply_migrations(app)
-        
+
+        # Seeding 5 vai trò chuẩn CAT/CAX. Lỗi lịch sử: hàm này tồn tại nhưng
+        # KHÔNG ĐƯỢC GỌI ở đâu → DB mới thiếu 'Cán bộ CAX'/'Cán bộ CAT'...,
+        # khiến phân quyền/giao việc trên bản cài mới không hoạt động đúng.
+        # Gọi với force_update_perms=False: chỉ tạo vai trò còn thiếu và chuẩn
+        # hóa tên (alias cũ → tên chuẩn), KHÔNG ghi đè perms tùy chỉnh đã có.
+        try:
+            ensure_standard_system_roles()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Standard roles seeding error: {e}")
+
         # Admin Role - More robust check and insert
         admin_role = AppRole.query.filter_by(name='Quản trị hệ thống').first()
         if not admin_role:

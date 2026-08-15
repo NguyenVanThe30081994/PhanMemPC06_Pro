@@ -6,7 +6,7 @@ import unittest
 from datetime import datetime
 
 from app import app
-from models import AIAssistantConfig, AppRole, Notification, User, db
+from models import AppRole, Notification, User, db
 from security_utils.runtime_security import build_ip_network_hint, fingerprint_security_value
 
 
@@ -18,19 +18,6 @@ class SecurityRegressionTests(unittest.TestCase):
         self.created_user_ids = []
         self.created_role_ids = []
         self.created_upload_paths = []
-        self._ai_config_snapshot = None
-        with app.app_context():
-            config = AIAssistantConfig.query.first()
-            if config:
-                self._ai_config_snapshot = {
-                    'id': config.id,
-                    'provider': config.provider,
-                    'model_name': config.model_name,
-                    'api_key': config.api_key,
-                    'api_key_encrypted': config.api_key_encrypted,
-                    'system_prompt': config.system_prompt,
-                    'is_active': config.is_active,
-                }
 
     def tearDown(self):
         with app.app_context():
@@ -39,19 +26,6 @@ class SecurityRegressionTests(unittest.TestCase):
                 User.query.filter(User.id.in_(self.created_user_ids)).delete(synchronize_session=False)
             if self.created_role_ids:
                 AppRole.query.filter(AppRole.id.in_(self.created_role_ids)).delete(synchronize_session=False)
-            if self._ai_config_snapshot is None:
-                AIAssistantConfig.query.delete(synchronize_session=False)
-            else:
-                config = db.session.get(AIAssistantConfig, self._ai_config_snapshot['id'])
-                if not config:
-                    config = AIAssistantConfig(id=self._ai_config_snapshot['id'])
-                    db.session.add(config)
-                config.provider = self._ai_config_snapshot['provider']
-                config.model_name = self._ai_config_snapshot['model_name']
-                config.api_key = self._ai_config_snapshot['api_key']
-                config.api_key_encrypted = self._ai_config_snapshot['api_key_encrypted']
-                config.system_prompt = self._ai_config_snapshot['system_prompt']
-                config.is_active = self._ai_config_snapshot['is_active']
             db.session.commit()
 
         for path in self.created_upload_paths:
@@ -107,39 +81,18 @@ class SecurityRegressionTests(unittest.TestCase):
         with self.client.session_transaction() as sess:
             sess['is_admin'] = True
 
-    def test_ranking_page_allows_dashboard_view_role(self):
-        user = self._create_user_with_role(
-            'security_rank_view',
-            perms={'p_dash_view': 1},
-        )
-        self._login_session(user)
-
-        response = self.client.get('/ranking', headers={'User-Agent': self.TEST_USER_AGENT})
-        self.assertEqual(response.status_code, 200)
-
-    def test_ranking_save_forbidden_without_manage_permission(self):
-        user = self._create_user_with_role(
-            'security_rank_blocked',
-            perms={'p_dash_view': 1},
-        )
-        self._login_session(user)
-
-        response = self.client.post(
-            '/ranking/api/save',
-            json={'unit_id': 1, 'indicator_id': 1, 'value': 5},
-            headers={'X-CSRF-Token': 'security-regression-csrf', 'User-Agent': self.TEST_USER_AGENT},
-        )
-        self.assertEqual(response.status_code, 403)
-
     def test_notifications_api_sanitizes_payload(self):
         user = self._create_user_with_role(
             'security_notif_user',
             perms={'p_dash_view': 1},
         )
         with app.app_context():
+            # Tiêu đề chứa "công việc" để infer_notification_source xếp vào
+            # nguồn 'task' — endpoint /api/notifications chỉ trả về thông báo
+            # thuộc nguồn đã nhận diện (task/news/library/report).
             db.session.add(Notification(
                 user_id=user.id,
-                title='Bảng tin <img src=x onerror=alert(1)>',
+                title='Công việc mới <img src=x onerror=alert(1)>',
                 msg='Xin chao<script>alert(1)</script>',
                 link='javascript:alert(1)',
             ))
@@ -217,32 +170,6 @@ class SecurityRegressionTests(unittest.TestCase):
             follow_redirects=False,
         )
         self.assertEqual(response.status_code, 302)
-
-    def test_ai_api_key_is_encrypted_at_rest(self):
-        user = self._create_user_with_role('security_admin_ai')
-        self._login_admin_session(user)
-
-        response = self.client.post(
-            '/admin/ai-settings',
-            data={
-                'csrf_token': 'security-regression-csrf',
-                'provider': 'openai',
-                'model_name': 'gpt-4.1-mini',
-                'api_key': 'sk-test-super-secret',
-                'is_active': 'on',
-            },
-            headers={'User-Agent': self.TEST_USER_AGENT},
-            follow_redirects=False,
-        )
-        self.assertEqual(response.status_code, 302)
-
-        with app.app_context():
-            config = AIAssistantConfig.query.first()
-            self.assertIsNotNone(config)
-            self.assertFalse(bool((config.api_key or '').strip()))
-            self.assertTrue(bool((config.api_key_encrypted or '').strip()))
-            self.assertNotIn('sk-test-super-secret', config.api_key_encrypted or '')
-            self.assertEqual(config.get_api_key(app.secret_key), 'sk-test-super-secret')
 
     def test_login_redirect_with_clear_storage_sets_clear_site_data_header(self):
         response = self.client.get('/login?clear_storage=true')

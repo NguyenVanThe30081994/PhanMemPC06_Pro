@@ -180,7 +180,7 @@ class TaskOutlineWordExportTests(unittest.TestCase):
             "roles": [],
             "users": [],
         }
-        with patch("routes.tasks._task_assignment_catalog", return_value=catalog):
+        with patch("services.outline_rows._task_assignment_catalog", return_value=catalog):
             response = self.client.post(
                 f"/tasks/{task_id}/outline/import-preview",
                 data={

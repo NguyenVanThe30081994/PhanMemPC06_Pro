@@ -41,7 +41,10 @@ class TaskFileReportSchemaRouteTests(unittest.TestCase):
 
     def _create_assignee(self, fullname="Đồng chí File Schema", unit_area="Công an phường Minh Xuân", unit_key="minhxuan"):
         with app.app_context():
-            role = AppRole.query.order_by(AppRole.id.asc()).first()
+            # Vai trò hạn chế (không quản trị): is_admin tính từ role_id trong
+            # DB; vai trò quản trị sẽ khiến mọi người dùng nhìn thấy toàn bộ
+            # đơn vị, làm hỏng các test kiểm tra scope theo đơn vị.
+            role = AppRole.query.filter_by(name="Cán bộ CAX").first() or AppRole.query.order_by(AppRole.id.asc()).first()
             username = f"file_schema_{uuid.uuid4().hex[:8]}"
             user = User(
                 username=username,

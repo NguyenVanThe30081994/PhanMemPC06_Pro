@@ -33,7 +33,10 @@ class TaskFormFieldScopeRouteTests(unittest.TestCase):
 
     def _create_assignee(self, fullname, unit_area, unit_key):
         with app.app_context():
-            role = AppRole.query.order_by(AppRole.id.asc()).first()
+            # Vai trò hạn chế (không quản trị): is_admin tính từ role_id trong
+            # DB; vai trò quản trị sẽ khiến mọi người dùng nhìn thấy toàn bộ
+            # đơn vị, làm hỏng các test kiểm tra scope theo đơn vị.
+            role = AppRole.query.filter_by(name="Cán bộ CAX").first() or AppRole.query.order_by(AppRole.id.asc()).first()
             username = f"form_scope_{uuid.uuid4().hex[:8]}"
             user = User(
                 username=username,

@@ -25,7 +25,7 @@ try:
 except ImportError:
     HAS_PANDAS = False
     pd = None
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from utils import (
     DEFAULT_ROLE_MODULE_CODES,
     PERMISSION_MODULES,
@@ -499,6 +499,39 @@ def _task_dashboard_unit_metrics():
     }
 
 
+def _overdue_task_count():
+    """Số công việc gốc đã quá hạn mà còn assignment dang dở (dashboard)."""
+    from models import TaskAssignment
+
+    overdue_task_ids = {
+        row[0]
+        for row in db.session.query(Task.id).filter(
+            Task.parent_task_id.is_(None),
+            Task.deadline.isnot(None),
+            Task.deadline < date.today(),
+        ).all()
+    }
+    if not overdue_task_ids:
+        return 0
+    pending_task_ids = {
+        row[0]
+        for row in db.session.query(TaskAssignment.task_id).filter(
+            TaskAssignment.task_id.in_(overdue_task_ids),
+            func.lower(func.coalesce(TaskAssignment.status, '')).notin_(
+                ['submitted', 'completed']
+            ),
+        ).distinct().all()
+    }
+    # Task chưa có assignment nào cũng tính là dang dở (chưa ai nhận).
+    assigned_task_ids = {
+        row[0]
+        for row in db.session.query(TaskAssignment.task_id).filter(
+            TaskAssignment.task_id.in_(overdue_task_ids)
+        ).distinct().all()
+    }
+    return len(pending_task_ids | (overdue_task_ids - assigned_task_ids))
+
+
 @admin_bp.route('/admin')
 def index():
     try:
@@ -562,6 +595,7 @@ def index():
             return has_module_permission(perms, module_code, tier=tier, is_admin=is_admin, role_name=role_name)
 
         task_metrics = _task_dashboard_unit_metrics()
+        overdue_count = _overdue_task_count()
 
         overview_metrics = [
             {
@@ -575,6 +609,12 @@ def index():
                 'value': task_metrics['unreported_units'],
                 'href': '/tasks',
                 'accent_class': 'warning',
+            },
+            {
+                'title': 'Công việc quá hạn',
+                'value': overdue_count,
+                'href': '/tasks',
+                'accent_class': 'indigo',
             },
         ]
 
@@ -782,6 +822,38 @@ def db_manage():
     except Exception as e:
         flash(f'Lỗi thao tác: {e}', 'danger')
     return redirect(url_for('admin_bp.db_tool'))
+
+@admin_bp.route('/admin/deadline-watchdog/run', methods=['POST'])
+def run_deadline_watchdog_route():
+    """
+    Chạy quét cảnh báo hạn thủ công (hoặc gọi từ cron ngoài): sinh thông báo
+    sắp hạn/gấp/quá hạn cho người được giao việc còn dang dở.
+    """
+    from permissions import can_module
+    if not can_module('sys', 'process'):
+        return redirect(url_for('auth_bp.login'))
+    try:
+        from services.deadline_watchdog import run_deadline_watchdog
+        summary = run_deadline_watchdog(send_emails=True)
+        levels = summary.get('levels', {})
+        flash(
+            'Đã quét cảnh báo hạn: '
+            f"{summary.get('notifications_created', 0)} thông báo "
+            f"(sắp hạn {levels.get('upcoming', 0)}, "
+            f"gấp {levels.get('urgent', 0)}, "
+            f"quá hạn {levels.get('overdue', 0)}), "
+            f"email gửi {summary.get('emails_sent', 0)} / "
+            f"bỏ qua {summary.get('emails_skipped', 0)}.",
+            'success' if not summary.get('errors') else 'warning',
+        )
+        if summary.get('errors'):
+            current_app.logger.warning(
+                "Deadline watchdog errors: %s", summary['errors'][:10]
+            )
+    except Exception as exc:
+        current_app.logger.error("Deadline watchdog failed: %s", exc)
+        flash(f'Không chạy được quét cảnh báo hạn: {exc}', 'danger')
+    return redirect(url_for('admin_bp.index'))
 
 @admin_bp.route('/roles', methods=['GET', 'POST'])
 def roles():

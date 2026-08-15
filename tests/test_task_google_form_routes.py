@@ -285,7 +285,7 @@ class TaskGoogleFormRouteTests(unittest.TestCase):
             self.task_id = task.id
 
         app.config["GOOGLE_FORMS_ENABLED"] = True
-        with patch("routes.tasks.build_google_forms_service", return_value=object()), patch(
+        with patch("services.task_google_forms.build_google_forms_service", return_value=object()), patch(
             "routes.tasks.create_google_form",
             return_value={
                 "form_id": "abc123FORM",

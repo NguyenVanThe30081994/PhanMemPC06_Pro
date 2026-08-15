@@ -24,6 +24,10 @@ ENV/
 
 # Database (Ignore local DB to prevent overwriting server DB)
 pc06_system.db
+pc06_system.db-journal
+*.db-journal
+*.db-shm
+*.db-wal
 
 # Logs
 *.log

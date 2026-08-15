@@ -43,6 +43,44 @@ class TaskCreateWizardTests(unittest.TestCase):
                     CategoryItem.query.filter_by(group_id=cid).delete()
                     CategoryGroup.query.filter_by(id=cid).delete()
                 db.session.commit()
+            # Thứ tự xóa theo khóa ngoại trên SQLite (server dùng MySQL mặc
+            # định không ép FK, nhưng SQLite ép trên mọi kết nối):
+            # 1) Gỡ TRƯỚC mọi tham chiếu tới các đầu mục sắp xóa, kể cả tham
+            #    chiếu TỪ TASK KHÁC (linked_item_id liên task giữa bản chính
+            #    và bản sao thứ cấp, submission/participant trỏ chéo task).
+            # 2) Xóa bảng tham chiếu task_item rồi mới xóa task_item.
+            all_item_ids = [
+                row[0]
+                for row in TaskItem.query.filter(
+                    TaskItem.task_id.in_(self.created_task_ids)
+                ).with_entities(TaskItem.id)
+            ]
+            if all_item_ids:
+                TaskItem.query.filter(
+                    db.or_(
+                        TaskItem.linked_item_id.in_(all_item_ids),
+                        TaskItem.parent_item_id.in_(all_item_ids),
+                        TaskItem.task_id.in_(self.created_task_ids),
+                    )
+                ).update(
+                    {TaskItem.linked_item_id: None, TaskItem.parent_item_id: None},
+                    synchronize_session=False,
+                )
+                TaskAssignment.query.filter(
+                    TaskAssignment.task_item_id.in_(all_item_ids)
+                ).update(
+                    {TaskAssignment.task_item_id: None}, synchronize_session=False
+                )
+                TaskParticipant.query.filter(
+                    TaskParticipant.task_item_id.in_(all_item_ids)
+                ).update(
+                    {TaskParticipant.task_item_id: None}, synchronize_session=False
+                )
+                TaskSubmission.query.filter(
+                    TaskSubmission.task_item_id.in_(all_item_ids)
+                ).update(
+                    {TaskSubmission.task_item_id: None}, synchronize_session=False
+                )
             for task_id in self.created_task_ids:
                 TaskComment.query.filter_by(task_id=task_id).delete()
                 # Gỡ tham chiếu last_submission_id trước khi xóa submission
@@ -52,8 +90,8 @@ class TaskCreateWizardTests(unittest.TestCase):
                 )
                 TaskSubmission.query.filter_by(task_id=task_id).delete()
                 TaskAssignment.query.filter_by(task_id=task_id).delete()
-                TaskItem.query.filter_by(task_id=task_id).delete()
                 TaskParticipant.query.filter_by(task_id=task_id).delete()
+                TaskItem.query.filter_by(task_id=task_id).delete()
                 TaskFormField.query.filter_by(task_id=task_id).delete()
                 Task.query.filter_by(id=task_id).delete()
             for user_id in self.created_user_ids:
@@ -474,9 +512,11 @@ class TaskCreateWizardTests(unittest.TestCase):
             b"trailer << /Root 1 0 R >>\n%%EOF\n"
         )
 
-        # Không có pymupdf -> fallback thư viện chuẩn vẫn ra dòng chữ
-        original_pdf_document = tasks_module.PdfDocument
-        tasks_module.PdfDocument = None
+        # Không có pymupdf -> fallback thư viện chuẩn vẫn ra dòng chữ.
+        # PdfDocument đã chuyển sang services/outline_engine.py (Pha 2) nên patch ở đó.
+        import services.outline_engine as outline_engine_module
+        original_pdf_document = outline_engine_module.PdfDocument
+        outline_engine_module.PdfDocument = None
         try:
             from io import BytesIO
 
@@ -490,7 +530,7 @@ class TaskCreateWizardTests(unittest.TestCase):
             self.assertIsNone(error)
             self.assertTrue(any("ĐỀ CƯƠNG BÁO CÁO" in line for line in lines))
         finally:
-            tasks_module.PdfDocument = original_pdf_document
+            outline_engine_module.PdfDocument = original_pdf_document
 
     def test_outline_parse_route_returns_json_on_unexpected_error(self):
         """Khi parser gặp lỗi không phải ValueError, route phải trả JSON (không
