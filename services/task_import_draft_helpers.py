@@ -14,6 +14,8 @@ from werkzeug.utils import secure_filename
 from services.task_report_schema import _normalize_report_target_config
 from utils import remove_accents
 
+TASK_IMPORT_SOURCE_TYPES = {"docx_outline", "docx_report_outline", "xlsx_form", "google_form_remote", "blueprint_json"}
+
 
 def _task_import_status_label(status):
     normalized = str(status or "").strip().lower()

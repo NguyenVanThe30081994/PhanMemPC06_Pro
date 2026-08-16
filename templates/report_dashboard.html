@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Bảng điều khiển báo cáo định kỳ{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="m-0">Bảng điều khiển báo cáo định kỳ</h4>
+    </div>
+
+    {% if cards %}
+    {% for card in cards %}
+    {% set c = card.current_cycle %}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <a href="{{ url_for('tasks_bp.task_detail', tid=card.task.id) }}" class="fw-semibold text-decoration-none">
+                    {{ card.task.title }}
+                </a>
+                <span class="badge bg-info ms-2">{{ card.report_kind_label }}</span>
+            </div>
+            <div class="small text-muted">
+                <span class="fw-medium">{{ c.get('label', '') }}</span>
+                {% if c.get('due') %}
+                <span class="ms-2">Hạn: <span class="fw-medium">{{ c.due }}</span></span>
+                {% endif %}
+                {% if c.get('overdue') %}
+                <span class="badge bg-danger ms-1">Quá hạn</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body">
+            {% if card.total_assignments %}
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="flex-grow-1">
+                    <div class="progress" style="height:20px;">
+                        <div class="progress-bar {% if card.progress >= 100 %}bg-success{% elif card.progress >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                            role="progressbar" style="width:{{ card.progress }}%;" aria-valuenow="{{ card.progress }}"
+                            aria-valuemin="0" aria-valuemax="100">
+                            {{ card.progress }}%
+                        </div>
+                    </div>
+                </div>
+                <div class="small text-muted text-nowrap">
+                    {{ card.submitted_assignments }}/{{ card.total_assignments }} đã nộp
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Đơn vị</th>
+                            <th style="width:100px;">Trạng thái</th>
+                            <th style="width:120px;">Đã nộp</th>
+                            <th>Người nhận</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for unit in card.units %}
+                        <tr>
+                            <td>{{ unit.unit_name }}</td>
+                            <td>
+                                {% if unit.submitted == unit.total and unit.total > 0 %}
+                                <span class="badge bg-success">Đã nộp đủ</span>
+                                {% elif unit.submitted > 0 %}
+                                <span class="badge bg-warning text-dark">Nộp một phần</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Chưa nộp</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ unit.submitted }}/{{ unit.total }}</td>
+                            <td>
+                                {% for assignee in unit.assignees %}
+                                <span class="d-inline-block me-2 mb-1">
+                                    {{ assignee.name }}
+                                    {% if assignee.status == "submitted" %}
+                                    <span class="badge bg-success" title="{{ assignee.submitted_at }}">✓</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary" title="Chưa nộp">—</span>
+                                    {% endif %}
+                                </span>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fa-solid fa-info-circle"></i>
+        Không có công việc báo cáo định kỳ nào hoặc bạn không có quyền xem.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

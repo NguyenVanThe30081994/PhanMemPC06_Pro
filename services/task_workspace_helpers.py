@@ -11,11 +11,12 @@ Tách từ routes/tasks.py (Pha 2). routes/tasks.py vẫn re-export các tên c�
 import os
 from datetime import datetime
 
-from flask import current_app
+from flask import current_app, flash, redirect, send_file, session, url_for
 from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 
-from models import TaskAssignment, TaskItem, TaskSubmission, User, db
+from models import Task, TaskAssignment, TaskItem, TaskSubmission, TaskSubmissionFile, User, db
+from permissions import current_is_admin
 from task_workspace import (
     summarize_task_assignments,
     task_assignment_submit_scope,
@@ -24,12 +25,14 @@ from task_workspace import (
 )
 from utils import remove_accents
 
+from services.task_guards import _can_edit_task, _can_manage_task, _can_watch_task
 from services.task_modes import (
     COMPLETED_STATUS,
     IN_PROGRESS_STATUS,
     TASK_ASSIGNMENT_STATUS_LABELS,
     _normalize_status,
 )
+from services.task_permissions import _can_process_task_module, _can_view_all_tasks, _current_perms
 from services.task_report_schema import (
     _load_task_report_schema,
     _task_report_item_visible_for_user,
@@ -434,3 +437,46 @@ def _task_deadline_display(deadline):
 
 def _task_workspace_tone(status_text, is_overdue=False):
     return task_workspace_tone(status_text, is_overdue=is_overdue)
+
+
+def _download_task_submission_file_v2(tid, file_id):
+    """Tải tệp đính kèm của đơn vị nộp (Pha 2 đợt 12: tách từ routes/tasks.py)."""
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    file_row = (
+        TaskSubmissionFile.query.options(
+            joinedload(TaskSubmissionFile.submission).joinedload(TaskSubmission.assignment)
+        )
+        .filter_by(id=file_id)
+        .first()
+    )
+    if not file_row or not file_row.submission or file_row.submission.task_id != tid:
+        return "Not Found", 404
+
+    assignment = getattr(file_row.submission, "assignment", None)
+    task = Task.query.filter_by(id=tid).first()
+    if not task:
+        return "Not Found", 404
+
+    perms = _current_perms()
+    can_view_all_tasks = _can_view_all_tasks(perms)
+    current_user = db.session.get(User, session["uid"])
+    can_manage_task_view = bool(
+        bool(current_is_admin())
+        or _can_process_task_module(perms)
+        or _can_edit_task(task)
+        or _can_manage_task(task, user=current_user)
+        or _can_watch_task(task, user=current_user)
+    )
+    if not can_manage_task_view and getattr(assignment, "user_id", None) != session["uid"]:
+        flash("Bạn không có quyền tải tệp này.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    file_path = file_row.stored_path or _task_file_path(file_row.stored_name or "")
+    if not file_path or not os.path.exists(file_path):
+        flash("Tệp không còn tồn tại trên hệ thống.", "danger")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    download_name = file_row.original_name or file_row.stored_name or f"task_{tid}_file"
+    return send_file(file_path, as_attachment=True, download_name=download_name)

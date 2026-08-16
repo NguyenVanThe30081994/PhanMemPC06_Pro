@@ -650,6 +650,21 @@ def _task_import_blueprint_from_config(config):
         }
     return normalize_task_workflow_blueprint(raw_blueprint)
 
+
+def _parse_task_workflow_blueprint_payload(payload):
+    """Phân tích payload blueprint từ request, trả về blueprint đã chuẩn hóa."""
+    if isinstance(payload, dict) and isinstance(payload.get("workflow_blueprint"), dict):
+        payload = payload.get("workflow_blueprint")
+
+    if not isinstance(payload, dict):
+        raise ValueError("Blueprint điều hành không hợp lệ.")
+
+    normalized = normalize_task_workflow_blueprint(payload)
+    if not normalized:
+        raise ValueError("Blueprint điều hành chưa có nội dung hợp lệ.")
+    return normalized
+
+
 def _task_import_config_stats(config):
     mode = str(config.get("collection_mode") or "").strip().lower()
     fallback_domain = canonicalize_category_value(config.get("domain") or "", _task_domain_options(), prefer_stable=True)

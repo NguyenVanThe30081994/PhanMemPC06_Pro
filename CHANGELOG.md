@@ -1,5 +1,44 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-16 (Pha 3 — Tổng hợp FORM + tìm kiếm + báo cáo định kỳ)
+Thêm 3 tính năng mới, không migration DB, không dependency mới, 196 test OK:
+- **Feature 1 — Tổng hợp số liệu FORM**: `services/task_form_aggregation.py` (`_form_data_aggregation_view`, `_build_form_aggregation_rows`, `_form_available_cycles`), `templates/task_form_aggregation.html`, route `GET /tasks/<int:tid>/form-data`, nút "Xem dữ liệu" trên `task_detail_rebuild.html` L835-837.
+- **Feature 2 — Tìm kiếm toàn cục**: `services/global_search.py` (tìm task/user/comment/submission × visibility), `templates/global_search.html`, route `GET /tasks/search`, thanh tìm kiếm trên `base.html` nav-center.
+- **Feature 3 — Bảng điều khiển báo cáo định kỳ**: `services/report_dashboard.py` (`_report_dashboard_page`, `_build_report_dashboard_data`), `templates/report_dashboard.html`, route `GET /tasks/report-dashboard`, sidebar item "Báo cáo định kỳ" (gated `is_lead or is_admin`) trong `services/task_pages.py`.
+
+## 2026-08-16 (Pha 2 — Tách routes/tasks.py theo miền, đợt 12)
+Tách nốt 6 handler substantive còn lại (synthesis trio, blueprint/outline parse, task config/delete, download file); routes/tasks.py giảm 1.241 → **900 dòng** (cộng dồn Pha 2: 11.213 → 900), 196 test OK:
+- `services/task_synthesis.py` (~150 dòng, 3 def): `_toggle_task_item_aggregate`, `_task_item_synthesis_data`, `_save_task_item_synthesis`.
+- `services/blueprint_parsing.py` (+2 def): `_preview_workflow_blueprint`, `_import_workflow_blueprint` — không gọi `_ensure_task_schema()` (tránh cycle `blueprint_parsing → task_admin → blueprint_parsing`); route thin wrapper gọi `_ensure_task_schema()` trước khi ủy quyền.
+- `services/outline_rows.py` (+2 def): `_parse_outline_file_for_create` (hỗ trợ nhiều file, gộp đầu mục trùng), `_merge_outline_rows_groups` (nội bộ, không re-export — không còn nơi gọi ngoài band).
+- `services/task_admin.py` (+2 def): `_delete_task_route`, `_edit_task_config` (kèm thêm import `report_cycles`, `task_policies`, `utils.log_action`, `services.task_deadline`, `services.task_guards`).
+- `services/task_workspace_helpers.py` (+1 def): `_download_task_submission_file_v2`.
+- Gỡ re-export `_normalize_outline_match_text` (mã chết), `_merge_outline_rows_groups` (chỉ dùng nội bộ outline_rows).
+- Chỉnh mock trong `tests/test_task_create_wizard.py`: patch `_parse_outline_upload_rows` chuyển từ `routes.tasks` sang `services.outline_rows` (nơi tên được look up sau khi `parse_outline_file_for_create` ủy quyền).
+- routes/tasks.py re-export 4 tên mới (`_delete_task_route`, `_edit_task_config`, `_download_task_submission_file_v2`, `_parse_outline_file_for_create`); hợp đồng `migrate.py` không đổi.
+
+## 2026-08-16 (Pha 2 — Tách routes/tasks.py theo miền, đợt 11)
+Tách band page handler (`_v2`) + band google-form v2; routes/tasks.py giảm 3.055 → **1.241 dòng** (cộng dồn Pha 2: 11.213 → 1.241), 196 test OK:
+- `services/task_pages.py` (~1.565 dòng, 9 def): trang danh sách task (`_tasks_page_v2`), chi tiết task (`_task_detail_v2`), tạo đầu mục đề cương (`_create_outline_items_v2`), xem trước import đề cương (`_preview_outline_import_v2`), cập nhật trạng thái (`_update_task_status_v2`), nộp báo cáo (`_submit_task_report_v2`), xuất biểu mẫu/Word (`_export_form_task_v2`, `_export_outline_word_v2`), ma trận tiến độ đề cương (`_build_outline_progress_matrix` — nội bộ, dùng bởi `_task_detail_v2`).
+- `services/task_google_forms_v2.py` (~524 dòng, 6 def): trả assignment về (`_return_task_assignment_v2`), tạo/cập nhật/xuất bản/nhập cấu trúc/đồng bộ phản hồi Google Form (`_create_task_google_form_v2`, `_update_task_google_form_v2`, `_publish_task_google_form_v2`, `_import_task_google_form_structure_v2`, `_sync_google_form_task_v2`).
+- Di dời `_parse_task_workflow_blueprint_from_request` → `services/blueprint_parsing.py` (điểm phụ thuộc duy nhất của band A nằm ngoài khoảng band).
+- 3 route handler trung gian (`toggle_task_item_aggregate`, `task_item_synthesis_data`, `save_task_item_synthesis`) chỉ dùng tên re-export nên giữ nguyên tại chỗ.
+- Chỉnh mock trong `tests/test_task_google_form_routes.py`: các `patch("routes.tasks.*")` trỏ sang `services.task_google_forms_v2.*` / `services.task_google_forms.*` (nơi tên thực sự được tra cứu sau khi chuyển).
+- routes/tasks.py re-export 14 tên (8 band A + 6 band B); `_build_outline_progress_matrix` không re-export vì không còn nơi gọi ngoài band; hợp đồng `migrate.py` không đổi.
+
+## 2026-08-16 (Pha 2 — Tách routes/tasks.py theo miền, đợt 10)
+Tách band task-admin + task-import pages (purge, schema, decorate, submenu, history, workload, AI, draft CRUD); routes/tasks.py giảm 3.707 → **3.055 dòng** (cộng dồn Pha 2: 11.213 → 3.055), 196 test OK:
+- `services/task_admin.py` (~747 dòng, 21 def): xóa sạch task (`_purge_task`), đảm bảo schema (`_ensure_task_schema`), trang trí task danh sách (`_decorate_task`), submenu/hướng dẫn import (`_task_import_submenu_items`), lịch sử import (`_task_import_history_entries`), ngữ cảnh khối lượng đang hoạt động (`_task_import_active_workload_context`), phân tích/ap dụng AI cho draft (`_task_import_ai_runtime`/`_task_import_ai_catalog`/`_task_import_ai_analysis`), trang draft list/detail (`_task_import_drafts_page`/`_task_import_draft_detail_page`), tạo/lưu/xuất bản/AI draft (`_create_task_import_draft_v2`/`_save_task_import_draft_v2`/`_publish_task_import_draft_v2`/`_analyze_task_import_draft_ai_v2`/`_apply_task_import_draft_ai_v2`).
+- Di dời 3 tên gây chặn trước splice: `TASK_IMPORT_SOURCE_TYPES` → `services/task_import_draft_helpers.py`, `_parse_task_workflow_blueprint_payload` → `services/task_import_drafts.py`, `_infer_assignment_context` → `services/task_runtime_sync.py`.
+- Gỡ mã chết: 5 tên re-export không còn nơi gọi (`_task_assignment_rows`, `_users_for_unit`, `_resolve_role_assignees`, `_load_assignment_scope`, `_task_unit_identity`).
+- routes/tasks.py re-export 10 tên band (gồm `_task_import_draft_render_context` mà test import trực tiếp); hợp đồng `migrate.py` không đổi.
+
+## 2026-08-16 (Pha 2 — Tách routes/tasks.py theo miền, đợt 9)
+Tách band helper view đề cương/biểu mẫu/dòng tác vụ; routes/tasks.py giảm 4.152 → **3.758 dòng** (cộng dồn Pha 2: 11.213 → 3.758), 196 test OK:
+- `services/task_workspace_views.py` (~478 dòng, 22 helper): dựng ngữ cảnh chi tiết task, đọc/tái hiện bảng đề cương (`_outline_table_schema_map`, `_outline_item_table_cells`, `_render_outline_table_html`), dòng đầu mục đề cương kèm submission/người nhận (`_parse_outline_item_rows`), cấu hình đầu mục + trường biểu mẫu từ request (`_parse_outline_item_configs_from_request`, `_parse_task_form_fields_from_request`), preview import trong session (`_get/_set/_clear_outline_import_preview`), phân giải assignment đầu mục, nhóm đề cương và dòng file/form (`_build_outline_group_rows`, `_build_file_task_rows`, `_build_form_task_rows`...).
+- Gỡ mã chết `_is_category_item_reference` (không còn nơi gọi; bản nội bộ `_is_category_item_reference_local` trong `services/task_units.py` là bản hiệu lực).
+- routes/tasks.py re-export các tên còn dùng (kể cả 3 helper bảng đề cương mà `tests/test_task_create_wizard.py` import trực tiếp); hợp đồng `migrate.py` không đổi; không test nào patch các hàm đã chuyển.
+
 ## 2026-08-16 (Pha 2 — Tách routes/tasks.py theo miền, đợt 7 + 8)
 Tách cụm helper màn làm việc + cụm quyền; routes/tasks.py giảm 4.628 → **4.152 dòng** (cộng dồn Pha 2: 11.213 → 4.152), 196 test OK:
 - `services/task_workspace_helpers.py` (~435 dòng): thẻ tiến độ theo đơn vị (`_build_assignment_unit_cards`), nhóm theo vai trò (`_build_assignment_role_groups`), nhóm tiến độ assignment, nhóm hợp đồng giao việc theo chế độ nộp (`_task_delivery_contract_groups`), lọc theo phạm vi người xử lý, lưu tệp đính kèm, khóa nhóm nộp + đồng bộ submission trong nhóm, truy vấn assignment/đầu mục, trạng thái nộp — 20 helper (band L689-1096 cũ).

@@ -18,7 +18,7 @@ try:
 except ImportError:
     load_workbook = None
 
-from flask import current_app
+from flask import current_app, jsonify, request, session
 
 from google_forms import (
     build_google_forms_service,
@@ -26,8 +26,14 @@ from google_forms import (
     load_google_form_into_builder,
     parse_google_form_definition,
 )
+from permissions import current_is_admin
 from services.outline_engine import _parse_outline_upload_titles
-from task_blueprints import normalize_task_workflow_blueprint
+from services.task_import_drafts import _parse_task_workflow_blueprint_payload
+from services.task_permissions import _can_process_task_module, _current_perms
+from task_blueprints import (
+    normalize_task_workflow_blueprint,
+    workflow_blueprint_preview_data,
+)
 from utils import remove_accents
 
 TASK_BLUEPRINT_IMPORT_ALLOWED_EXTENSIONS = {".docx", ".txt", ".xlsx"}
@@ -285,4 +291,76 @@ def _parse_reference_file_to_blueprint(file_storage, import_mode, form_reference
     if not blueprint:
         raise ValueError("Không thể chuyển tài liệu tham chiếu thành blueprint hợp lệ.")
     return blueprint
+
+
+def _parse_task_workflow_blueprint_from_request(form):
+    """Đọc + chuẩn hóa blueprint điều hành từ form (Pha 2 đợt 11: chuyển từ routes/tasks.py)."""
+    raw_blueprint = (form.get("workflow_blueprint_json") or "").strip()
+    if not raw_blueprint:
+        return None
+
+    try:
+        parsed = json.loads(raw_blueprint)
+    except Exception as exc:
+        raise ValueError("Blueprint điều hành không hợp lệ.") from exc
+
+    normalized = normalize_task_workflow_blueprint(parsed)
+    if not normalized:
+        raise ValueError("Blueprint điều hành chưa có nội dung hợp lệ.")
+    return normalized
+
+
+def _preview_workflow_blueprint():
+    """Xem trước blueprint từ dữ liệu JSON gửi lên (Pha 2 đợt 12: tách từ routes/tasks.py)."""
+    if not session.get("uid"):
+        return jsonify({"ok": False, "error": "Phiên làm việc đã hết hạn."}), 401
+
+    perms = _current_perms()
+    is_admin = bool(current_is_admin())
+    if not (is_admin or _can_process_task_module(perms)):
+        return jsonify({"ok": False, "error": "Bạn không có quyền phân tích blueprint."}), 403
+
+    try:
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            payload = request.form.to_dict(flat=True)
+            raw_blueprint = (payload.get("workflow_blueprint_json") or "").strip()
+            if raw_blueprint:
+                payload = json.loads(raw_blueprint)
+        blueprint = _parse_task_workflow_blueprint_payload(payload)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception:
+        return jsonify({"ok": False, "error": "Blueprint điều hành không hợp lệ."}), 400
+
+    return jsonify({"ok": True, "preview": workflow_blueprint_preview_data(blueprint)})
+
+
+def _import_workflow_blueprint():
+    """Import blueprint từ file/doc/form tham chiếu (Pha 2 đợt 12: tách từ routes/tasks.py)."""
+    if not session.get("uid"):
+        return jsonify({"ok": False, "error": "Phiên làm việc đã hết hạn."}), 401
+
+    perms = _current_perms()
+    is_admin = bool(current_is_admin())
+    if not (is_admin or _can_process_task_module(perms)):
+        return jsonify({"ok": False, "error": "Bạn không có quyền phân tích tài liệu tham chiếu."}), 403
+
+    file_storage = request.files.get("blueprint_source_file")
+    import_mode = (request.form.get("blueprint_import_mode") or "").strip()
+    form_reference = (request.form.get("blueprint_form_reference") or "").strip()
+    try:
+        blueprint = _parse_reference_file_to_blueprint(
+            file_storage, import_mode, form_reference=form_reference
+        )
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+    return jsonify(
+        {
+            "ok": True,
+            "workflow_blueprint": blueprint,
+            "preview": workflow_blueprint_preview_data(blueprint),
+        }
+    )
 

@@ -286,7 +286,7 @@ class TaskGoogleFormRouteTests(unittest.TestCase):
 
         app.config["GOOGLE_FORMS_ENABLED"] = True
         with patch("services.task_google_forms.build_google_forms_service", return_value=object()), patch(
-            "routes.tasks.create_google_form",
+            "services.task_google_forms_v2.create_google_form",
             return_value={
                 "form_id": "abc123FORM",
                 "form_url": "https://docs.google.com/forms/d/abc123FORM/viewform",
@@ -340,8 +340,8 @@ class TaskGoogleFormRouteTests(unittest.TestCase):
             self.task_id = task.id
 
         app.config["GOOGLE_FORMS_ENABLED"] = True
-        with patch("routes.tasks.build_google_forms_service", return_value=object()), patch(
-            "routes.tasks.publish_google_form",
+        with patch("services.task_google_forms.build_google_forms_service", return_value=object()), patch(
+            "services.task_google_forms_v2.publish_google_form",
             return_value={"publishSettings": {"publishState": {"isPublished": True, "isAcceptingResponses": True}}},
         ):
             response = self.client.post(
@@ -350,8 +350,8 @@ class TaskGoogleFormRouteTests(unittest.TestCase):
             )
         self.assertEqual(response.status_code, 302)
 
-        with patch("routes.tasks.build_google_forms_service", return_value=object()), patch(
-            "routes.tasks.load_google_form_into_builder",
+        with patch("services.task_google_forms_v2.build_google_forms_service", return_value=object()), patch(
+            "services.task_google_forms_v2.load_google_form_into_builder",
             return_value={"builder_schema": {
                 "form_info": {"title": "Imported form", "description": "legacy"},
                 "publish_settings": {"isPublished": False, "isAcceptingResponses": False, "responderAccess": "anyone_with_link"},
@@ -476,9 +476,9 @@ class TaskGoogleFormRouteTests(unittest.TestCase):
             self.task_id = task.id
 
         app.config["GOOGLE_FORMS_ENABLED"] = True
-        with patch("routes.tasks.build_google_forms_service", return_value=object()), patch(
-            "routes.tasks.fetch_google_form_definition", return_value=FORM_PAYLOAD
-        ), patch("routes.tasks.fetch_google_form_responses", return_value=RESPONSES_PAYLOAD):
+        with patch("services.task_google_forms_v2.build_google_forms_service", return_value=object()), patch(
+            "services.task_google_forms_v2.fetch_google_form_definition", return_value=FORM_PAYLOAD
+        ), patch("services.task_google_forms_v2.fetch_google_form_responses", return_value=RESPONSES_PAYLOAD):
             response = self.client.post(
                 f"/tasks/{self.task_id}/sync-google-form",
                 data={"csrf_token": "task-google-form-csrf"},
@@ -559,9 +559,9 @@ class TaskGoogleFormRouteTests(unittest.TestCase):
             self.task_id = task.id
 
         app.config["GOOGLE_FORMS_ENABLED"] = True
-        with patch("routes.tasks.build_google_forms_service", return_value=object()), patch(
-            "routes.tasks.fetch_google_form_definition", return_value=FORM_PAYLOAD
-        ), patch("routes.tasks.fetch_google_form_responses", return_value=RESPONSES_PAYLOAD):
+        with patch("services.task_google_forms_v2.build_google_forms_service", return_value=object()), patch(
+            "services.task_google_forms_v2.fetch_google_form_definition", return_value=FORM_PAYLOAD
+        ), patch("services.task_google_forms_v2.fetch_google_form_responses", return_value=RESPONSES_PAYLOAD):
             response = self.client.post(
                 f"/tasks/{self.task_id}/sync-google-form",
                 data={"csrf_token": "task-google-form-csrf"},
@@ -634,9 +634,9 @@ class TaskGoogleFormRouteTests(unittest.TestCase):
             self.task_id = task.id
 
         app.config["GOOGLE_FORMS_ENABLED"] = True
-        with patch("routes.tasks.build_google_forms_service", return_value=object()), patch(
-            "routes.tasks.fetch_google_form_definition", return_value=SCOPED_FORM_PAYLOAD
-        ), patch("routes.tasks.fetch_google_form_responses", return_value=SCOPED_RESPONSES_PAYLOAD):
+        with patch("services.task_google_forms_v2.build_google_forms_service", return_value=object()), patch(
+            "services.task_google_forms_v2.fetch_google_form_definition", return_value=SCOPED_FORM_PAYLOAD
+        ), patch("services.task_google_forms_v2.fetch_google_form_responses", return_value=SCOPED_RESPONSES_PAYLOAD):
             response = self.client.post(
                 f"/tasks/{self.task_id}/sync-google-form",
                 data={"csrf_token": "task-google-form-csrf"},

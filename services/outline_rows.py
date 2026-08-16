@@ -21,6 +21,9 @@ try:
 except ImportError:
     PdfDocument = None
 
+from flask import current_app, jsonify, request, session
+
+from permissions import current_is_admin
 from services.outline_engine import (
     TASK_OUTLINE_ALLOWED_EXTENSIONS,
     _clean_outline_title,
@@ -36,6 +39,7 @@ from services.outline_engine import (
     _strip_outline_assignee_suffix,
     _task_assignment_catalog,
 )
+from services.task_permissions import _can_process_task_module, _current_perms
 from utils import remove_accents
 
 
@@ -501,4 +505,80 @@ def _parse_outline_upload_rows(file_storage):
     if extension == ".pdf":
         return _parse_outline_pdf_rows(file_storage)
     return _parse_outline_text_rows(file_storage)
+
+
+def _parse_outline_file_for_create():
+    """Phân tích đề cương ngay trong bước tạo công việc (wizard).
+
+    Hỗ trợ nhiều file (file chính + file phụ): nội dung trùng giữa các file
+    được gộp thành 1 đầu mục kèm cờ report_secondary + danh sách file nguồn.
+    Tách từ routes/tasks.py (Pha 2 đợt 12).
+    """
+    if not session.get("uid"):
+        return jsonify({"ok": False, "error": "Phiên làm việc đã hết hạn."}), 401
+
+    perms = _current_perms()
+    if not (bool(current_is_admin()) or _can_process_task_module(perms)):
+        return jsonify({"ok": False, "error": "Bạn không có quyền tạo công việc."}), 403
+
+    outline_files = request.files.getlist("outline_file")
+    outline_files = [file for file in outline_files if file and file.filename]
+    if not outline_files:
+        return jsonify({"ok": False, "error": "Cần chọn ít nhất một file đề cương trước khi phân tích."}), 400
+    try:
+        parsed_groups = []
+        for outline_file in outline_files:
+            rows = _parse_outline_upload_rows(outline_file)
+            parsed_groups.append((outline_file.filename, rows))
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception:
+        # Không được để lọt exception -> 500 HTML khiến trình duyệt báo
+        # "The string did not match the expected pattern" (JSON.parse vỡ).
+        current_app.logger.exception("Lỗi phân tích đề cương")
+        return (
+            jsonify({"ok": False, "error": "Lỗi hệ thống khi phân tích file. Hãy kiểm tra nhật ký server hoặc thử file khác."}),
+            500,
+        )
+    merged_rows = _merge_outline_rows_groups(parsed_groups)
+    if not merged_rows:
+        return jsonify({"ok": False, "error": "Không tìm thấy đầu mục hợp lệ trong các file đề cương."}), 400
+    return jsonify({"ok": True, "rows": merged_rows, "merged": len(parsed_groups) > 1})
+
+
+def _merge_outline_rows_groups(groups):
+    """Gộp kết quả parse nhiều file: nội dung trùng (title+content) thành 1 đầu mục.
+
+    groups: list[(filename, rows)]. Row gộp có thêm report_secondary + sources.
+    Tách từ routes/tasks.py (Pha 2 đợt 12).
+    """
+    merged = {}
+    order = []
+    for filename, rows in groups:
+        for row in rows or []:
+            title = str(row.get("title") or "")
+            content = str(row.get("content") or "")
+            key = _normalize_outline_match_text(f"{title} {content}")
+            if not key:
+                continue
+            if key in merged:
+                entry = merged[key]
+                entry["sources"].add(filename)
+                # Giữ row giàu thông tin hơn (có gợi ý đơn vị / số liệu)
+                existing = entry["row"]
+                if not existing.get("unit_domains") and row.get("unit_domains"):
+                    entry["row"] = row
+                elif not existing.get("number_fields") and row.get("number_fields"):
+                    entry["row"] = row
+                continue
+            merged[key] = {"row": dict(row), "sources": {filename}}
+            order.append(key)
+    result = []
+    for key in order:
+        entry = merged[key]
+        row = entry["row"]
+        row["report_secondary"] = len(entry["sources"]) > 1
+        row["sources"] = sorted(entry["sources"])
+        result.append(row)
+    return result
 

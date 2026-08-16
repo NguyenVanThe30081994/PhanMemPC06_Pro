@@ -538,17 +538,20 @@ class TaskCreateWizardTests(unittest.TestCase):
         the expected pattern' (JSON.parse thất bại)."""
         import io
 
-        from routes import tasks as tasks_module
+        # Pha 2 đợt 12: parse_outline_file_for_create ủy quyền sang
+        # services.outline_rows._parse_outline_file_for_create, nơi
+        # _parse_outline_upload_rows được look up trong namespace services.outline_rows.
+        import services.outline_rows as outline_rows_module
 
         admin = self._admin()
         self._login(admin.id)
 
-        original = tasks_module._parse_outline_upload_rows
+        original = outline_rows_module._parse_outline_upload_rows
 
         def boom(file_storage):
             raise RuntimeError("lỗi mô phỏng nội bộ")
 
-        tasks_module._parse_outline_upload_rows = boom
+        outline_rows_module._parse_outline_upload_rows = boom
         try:
             response = self.client.post(
                 "/tasks/outline-parse",
@@ -559,7 +562,7 @@ class TaskCreateWizardTests(unittest.TestCase):
                 content_type="multipart/form-data",
             )
         finally:
-            tasks_module._parse_outline_upload_rows = original
+            outline_rows_module._parse_outline_upload_rows = original
 
         self.assertEqual(response.status_code, 500)
         self.assertIn("application/json", response.content_type or "")

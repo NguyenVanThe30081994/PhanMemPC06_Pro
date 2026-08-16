@@ -833,6 +833,7 @@
                                         </form>
                                         {% endif %}
                                         {% if can_manage_task_view %}
+                                        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('tasks_bp.form_data_aggregation', tid=task.id) }}">Xem dữ liệu</a>
                                         <a class="btn btn-outline-success btn-sm" href="{{ url_for('tasks_bp.export_form_task_v2', tid=task.id) }}">Xuất Excel</a>
                                         {% endif %}
                                     </div>

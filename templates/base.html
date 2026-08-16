@@ -825,6 +825,10 @@
             </div>
 
             <div class="nav-center d-none d-lg-flex align-items-center flex-grow-1 px-4">
+                <form class="d-flex align-items-center me-3" method="GET" action="{{ url_for('tasks_bp.global_search') }}" style="flex:1;max-width:320px;">
+                    <input type="text" name="q" class="form-control form-control-sm" placeholder="Tìm kiếm công việc..." aria-label="Tìm kiếm">
+                    <button class="btn btn-sm btn-outline-secondary ms-1" type="submit"><i class="fa-solid fa-magnifying-glass"></i></button>
+                </form>
                 <div class="top-status-pill" id="dashboard-clock"></div>
                 <div class="top-status-pill top-status-soft" id="dashboard-weather">Đang tải thời tiết</div>
             </div>

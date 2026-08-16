@@ -28,7 +28,7 @@ from services.outline_submission import _parse_task_submission_payload
 from services.task_modes import COMPLETED_STATUS, IN_PROGRESS_STATUS, _normalize_status
 from services.task_report_schema import CHILD_TASK_ALLOWED_REPORT_KINDS, _load_task_report_schema
 from services.task_scope import _load_assignment_scope, _load_manager_scope, _load_viewer_scope
-from services.task_units import _dedupe_users, _resolve_role_assignees
+from services.task_units import _dedupe_users, _resolve_role_assignees, _users_for_unit
 
 REPORT_PREFIX = "[BÁO CÁO]"
 REPORT_ATTACHMENT_RE = re.compile(r"\s*\(Đính kèm:\s*([^)]+)\)\s*$")
@@ -559,6 +559,53 @@ def _task_assignment_rows(task, ensure_bridge=False):
     if not ensure_bridge:
         setattr(task, "_task_assignment_rows_cache", rows)
     return rows
+
+
+def _infer_assignment_context(task):
+    """Suy diễn hình thức giao việc (đơn vị/vai trò/cá nhân) từ assignment thật."""
+    assignment_rows = _task_assignment_rows(task, ensure_bridge=False)
+    assigned_user_ids = [assignment.user_id for assignment, _user in assignment_rows if assignment.user_id]
+    stored_scope = _load_assignment_scope(task)
+    if stored_scope.get("mode") in {"unit", "role", "user"}:
+        return {
+            "mode": stored_scope["mode"],
+            "domain": stored_scope.get("domain") or getattr(task, "domain", "") or "",
+            "role_ids": stored_scope.get("role_ids") or [],
+            "user_ids": stored_scope.get("user_ids") or assigned_user_ids,
+        }
+
+    context = {
+        "mode": "unit",
+        "domain": getattr(task, "domain", "") or "",
+        "role_ids": [],
+        "user_ids": assigned_user_ids,
+    }
+
+    if not assigned_user_ids:
+        return context
+
+    assigned_users = User.query.filter(User.id.in_(assigned_user_ids)).all()
+    if not assigned_users:
+        return context
+
+    if task.domain:
+        domain_user_ids = {user.id for user in _users_for_unit(task.domain)}
+        if domain_user_ids and domain_user_ids == set(assigned_user_ids):
+            return context
+
+    role_ids = sorted({user.role_id for user in assigned_users if user.role_id})
+    if role_ids:
+        role_user_ids = set()
+        for role_id in role_ids:
+            role_user_ids.update(user.id for user in _resolve_role_assignees(role_id))
+        if role_user_ids and role_user_ids == set(assigned_user_ids):
+            context["mode"] = "role"
+            context["role_ids"] = role_ids
+            return context
+
+    context["mode"] = "user"
+    return context
+
 
 def _backfill_task_runtime_models(batch_size=250):
     normalized_batch_size = max(int(batch_size or 0), 1)
