@@ -403,6 +403,20 @@ app.register_blueprint(health_bp)
 app.register_blueprint(outline_bp)
 app.register_blueprint(google_auth_bp)
 
+# Nối deadline watchdog nền (APScheduler) khi app khởi động. Có cờ tắt
+# PC06_TASK_SCHEDULER=0; mọi lỗi được log, không làm hỏng quá trình khởi động.
+try:
+    from services.task_scheduler import start_task_scheduler
+
+    start_task_scheduler(app)
+except Exception:
+    import logging
+
+    logging.getLogger(__name__).warning(
+        "Không thể khởi động task scheduler (không ảnh hưởng server).",
+        exc_info=True,
+    )
+
 @app.context_processor
 def inject_security_tokens():
     return {

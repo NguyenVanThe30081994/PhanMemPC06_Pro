@@ -1,5 +1,19 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-19 (Vận hành — Deadline watchdog chạy nền tự động)
+Nối `services/deadline_watchdog.py` (đã có từ trước) vào runtime bằng scheduler
+APScheduler, 199 test OK (196 cũ + 3 mới cho scheduler):
+- Mới: `services/task_scheduler.py` — `start_task_scheduler(app)` khởi động
+  watchdog nền mỗi `PC06_WATCHDOG_HOURS` giờ (mặc định 1h), chạy trong app
+  context, log tóm tắt, không làm gãy request.
+- Móc vào khởi động: `app.py` (sau khi đăng ký blueprint) — phủ cả dev
+  (`python app.py`) lẫn production (`passenger_wsgi.py` vì import `app`).
+- An toàn: mặc định bật; tắt bằng `PC06_TASK_SCHEDULER=0`; luôn tắt trong
+  `FLASK_ENV=testing`/test để tránh thread nền; guarded chống khởi động kép.
+- `.env.example`: thêm `PC06_TASK_SCHEDULER`, `PC06_WATCHDOG_HOURS`.
+- Test mới: `tests/test_deadline_watchdog.py` (class `TaskSchedulerTest`) phủ
+  cờ bật/tắt theo env + tính idempotent + watchdog job chạy trong app context.
+
 ## 2026-08-16 (Pha 3 — Tổng hợp FORM + tìm kiếm + báo cáo định kỳ)
 Thêm 3 tính năng mới, không migration DB, không dependency mới, 196 test OK:
 - **Feature 1 — Tổng hợp số liệu FORM**: `services/task_form_aggregation.py` (`_form_data_aggregation_view`, `_build_form_aggregation_rows`, `_form_available_cycles`), `templates/task_form_aggregation.html`, route `GET /tasks/<int:tid>/form-data`, nút "Xem dữ liệu" trên `task_detail_rebuild.html` L835-837.

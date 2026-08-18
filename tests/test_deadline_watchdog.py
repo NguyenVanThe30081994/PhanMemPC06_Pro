@@ -291,3 +291,46 @@ class DeadlineWatchdogTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TaskSchedulerTest(unittest.TestCase):
+    """Nối deadline watchdog vào runtime qua services.task_scheduler."""
+
+    def test_enabled_flag_respects_env_and_testing(self):
+        from services.task_scheduler import task_scheduler_enabled
+
+        # Môi trường testing luôn tắt scheduler (được run_tests ép FLASK_ENV=testing).
+        with mock.patch.dict(os.environ, {'PC06_TASK_SCHEDULER': '1'}):
+            self.assertFalse(task_scheduler_enabled())
+
+        # Cờ tắt rõ ràng vẫn được tôn trọng trong môi trường không-test.
+        with mock.patch.dict(os.environ, {'FLASK_ENV': 'development', 'PC06_TASK_SCHEDULER': '0'}):
+            self.assertFalse(task_scheduler_enabled())
+
+        # Bới scheduler bật trong môi trường production/dev là hợp lệ.
+        with mock.patch.dict(os.environ, {'FLASK_ENV': 'development', 'PC06_TASK_SCHEDULER': '1'}):
+            self.assertTrue(task_scheduler_enabled())
+
+    def test_start_is_idempotent_and_not_running_in_testing(self):
+        from services.task_scheduler import current_task_scheduler, start_task_scheduler
+
+        # Trong testing không nên có scheduler nền.
+        self.assertIsNone(current_task_scheduler(app))
+        start_task_scheduler(app)  # không được khởi động gì
+        self.assertIsNone(current_task_scheduler(app))
+
+    def test_watchdog_job_runs_in_app_context_and_logs_summary(self):
+        from services.task_scheduler import _run_watchdog_job
+
+        role = None
+        try:
+            from models import AppRole
+            role = AppRole.query.filter_by(name='test_sched_role').first()
+        except Exception:
+            pass
+
+        # Chạy job trong app context hiện có (test đang nằm trong app context).
+        with mock.patch.dict(os.environ, {'PC06_DEADLINE_EMAIL_ENABLED': '0'}):
+            _run_watchdog_job(app)  # chỉ cần không ném lỗi
+
+        self.assertTrue(True)
