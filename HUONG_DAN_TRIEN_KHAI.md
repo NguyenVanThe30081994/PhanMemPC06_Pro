@@ -49,7 +49,7 @@ http://localhost:5000
 
 **Tài khoản mặc định:**
 - Username: `admin` hoặc `root`
-- Password: (kiểm tra file `reset_admin.py` nếu quên)
+- Password: (kiểm tra file `scripts/admin/reset_admin.py` nếu quên)
 
 ---
 
@@ -162,8 +162,11 @@ Chức năng:
 
 ### Reset mật khẩu admin (nếu cần)
 ```bash
-python3 reset_admin.py
+PC06_CONFIRM=YES python3 scripts/admin/reset_admin.py
 ```
+
+> Script quản trị nằm trong `scripts/admin/`, bắt buộc biến môi trường
+> `PC06_CONFIRM=YES` mới chạy (chống thao tác nhầm trên production).
 
 Script này sẽ:
 - Tạo user `admin` với mật khẩu mặc định

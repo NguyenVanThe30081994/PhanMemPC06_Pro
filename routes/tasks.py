@@ -731,6 +731,9 @@ def apply_task_import_draft_ai(draft_id):
 def preview_workflow_blueprint():
     if not session.get("uid"):
         return jsonify({"ok": False, "error": "Phiên làm việc đã hết hạn."}), 401
+    perms = _current_perms()
+    if not (bool(current_is_admin()) or _can_process_task_module(perms)):
+        return jsonify({"ok": False, "error": "Bạn không có quyền tạo công việc."}), 403
     _ensure_task_schema()
     return _preview_workflow_blueprint()
 
@@ -738,6 +741,9 @@ def preview_workflow_blueprint():
 def import_workflow_blueprint():
     if not session.get("uid"):
         return jsonify({"ok": False, "error": "Phiên làm việc đã hết hạn."}), 401
+    perms = _current_perms()
+    if not (bool(current_is_admin()) or _can_process_task_module(perms)):
+        return jsonify({"ok": False, "error": "Bạn không có quyền tạo công việc."}), 403
     _ensure_task_schema()
     return _import_workflow_blueprint()
 
@@ -750,6 +756,9 @@ def parse_outline_file_for_create():
     """
     if not session.get("uid"):
         return jsonify({"ok": False, "error": "Phiên làm việc đã hết hạn."}), 401
+    perms = _current_perms()
+    if not (bool(current_is_admin()) or _can_process_task_module(perms)):
+        return jsonify({"ok": False, "error": "Bạn không có quyền tạo công việc."}), 403
     _ensure_task_schema()
     return _parse_outline_file_for_create()
 

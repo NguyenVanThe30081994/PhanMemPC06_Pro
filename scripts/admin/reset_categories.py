@@ -1,8 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Xóa toàn bộ CategoryItem và tạo mới cho các popup"""
+"""Xóa toàn bộ CategoryItem và tạo mới cho các popup.
 
-from app import app, db
-from models import CategoryItem, CategoryGroup
+Script quản trị có chốt an toàn: chạy với PC06_CONFIRM=YES.
+"""
+import _admin_script_guard
+
+_admin_script_guard.bootstrap_project_root()
+
+from app import app, db  # noqa: E402
+from models import CategoryItem, CategoryGroup  # noqa: E402
 
 def reset_categories():
     with app.app_context():
@@ -48,4 +54,5 @@ def reset_categories():
         print("Done: 5 groups created!")
 
 if __name__ == '__main__':
+    _admin_script_guard.require_confirmation('reset_categories')
     reset_categories()

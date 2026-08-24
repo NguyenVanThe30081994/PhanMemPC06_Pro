@@ -222,6 +222,9 @@ class User(db.Model):
     phone = db.Column(db.String(20))  # SĐT Zalo format E.164 (+84...)
     must_change_password = db.Column(db.Boolean, default=True)
     session_version = db.Column(db.Integer, default=0)
+    # 2FA TOTP (Đợt C3): secret lưu MÃ HÓA bằng Fernet theo secret_key hệ thống
+    totp_secret_encrypted = db.Column(db.String(255))
+    totp_enabled = db.Column(db.Boolean, default=False)
     role = db.relationship('AppRole', backref='users')
     unit = db.relationship('Unit', backref='users')
     def set_password(self, p): self.password_hash = generate_password_hash(p, method='pbkdf2:sha256')

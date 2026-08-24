@@ -1318,8 +1318,36 @@ def logs():
             return Response(output.getvalue(), mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-disposition": "attachment; filename=system_logs.xlsx"})
         return redirect(url_for('admin_bp.logs'))
 
+    # Tổng hợp sự kiện [SECURITY] 7 ngày gần nhất cho admin (Đợt C5,
+    # docs/nghien-cuu-bao-mat-trien-khai-cpanel-2026.md)
+    security_since = datetime.now() - timedelta(days=7)
+    sec_rows = (
+        SystemLog.query.filter(SystemLog.action.like('[SECURITY]%'))
+        .filter(SystemLog.created_at >= security_since)
+        .order_by(SystemLog.created_at.desc())
+        .all()
+    )
+    event_counter = {}
+    ip_counter = {}
+    for row in sec_rows:
+        event = str(row.action or '').replace('[SECURITY]', '').strip() or 'khác'
+        event_counter[event] = event_counter.get(event, 0) + 1
+        details_text = str(row.details or '')
+        if '| IP: ' in details_text:
+            ip_value = details_text.rsplit('| IP: ', 1)[-1].strip()
+            if ip_value:
+                ip_counter[ip_value] = ip_counter.get(ip_value, 0) + 1
+    security_digest = {
+        'total': len(sec_rows),
+        'days': 7,
+        'events': sorted(event_counter.items(), key=lambda kv: kv[1], reverse=True),
+        'ips': sorted(ip_counter.items(), key=lambda kv: kv[1], reverse=True)[:5],
+        'latest': sec_rows[:20],
+    }
+
     return render_template('logs.html', logs=q.order_by(SystemLog.created_at.desc()).limit(200).all(), 
-                           start=start_str, end=end_str, user_search=user_str, user_list=user_list)
+                           start=start_str, end=end_str, user_search=user_str, user_list=user_list,
+                           security_digest=security_digest)
 
 @admin_bp.route('/admin/users/import', methods=['POST'])
 def import_users():

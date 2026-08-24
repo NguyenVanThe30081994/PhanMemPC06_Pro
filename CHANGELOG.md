@@ -1,5 +1,101 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-22 (Bảo mật — Đợt C: 2FA TOTP, giám sát sự kiện bảo mật, CSP, bảo trì phụ thuộc)
+Thực hiện Đợt C trong `docs/nghien-cuu-bao-mat-trien-khai-cpanel-2026.md`,
+222 test OK (216 cũ + 6 mới):
+- **C3 — Xác thực hai lớp TOTP (opt-in từng user)**:
+  - `models.py`: User thêm `totp_secret_encrypted` (mã hóa Fernet theo
+    secret_key hệ thống qua `encrypt_secret_value`), `totp_enabled`;
+    migration tự chạy qua `apply_migrations`.
+  - Dependency mới duy nhất: `pyotp==2.9.0` (requirements.txt).
+  - Đăng nhập 2 bước: đúng mật khẩu → phiên chờ 5 phút (tối đa 5 lần thử)
+    tại `/login/two-factor`; endpoint nằm trong public_endpoints nhưng chỉ
+    hoạt động khi có pending hợp lệ. Sự kiện `login_twofactor_*` ghi log.
+  - Trang thiết lập `/security/two-factor` (thêm vào
+    SENSITIVE_REAUTH_ENDPOINTS): tạo khóa → QR otpauth (qrcode, có fallback
+    khi thiếu Pillow) → kích hoạt bằng mã; tắt bắt buộc mật khẩu và bump
+    session_version. Menu "Xác thực hai lớp" trong dropdown user.
+  - Templates mới: `two_factor_login.html`, `two_factor_setup.html`.
+- **C5 — Giám sát**: tab "Bảo mật 7 ngày" trong trang `/admin/logs` — tổng
+  hợp sự kiện `[SECURITY]` theo loại/IP, kèm 20 bản ghi mới nhất.
+- **C1-bước gần — CSP**: thêm `form-action 'self'` (việc tách JS inline để bỏ
+  `unsafe-inline` dời lại theo §5.E báo cáo 14/08).
+- **C4 — Bảo trì phụ thuộc**: `scripts/admin/monthly_security_maintenance.sh`
+  (pip outdated + pip-audit, chỉ báo cáo không tự nâng cấp) + cron mẫu trong
+  DEPLOY_CPANEL.md.
+- **C2 — Quyết định rate-limit**: giữ in-memory cho cap chung/API (lockout
+  đăng nhập đã DB-backed đa process); ghi nhận trong tài liệu nghiên cứu.
+- Test mới: `tests/test_totp_2fa.py` (6 test: chờ mã, mã đúng/sai ×5,
+  kích hoạt bằng QR, tắt cần mật khẩu, user chưa bật không ảnh hưởng).
+
+## 2026-08-22 (Bảo mật — Củng cố hạ tầng cPanel, Đợt B)
+Thực hiện Đợt B trong `docs/nghien-cuu-bao-mat-trien-khai-cpanel-2026.md`,
+216 test OK (215 cũ + 1 mới):
+- **B1' — .htaccess**: FilesMatch deny mở rộng (`.env*`, `.secret_key`, `*.sqlite`,
+  `*.sh`…); thay RedirectMatch ghim cứng prefix `/PhanMemPC06_Pro/` bằng
+  RewriteRule `[F]` pattern tương đối → khớp cả domain root lẫn thư mục con.
+- **B2' — Google OAuth**: `_oauth_config` tự suy redirect_uri qua
+  `_request_scheme_for_redirect_uri()` nhận biết `X-Forwarded-Proto/Ssl`
+  (trước đây dùng `request.is_secure` → sau proxy Apache sinh sai scheme http);
+  warning khi chưa ghim URI; `.env.example` có mẫu `GOOGLE_OAUTH_REDIRECT_URI`.
+- **B4' — Backup**: mới `scripts/admin/backup_mysql.sh` (mysqldump gzip ngoài
+  webroot, giữ 14 ngày, đọc ~/.my.cnf) + hướng dẫn cron và quy trình khôi phục
+  thử 1 quý/lần.
+- **B3'/B5'/B6' — DEPLOY_CPANEL.md**: thêm mục "🔒 CHECKLIST BẢO MẬT TRÊN HOST"
+  (.env 600, FLASK_ENV=production, SECRET_KEY, MySQL host-local, PC06_DATA_DIR
+  ngoài webroot, AutoSSL trước ép HTTPS, ModSecurity, giới hạn process Passenger
+  cho watchdog), mục backup cron, mục phòng thủ sâu web server.
+- Test: `test_redirect_uri_infers_https_behind_proxy` (tests/test_google_oauth.py).
+
+## 2026-08-22 (Bảo mật — Gia cố runtime theo bối cảnh triển khai cPanel, Đợt A)
+Thực hiện Đợt A trong `docs/nghien-cuu-bao-mat-trien-khai-cpanel-2026.md`,
+215 test OK (204 cũ + 11 mới):
+- **A1 — Thống nhất get_client_ip**: `utils.get_client_ip` chuyển sang dùng
+  `security_utils.extract_client_ip` với `TRUSTED_PROXY_CIDRS` (trước đây tin
+  mù `X-Forwarded-For` → client giả header được để né khóa đăng nhập theo IP).
+- **A2 — Ép HTTPS**: before_request `force_https_redirect` trong app.py
+  (cờ `PC06_FORCE_HTTPS`, mặc định bật khi `FLASK_ENV=production`; 308 chỉ với
+  GET/HEAD; miễn health check) + RewriteRule dự phòng trong `.htaccess`;
+  biến mới trong config.py và .env.example.
+- **A3 — Không lộ exception thô**: sửa trả thông báo chung + log server-side tại
+  routes/outline.py:98,118 · routes/portal.py:1105 · routes/shortlink.py:231
+  (3 chỗ `str(exc)` ở routes/api.py là thông báo hướng dẫn đã soạn sẵn — giữ nguyên).
+- **A4 — B7**: `utils.check_csrf_token` dùng `secrets.compare_digest`.
+- **A5 — B8**: dời 5 script quản trị về `scripts/admin/` (reset_admin,
+  reset_user_password, reset_categories, Reset_Database.bat,
+  migrate_sqlite_to_external_db) kèm chốt `_admin_script_guard.require_confirmation`
+  — bắt buộc `PC06_CONFIRM=YES`; cập nhật HUONG_DAN_TRIEN_KHAI.md,
+  docs/reporty-mysql-cutover.md.
+- `.htaccess`: thêm khối FilesMatch deny `.env/*.db/*.sql/*.bat/passenger_wsgi.py…`
+  và RedirectMatch 404 cho backups/logs/tmp/scripts/tests/docs (phòng thủ sâu
+  khi app nằm trong public_html).
+- Test mới: `tests/test_runtime_hardening.py` — IP trusted-proxy (nhận/bỏ qua XFF),
+  ép HTTPS (308 / không redirect khi đã HTTPS / tắt cờ / miễn health),
+  check_csrf_token constant-time.
+
+## 2026-08-22 (Bảo mật — Siết phân quyền luồng giao việc theo đề cương + đồng bộ pipeline)
+Thực hiện Đợt 1 + mục 2.1 trong `docs/de-xuat-hoan-thien-chuc-nang-giao-viec-2026.md`,
+204 test OK (199 cũ + 5 mới):
+- `routes/outline.py`:
+  - `POST /api/create-outline-task` yêu cầu quyền process module Công việc
+    (`_can_process_task_module`) → 403 nếu không đủ (trước đây chỉ cần đăng nhập).
+  - `GET /api/outline-assignees` chỉ trả danh bạ cho người có quyền process
+    (trước đây phơi toàn bộ user active cho mọi user đăng nhập).
+  - Trang `/outline-giao-viec` chặn người không đủ quyền (403).
+  - Sau khi tạo việc: lưu `_store_assignment_scope` (theo cá nhân), gọi
+    `_ensure_task_runtime_bridge` (sinh TaskParticipant ngay, không chờ vá lười),
+    `push_notif` "Công việc mới" cho từng người nhận, `log_action` ghi nhật ký,
+    `send_task_assignment_emails` (bỏ qua an toàn khi chưa cấu hình MAIL_*).
+    Response bổ sung `notifications_created`, `emails_sent`.
+- `routes/tasks.py`: thêm kiểm quyền như `form-template-preview` cho 3 endpoint
+  phân tích dữ liệu wizard: `/tasks/workflow-blueprint-preview`,
+  `/tasks/workflow-blueprint-import`, `/tasks/outline-parse`.
+- Test mới: `tests/test_task_outline_create_api.py` — phủ 403 khi thiếu quyền,
+  tạo việc thành công kèm scope/participant/notification, scope danh bạ,
+  chặn trang giao việc và outline-parse.
+- Đính chính nghiên cứu: CSRF đã ép toàn cục từ trước (app.py:542); trạng thái
+  `'assigned'` là từ vựng chuẩn có bảng nhãn tiếng Việt (services/task_modes.py:28).
+
 ## 2026-08-19 (Vận hành — Deadline watchdog chạy nền tự động)
 Nối `services/deadline_watchdog.py` (đã có từ trước) vào runtime bằng scheduler
 APScheduler, 199 test OK (196 cũ + 3 mới cho scheduler):

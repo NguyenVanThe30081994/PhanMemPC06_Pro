@@ -23,7 +23,7 @@
   - Daily timeline/status lấy theo `report_date`, không buộc khớp với `cycle.open_at`.
 - [merge_daily_cycles.py](/Users/thenhung/Documents/GitHub/PhanMemPC06_Pro/merge_daily_cycles.py)
   - Gộp lịch sử daily cũ từ nhiều cycle về một cycle chuẩn.
-- [migrate_sqlite_to_external_db.py](/Users/thenhung/Documents/GitHub/PhanMemPC06_Pro/migrate_sqlite_to_external_db.py)
+- [scripts/admin/migrate_sqlite_to_external_db.py](/Users/thenhung/Documents/GitHub/PhanMemPC06_Pro/scripts/admin/migrate_sqlite_to_external_db.py)
   - Copy toàn bộ dữ liệu từ SQLite production sang MySQL/MariaDB.
 
 ## Cấu hình production trên cPanel
@@ -62,14 +62,14 @@ cp /home/<cpanel_user>/pc06_data/pc06_system.db /home/<cpanel_user>/pc06_data/pc
 
 ```bash
 export DATABASE_URL='mysql://cpanel_user:strong_password@localhost/cpanel_db_name'
-python3 migrate_sqlite_to_external_db.py \
+PC06_CONFIRM=YES python3 scripts/admin/migrate_sqlite_to_external_db.py \
   --source-sqlite /home/<cpanel_user>/pc06_data/pc06_system.db
 ```
 
 4. Nếu summary ổn, chạy thật:
 
 ```bash
-python3 migrate_sqlite_to_external_db.py \
+PC06_CONFIRM=YES python3 scripts/admin/migrate_sqlite_to_external_db.py \
   --source-sqlite /home/<cpanel_user>/pc06_data/pc06_system.db \
   --apply
 ```

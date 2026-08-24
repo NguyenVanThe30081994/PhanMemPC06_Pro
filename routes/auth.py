@@ -416,6 +416,10 @@ def login():
                 time.sleep(delay_ms / 1000.0)
             flash(_get_lock_message(remaining) if remaining > 0 else 'Thông tin đăng nhập không hợp lệ.', 'danger')
         else:
+            # 2FA TOTP (Đợt C3): nếu user đã bật, chuyển sang bước xác minh mã
+            if usr.totp_enabled and usr.totp_secret_encrypted:
+                session['twofactor_pending'] = {'uid': usr.id, 'ts': time.time(), 'attempts': 0}
+                return redirect(url_for('auth_bp.two_factor_login'))
             response = _build_login_session(usr, client_ip)
             return response
         
@@ -486,3 +490,176 @@ def change_password():
             flash('Mật khẩu cũ không chính xác!', 'danger')
             
     return render_template('password.html')
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  Xác thực hai lớp TOTP — Đợt C3 (docs/nghien-cuu-bao-mat-trien-khai-cpanel-2026.md)
+#  Secret lưu MÃ HÓA (encrypt_secret_value, Fernet theo secret_key hệ thống).
+#  Tự ngừng tham gia (opt-in từng user); tắt phải xác nhận mật khẩu.
+# ═══════════════════════════════════════════════════════════════════════
+
+TWOFACTOR_PENDING_SECONDS = 300   # phiên chờ nhập mã sau bước mật khẩu: 5 phút
+TWOFACTOR_MAX_ATTEMPTS = 5        # số lần nhập sai tối đa mỗi phiên chờ
+
+
+def _system_secret_key():
+    return current_app.secret_key or current_app.config.get('SECRET_KEY') or ''
+
+
+def _totp_secret_for(user):
+    """Giải mã secret TOTP của user; trả '' nếu chưa có/lỗi giải mã."""
+    if not user or not user.totp_secret_encrypted:
+        return ''
+    from security_utils.runtime_security import decrypt_secret_value
+    try:
+        return decrypt_secret_value(_system_secret_key(), user.totp_secret_encrypted)
+    except ValueError:
+        current_app.logger.error('Giải mã totp_secret thất bại cho uid=%s', getattr(user, 'id', '?'))
+        return ''
+
+
+def _twofactor_pending_user():
+    """Trả về user đang ở bước chờ mã 2FA, hoặc None nếu phiên không hợp lệ."""
+    pending = session.get('twofactor_pending')
+    if not pending:
+        return None
+    if time.time() - float(pending.get('ts') or 0) > TWOFACTOR_PENDING_SECONDS:
+        session.pop('twofactor_pending', None)
+        return None
+    usr = db.session.get(User, pending.get('uid')) if pending.get('uid') else None
+    if not usr or not usr.is_active or not usr.totp_enabled:
+        session.pop('twofactor_pending', None)
+        return None
+    return usr
+
+
+@auth_bp.route('/login/two-factor', methods=['GET', 'POST'])
+def two_factor_login():
+    """Bước 2 của đăng nhập: nhập mã từ ứng dụng authenticator."""
+    usr = _twofactor_pending_user()
+    if not usr:
+        flash('Phiên xác minh hai lớp đã hết hạn. Hãy đăng nhập lại.', 'warning')
+        return redirect(url_for('auth_bp.login'))
+
+    if request.method == 'POST':
+        code = (request.form.get('code') or '').strip().replace(' ', '')
+        pending = session['twofactor_pending']
+        attempts = int(pending.get('attempts') or 0)
+        verified = False
+        if code and len(code) <= 8:
+            import pyotp
+            secret = _totp_secret_for(usr)
+            if secret:
+                verified = pyotp.TOTP(secret).verify(code, valid_window=1)
+        if verified:
+            session.pop('twofactor_pending', None)
+            log_security_event('login_twofactor_success', f'username={usr.username}')
+            return _build_login_session(usr, get_client_ip())
+        attempts += 1
+        log_security_event('login_twofactor_failed', f'username={usr.username} | attempt={attempts}')
+        if attempts >= TWOFACTOR_MAX_ATTEMPTS:
+            session.pop('twofactor_pending', None)
+            flash('Bạn đã nhập sai mã xác minh quá số lần cho phép. Hãy đăng nhập lại từ đầu.', 'danger')
+            return redirect(url_for('auth_bp.login'))
+        session['twofactor_pending'] = {**pending, 'attempts': attempts}
+        flash(f'Mã xác minh không đúng. Còn {TWOFACTOR_MAX_ATTEMPTS - attempts} lần thử.', 'danger')
+
+    return render_template('two_factor_login.html')
+
+
+@auth_bp.route('/security/two-factor', methods=['GET', 'POST'])
+def two_factor_setup():
+    """Trang quản lý xác thực hai lớp: bật mới / kích hoạt / tắt.
+
+    Endpoint nằm trong SENSITIVE_REAUTH_ENDPOINTS → yêu cầu re-auth gần đây.
+    """
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    usr = db.session.get(User, session['uid'])
+    if not usr or not usr.is_active:
+        return redirect(url_for('auth_bp.login'))
+
+    qr_data_uri = None
+    otpauth_url = None
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'begin':
+            if usr.totp_enabled:
+                flash('Xác thực hai lớp đang bật. Hãy tắt trước khi thiết lập lại.', 'warning')
+            else:
+                import pyotp
+                from security_utils.runtime_security import encrypt_secret_value
+                new_secret = pyotp.random_base32()
+                try:
+                    usr.totp_secret_encrypted = encrypt_secret_value(
+                        _system_secret_key(), new_secret
+                    )
+                    db.session.commit()
+                    log_security_event('twofactor_setup_started', f'username={usr.username}')
+                    flash('Đã tạo khóa mới. Quét mã QR rồi nhập mã 6 số để kích hoạt.', 'success')
+                except ValueError as enc_error:
+                    db.session.rollback()
+                    current_app.logger.error(f'twofactor setup encrypt failed: {enc_error}')
+                    flash('Không thể tạo khóa bảo mật. Kiểm tra SECRET_KEY của hệ thống.', 'danger')
+            return redirect(url_for('auth_bp.two_factor_setup'))
+
+        if action == 'enable':
+            code = (request.form.get('code') or '').strip().replace(' ', '')
+            secret = _totp_secret_for(usr)
+            ok = False
+            if code and secret:
+                import pyotp
+                ok = pyotp.TOTP(secret).verify(code, valid_window=1)
+            if ok:
+                usr.totp_enabled = True
+                db.session.commit()
+                log_security_event('twofactor_enabled', f'username={usr.username}')
+                flash('Đã bật xác thực hai lớp! Từ lần đăng nhập sau bạn cần nhập mã xác minh.', 'success')
+            else:
+                flash('Mã không đúng. Hãy kiểm tra giờ trên điện thoại và thử lại.', 'danger')
+            return redirect(url_for('auth_bp.two_factor_setup'))
+
+        if action == 'disable':
+            password = request.form.get('password') or ''
+            if usr.check_password(password):
+                usr.totp_enabled = False
+                usr.totp_secret_encrypted = None
+                usr.session_version = int(usr.session_version or 0) + 1
+                db.session.commit()
+                session['session_version'] = usr.session_version
+                log_security_event('twofactor_disabled', f'username={usr.username}')
+                flash('Đã tắt xác thực hai lớp cho tài khoản của bạn.', 'info')
+            else:
+                log_security_event('twofactor_disable_failed', f'username={usr.username}')
+                flash('Mật khẩu không chính xác, chưa tắt được xác thực hai lớp.', 'danger')
+            return redirect(url_for('auth_bp.two_factor_setup'))
+
+    # GET: dựng QR nếu có secret chưa kích hoạt
+    if usr.totp_secret_encrypted and not usr.totp_enabled:
+        secret = _totp_secret_for(usr)
+        if secret:
+            import base64
+            import io as io_module
+
+            import pyotp
+            totp = pyotp.TOTP(secret)
+            otpauth_url = totp.provisioning_uri(
+                name=usr.email or usr.username, issuer_name='PC06'
+            )
+            try:
+                import qrcode
+                img = qrcode.make(otpauth_url)
+                buf = io_module.BytesIO()
+                img.save(buf, format='PNG')
+                qr_data_uri = 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()
+            except Exception as qr_error:  # thiếu Pillow/cấu hình ảnh — vẫn dùng otpauth dạng chữ
+                current_app.logger.warning('Không dựng được mã QR 2FA: %s', qr_error)
+
+    return render_template(
+        'two_factor_setup.html',
+        enabled=bool(usr.totp_enabled),
+        has_pending_secret=bool(usr.totp_secret_encrypted) and not usr.totp_enabled,
+        qr_data_uri=qr_data_uri,
+        otpauth_url=otpauth_url,
+    )

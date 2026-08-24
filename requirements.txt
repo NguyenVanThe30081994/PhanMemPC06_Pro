@@ -20,6 +20,7 @@ google-auth-oauthlib
 qrcode
 markdown
 phonenumbers       # Phone number validation E.164
+pyotp==2.9.0       # TOTP 2FA (Đợt C3, docs/nghien-cuu-bao-mat-trien-khai-cpanel-2026.md)
 APScheduler      # Background scheduler for Zalo reminders
 
 # OCR Libraries (optional - for image to Excel/Word conversion)

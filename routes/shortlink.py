@@ -226,9 +226,8 @@ def get_qr(code):
         response.headers.set('Content-Disposition', 'attachment', filename=f'QR_{code}.png')
         return response
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return f"Lỗi hệ thống khi tạo QR: {str(e)}.", 500
+        current_app.logger.error(f'QR generation failed for {code}: {e}', exc_info=True)
+        return "Lỗi hệ thống khi tạo QR. Vui lòng thử lại sau.", 500
 
 @shortlink_bp.route('/s/<code>')
 def redirect_short_link(code):

@@ -5,6 +5,24 @@ PassengerStartupFile passenger_wsgi.py
 Options -Indexes
 ServerSignature Off
 
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Chặn thư mục nhạy cảm (phòng thủ sâu khi app nằm trong public_html —
+    # Passenger thường chặn sẵn, không chủ quan). Pattern tương đối nên khớp
+    # cả khi app chạy ở domain root lẫn dưới thư mục con (/PhanMemPC06_Pro/...).
+    RewriteRule ^(?:.+/)?(?:backups|logs|tmp|scripts|tests|docs)(?:/|$) - [F]
+
+    # Ép HTTPS (song song với app-level PC06_FORCE_HTTPS)
+    RewriteCond %{HTTPS} off
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=308,L]
+</IfModule>
+
+# Chặn tệp nhạy cảm ở mọi cấp thư mục
+<FilesMatch "(^\.env(\..+)?$|^\.secret_key$|^\.git|^\.htaccess$|\.db$|\.sqlite.*$|\.sql$|\.bat$|\.sh$|\.pyc$|^passenger_wsgi\.py$|^requirements\.txt$)">
+    Require all denied
+</FilesMatch>
+
 <IfModule mod_headers.c>
     Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
     Header always set X-Content-Type-Options "nosniff"

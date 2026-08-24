@@ -34,13 +34,39 @@ GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo'
 GOOGLE_SCOPE = 'openid email profile'
 
 
+_redirect_uri_warned = False
+
+
+def _request_scheme_for_redirect_uri():
+    """Suy scheme cho redirect_uri khi chưa ghim cấu hình.
+
+    Phải nhận biết X-Forwarded-Proto/X-Forwarded-Ssl vì trên cPanel/Apache
+    Passenger Flask nhìn thấy request là http dù site thật chạy HTTPS —
+    sinh redirect_uri sai scheme sẽ lệch với URL đăng ký trên Google Console.
+    """
+    forwarded_proto = (request.headers.get('X-Forwarded-Proto') or '').strip().lower()
+    forwarded_ssl = (request.headers.get('X-Forwarded-Ssl') or '').strip().lower()
+    if request.is_secure or forwarded_proto == 'https' or forwarded_ssl == 'on':
+        return 'https'
+    return request.scheme or 'https'
+
+
 def _oauth_config():
+    global _redirect_uri_warned
     client_id = (current_app.config.get('GOOGLE_OAUTH_CLIENT_ID') or '').strip()
     client_secret = (current_app.config.get('GOOGLE_OAUTH_CLIENT_SECRET') or '').strip()
     redirect_uri = (current_app.config.get('GOOGLE_OAUTH_REDIRECT_URI') or '').strip()
     if not redirect_uri:
-        scheme = 'https' if request.is_secure else request.scheme
+        scheme = _request_scheme_for_redirect_uri()
         redirect_uri = f"{scheme}://{request.host}/auth/google/callback"
+        if not _redirect_uri_warned:
+            _redirect_uri_warned = True
+            current_app.logger.warning(
+                'GOOGLE_OAUTH_REDIRECT_URI chưa cấu hình — đang tự suy "%s" từ request. '
+                'Trên production nên ghim giá trị tuyệt đối (vd https://<domain>/auth/google/callback) '
+                'trong .env để tránh phụ thuộc Host header/proxy.',
+                redirect_uri,
+            )
     return {
         'client_id': client_id,
         'client_secret': client_secret,

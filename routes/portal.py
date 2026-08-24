@@ -1102,7 +1102,8 @@ def contact_preview_import():
             'invalid_rows': parsed['invalid_rows'][:20]
         }
     except Exception as e:
-        return {'error': str(e)}, 500
+        current_app.logger.error(f'contacts-preview failed: {e}', exc_info=True)
+        return {'error': 'Lỗi hệ thống khi đọc file Excel. Hãy kiểm tra định dạng và thử lại.'}, 500
 
 
 @portal_bp.route('/contacts/import', methods=['POST'])
