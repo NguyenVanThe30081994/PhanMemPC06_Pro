@@ -95,7 +95,7 @@ def api_parse_outline():
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         current_app.logger.error(f'parse-outline failed: {e}', exc_info=True)
-        return jsonify({'error': f'Lỗi khi phân tích file: {str(e)}'}), 500
+        return jsonify({'error': 'Lỗi hệ thống khi phân tích file. Hãy thử lại hoặc kiểm tra nhật ký server.'}), 500
 
 
 @outline_bp.route('/api/save-outline', methods=['POST'])
@@ -115,7 +115,7 @@ def api_save_outline():
         docx_bytes = _tree_to_docx(tree)
     except Exception as e:
         current_app.logger.error(f'save-outline failed: {e}', exc_info=True)
-        return jsonify({'error': f'Lỗi khi tạo file Word: {str(e)}'}), 500
+        return jsonify({'error': 'Lỗi hệ thống khi tạo file Word. Hãy thử lại hoặc kiểm tra nhật ký server.'}), 500
 
     # Lưu ra file trong TASK_FOLDER / uploads để tải về
     save_dir = current_app.config.get('UPLOAD_FOLDER') or 'uploads'
@@ -220,6 +220,8 @@ def giao_viec_page():
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'error': 'Unauthorized'}), 401
         return ('Bạn cần đăng nhập để dùng chức năng này.', 401)
+    if not _require_task_process_perm():
+        return ('Bạn không có quyền giao công việc.', 403)
     return render_template('outline_assign.html')
 
 
@@ -267,11 +269,23 @@ def _collect_muc_content_lines(node, out=None):
     return out
 
 
+def _require_task_process_perm():
+    """Chỉ người có quyền xử lý module Công việc mới được giao việc (đồng bộ wizard chính)."""
+    from services.task_permissions import _can_process_task_module
+    return _can_process_task_module()
+
+
 @outline_bp.route('/api/outline-assignees')
 def api_outline_assignees():
-    """Danh sách cán bộ để gán việc (chỉ gán trực tiếp cho người, không theo vai trò)."""
+    """Danh sách cán bộ để gán việc (chỉ gán trực tiếp cho người, không theo vai trò).
+
+    Danh bạ toàn đơn vị là dữ liệu nhạy cảm: chỉ trả cho người có quyền
+    xử lý module Công việc (người thực sự dùng màn giao việc).
+    """
     if not _require_login():
         return jsonify({'error': 'Unauthorized'}), 401
+    if not _require_task_process_perm():
+        return jsonify({'error': 'Bạn không có quyền giao công việc.'}), 403
 
     from models import User
 
@@ -305,9 +319,15 @@ def api_create_outline_task():
     """
     if not _require_login():
         return jsonify({'error': 'Unauthorized'}), 401
+    if not _require_task_process_perm():
+        return jsonify({'error': 'Bạn không có quyền giao công việc.'}), 403
 
     from datetime import datetime
-    from models import Task, TaskAssignment, TaskItem, db
+    from models import Task, TaskAssignment, TaskItem, User, db
+    from services.task_scope import _store_assignment_scope
+    from services.task_runtime_sync import _ensure_task_runtime_bridge
+    from routes.email_service import send_task_assignment_emails
+    from utils import log_action, push_notif
 
     payload = request.get_json(silent=True) or {}
     tree = payload.get('tree')
@@ -342,6 +362,7 @@ def api_create_outline_task():
 
     total_items = 0
     total_assigned = 0
+    assignee_user_ids = set()
 
     def create_items(nodes, parent_item_id=None):
         """Duyệt cây; chỉ tạo TaskItem cho mục (heading) đã được gán."""
@@ -392,6 +413,7 @@ def api_create_outline_task():
                     is_required=True,
                     assigned_at=datetime.now(),
                 ))
+                assignee_user_ids.add(entry['user_id'])
                 total_assigned += 1
 
             create_items(n.get('children') or [], parent_item_id=item.id)
@@ -402,7 +424,45 @@ def api_create_outline_task():
         db.session.rollback()
         return jsonify({'error': 'Chưa gán mục nào. Hãy gán ít nhất một mục cho cán bộ.'}), 400
 
+    # Lưu phạm vi giao việc theo cá nhân — cùng cơ chế với wizard chính,
+    # để lọc/kiểm tra phạm vi nhìn thấy việc nhất quán trên toàn hệ thống.
+    try:
+        _store_assignment_scope(task, 'user', user_ids=sorted(assignee_user_ids))
+    except Exception as scope_error:
+        current_app.logger.warning(f'create-outline-task: store scope failed: {scope_error}')
+
     db.session.commit()
+
+    # Đồng bộ cầu nối runtime (TaskParticipant/submission hiện hành) ngay sau
+    # khi tạo, thay vì chờ "vá lười" ở lần xem chi tiết đầu tiên.
+    try:
+        if _ensure_task_runtime_bridge(task):
+            db.session.commit()
+    except Exception as bridge_error:
+        db.session.rollback()
+        current_app.logger.warning(f'create-outline-task: runtime bridge failed: {bridge_error}')
+
+    # Thông báo trong ứng dụng cho từng người được giao.
+    for uid in sorted(assignee_user_ids):
+        push_notif(uid, 'Công việc mới', f'Bạn vừa được giao: {task.title}', f'/tasks/{task.id}')
+
+    log_action(
+        session.get('uid'),
+        session.get('fullname', ''),
+        'Tạo công việc theo đề cương',
+        module='Công việc',
+        det=f'{task.title} ({total_items} đầu mục, {total_assigned} lượt giao)',
+    )
+
+    # Email thông báo giao việc — không làm hỏng request nếu máy thư lỗi.
+    email_sent = 0
+    try:
+        assignee_users = User.query.filter(User.id.in_(sorted(assignee_user_ids))).all() if assignee_user_ids else []
+        base_url = request.host_url.rstrip('/')
+        email_result = send_task_assignment_emails(assignee_users, task, base_url=base_url)
+        email_sent = len(email_result.get('sent') or [])
+    except Exception as email_error:
+        current_app.logger.error(f'create-outline-task: send emails failed: {email_error}')
 
     # Xây link tới chi tiết công việc (an toàn kể cả khi blueprint tasks chưa đăng ký)
     task_url = None
@@ -417,5 +477,7 @@ def api_create_outline_task():
         'task_url': task_url,
         'items_created': total_items,
         'assignments_created': total_assigned,
+        'notifications_created': len(assignee_user_ids),
+        'emails_sent': email_sent,
         'message': 'Đã tạo công việc với %d đầu mục, %d lượt giao việc.' % (total_items, total_assigned),
     })

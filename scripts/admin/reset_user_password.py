@@ -1,13 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Reset mật khẩu một tài khoản người dùng — script quản trị có chốt an toàn.
+
+Cách chạy (bắt buộc xác nhận bằng biến môi trường):
+    PC06_CONFIRM=YES python3 scripts/admin/reset_user_password.py --username <user> --password <pass_moi>
+"""
 
 import argparse
 import sys
 
 from sqlalchemy.exc import OperationalError
 
-from app import app
-from models import db, User
+import _admin_script_guard
+
+_admin_script_guard.bootstrap_project_root()
+
+from app import app  # noqa: E402
+from models import db, User  # noqa: E402
 
 
 def main():
@@ -55,4 +64,5 @@ def main():
 
 
 if __name__ == "__main__":
+    _admin_script_guard.require_confirmation('reset_user_password')
     main()

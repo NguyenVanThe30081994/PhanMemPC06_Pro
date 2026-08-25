@@ -71,6 +71,21 @@ class GoogleOAuthTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn('/login', response.headers.get('Location', ''))
 
+    def test_redirect_uri_infers_https_behind_proxy(self):
+        # B2' (docs/nghien-cuu-bao-mat-trien-khai-cpanel-2026.md): khi chưa ghim
+        # GOOGLE_OAUTH_REDIRECT_URI và Apache chuyển tiếp X-Forwarded-Proto,
+        # redirect_uri phải là https chứ không phải http.
+        app.config.update(GOOGLE_OAUTH_REDIRECT_URI='')
+        response = self.client.get(
+            '/auth/google', headers={'X-Forwarded-Proto': 'https'}
+        )
+        location = response.headers.get('Location', '')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(
+            'redirect_uri=https%3A%2F%2Flocalhost%2Fauth%2Fgoogle%2Fcallback',
+            location,
+        )
+
     def test_google_callback_full_flow(self):
         # Start the flow to populate session (state/verifier)
         start = self.client.get('/auth/google')

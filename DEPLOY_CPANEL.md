@@ -76,3 +76,75 @@ touch tmp/restart.txt
 Gói `pc06_full.zip` **không chứa file DB** — dữ liệu production của bạn không bị ghi đè.
 Khi app khởi động, nó tự chạy migration (thêm cột `outline_table_schema_json`,
 `table_cells_json`...) vào DB hiện có.
+
+---
+
+## 🔒 CHECKLIST BẢO MẬT TRÊN HOST (bắt buộc kiểm tra 1 lần sau khi cài)
+
+Theo `docs/nghien-cuu-bao-mat-trien-khai-cpanel-2026.md`. Lần lượt xác nhận:
+
+1. **File `.env` quyền 600** (chỉ chủ account đọc được):
+   ```bash
+   chmod 600 ~/domains/<domain>/public_html/PhanMemPC06_Pro/.env
+   ```
+2. **Biến môi trường production** trong `.env`:
+   ```
+   FLASK_ENV=production        # bật SESSION_COOKIE_SECURE + ép HTTPS (PC06_FORCE_HTTPS)
+   DEBUG=False
+   SECRET_KEY=<chuỗi ngẫu nhiên riêng>  # python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+   ```
+3. **`DATABASE_URL` trỏ MySQL host-local**, không SQLite:
+   ```
+   DATABASE_URL=mysql://<user_cpanel>_<dbuser>:<mật_khẩu>@localhost/<user_cpanel>_dbname
+   ```
+4. **Dữ liệu mutable ngoài public_html** — tránh lộ qua web và khỏi bị xóa nhầm khi deploy lại:
+   ```
+   PC06_DATA_DIR=/home/<cpanel_user>/pc06_data
+   ```
+5. **Ghim Google OAuth redirect URI** (nếu dùng đăng nhập Google):
+   ```
+   GOOGLE_OAUTH_REDIRECT_URI=https://<domain>/auth/google/callback
+   ```
+   Đồng thời khai báo đúng URL này trong Google Cloud Console → Credentials.
+6. **HTTPS**: bật AutoSSL/Let's Encrypt cho domain TRƯỚC khi đặt `FLASK_ENV=production`
+   (app sẽ redirect 308 http→https). Kiểm tra: mở `http://<domain>` phải nhảy sang https.
+7. **ModSecurity** (B6'): cPanel → Security → ModSecurity → bật cho domain.
+   Chạy vài ngày ở chế độ ghi nhận nếu hosting hỗ trợ, rồi chuyển sang chặn.
+8. **Số process Passenger** (B5'): giữ 1–2 process để deadline watchdog nền
+   (APScheduler) không nhân bản job. Nếu buộc chạy nhiều process, đặt
+   `PC06_TASK_SCHEDULER=0` cho các bản sao phụ.
+
+## 💾 BACKUP DATABASE HẰNG ĐÊM (cron cPanel)
+
+Không dùng nút backup trong web làm phương án chính. Dùng cron:
+
+1. Tạo `~/.my.cnf` quyền 600 chứa thông tin MySQL (để cron không lộ mật khẩu):
+   ```ini
+   [client]
+   host=localhost
+   user=<user_cpanel>_<dbuser>
+   password=<mật_khẩu>
+   ```
+2. Thêm cron (cPanel → Advanced → Cron Jobs), 02:30 mỗi đêm:
+   ```
+   30 2 * * * /home/<cpanel_user>/public_html/PhanMemPC06_Pro/scripts/admin/backup_mysql.sh >> /home/<cpanel_user>/pc06_backups/backup.log 2>&1
+   ```
+   Script lưu `~/pc06_backups/<db>_<thời_điểm>.sql.gz`, **giữ 14 ngày**
+   (đổi bằng biến `RETENTION_DAYS`).
+3. **Quy trình thử khôi phục — thực hiện 1 quý/lần**:
+   ```bash
+   # Tạo DB rỗng mới rồi import thử, so sánh số bảng/dòng với DB thật
+   gunzip < ~/pc06_backups/<db>_<stamp>.sql.gz | mysql --host=localhost -u <user> -p <tên_db_thử>
+   ```
+
+## 🛡️ PHÒNG THỦ SÂU TRÊN WEB SERVER
+
+File `.htaccess` trong thư mục app đã chặn sẵn (không cần cấu hình thêm):
+- Ép HTTPS ở tầng Apache (308) song song với app-level `PC06_FORCE_HTTPS`.
+- Deny tệp nhạy cảm mọi cấp thư mục: `.env*`, `.git*`, `*.db/*.sqlite`,
+  `*.sql`, `*.bat`, `*.sh`, `*.pyc`, `passenger_wsgi.py`, `requirements.txt`.
+- Deny (403) các thư mục `backups/ logs/ tmp/ scripts/ tests/ docs/` — pattern
+  tương đối nên khớp cả khi app ở domain root lẫn thư mục con.
+
+Sau mỗi lần deploy: mở thử trang chủ + một URL trong `/static/...` để chắc chắn
+trang vẫn chạy bình thường, rồi thử truy cập `/.env` phải nhận 403/404.

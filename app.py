@@ -79,6 +79,7 @@ try:
         SESSION_COOKIE_SAMESITE,
         SESSION_COOKIE_NAME,
         SESSION_REFRESH_EACH_REQUEST,
+        PC06_FORCE_HTTPS,
         CSRF_TOKEN_LIFETIME,
         HSTS_MAX_AGE_SECONDS,
         HSTS_INCLUDE_SUBDOMAINS,
@@ -112,6 +113,7 @@ except ImportError:
     SESSION_COOKIE_SAMESITE = 'Lax'
     SESSION_COOKIE_NAME = 'pc06_session'
     SESSION_REFRESH_EACH_REQUEST = True
+    PC06_FORCE_HTTPS = os.environ.get('FLASK_ENV') == 'production'
     CSRF_TOKEN_LIFETIME = 3600
     HSTS_MAX_AGE_SECONDS = 31536000
     HSTS_INCLUDE_SUBDOMAINS = True
@@ -188,6 +190,7 @@ app.config['RATE_LIMIT_WINDOW_SECONDS'] = RATE_LIMIT_WINDOW_SECONDS
 app.config['RATE_LIMIT_MAX_REQUESTS'] = RATE_LIMIT_MAX_REQUESTS
 app.config['RATE_LIMIT_MAX_API_REQUESTS'] = RATE_LIMIT_MAX_API_REQUESTS
 app.config['TRUSTED_PROXY_CIDRS'] = TRUSTED_PROXY_CIDRS
+app.config['PC06_FORCE_HTTPS'] = PC06_FORCE_HTTPS
 app.config['ADMIN_DB_RESET_ENABLED'] = ADMIN_DB_RESET_ENABLED
 app.config['ADMIN_DB_BACKUP_ENABLED'] = ADMIN_DB_BACKUP_ENABLED
 app.config['WEB_SYSTEM_UPDATE_ENABLED'] = WEB_SYSTEM_UPDATE_ENABLED
@@ -280,6 +283,7 @@ SENSITIVE_REAUTH_ENDPOINTS = {
     'admin_bp.reset_users_password_bulk',
     'admin_bp.system_update',
     'admin_bp.git_pull',
+    'auth_bp.two_factor_setup',
 }
 
 
@@ -321,6 +325,7 @@ def add_security_headers(response):
         "img-src 'self' data: blob: https:; "
         "connect-src 'self' https:; "
         "frame-ancestors 'self'; "
+        "form-action 'self'; "
         "base-uri 'self'; "
         "object-src 'none';"
     )
@@ -432,6 +437,7 @@ def check_auth():
 
     public_endpoints = {
         'auth_bp.login',
+        'auth_bp.two_factor_login',
         'api_bp.get_custom_satellite_points',
         # LƯU Ý BẢO MẬT (B1): save/delete custom-satellite-points từng ở đây,
         # cho phép ghi/xóa DB không cần đăng nhập. Đã yêu cầu đăng nhập.
@@ -536,6 +542,26 @@ def enforce_step_up_auth():
 
     flash('Phiên xác minh đã hết hạn hoặc bối cảnh đăng nhập thay đổi. Hãy xác minh lại rồi thực hiện thao tác một lần nữa.', 'warning')
     return redirect(url_for('auth_bp.reauthenticate', next=_get_reauth_redirect_target()))
+
+
+@app.before_request
+def force_https_redirect():
+    """Ép HTTPS khi PC06_FORCE_HTTPS bật (mặc định theo FLASK_ENV=production).
+
+    Chỉ redirect GET/HEAD; các method khác để nguyên — cookie phiên có cờ
+    Secure nên không thể dùng qua HTTP, và POST/PUT cần giữ nguyên body.
+    Health check nội bộ được miễn để monitoring gọi HTTP không bị 308.
+    """
+    if not app.config.get('PC06_FORCE_HTTPS'):
+        return None
+    if request.endpoint in {'health_bp.health_check', 'health_bp.ping'}:
+        return None
+    if _request_is_secure():
+        return None
+    if request.method not in ('GET', 'HEAD'):
+        return None
+    https_url = 'https://' + request.host + request.full_path.rstrip('?')
+    return redirect(https_url, code=308)
 
 
 @app.before_request

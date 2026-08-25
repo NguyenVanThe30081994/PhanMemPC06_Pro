@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Chuyển dữ liệu SQLite sang database ngoài (MySQL) — script quản trị.
+
+Khi dùng --apply sẽ ghi vào database đích; bắt buộc xác nhận PC06_CONFIRM=YES.
+"""
 
 import argparse
 import os
 import re
+import sys
 
 from sqlalchemy import MetaData, create_engine, func, inspect, schema, select
 
-from storage import _normalize_database_uri
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from _admin_script_guard import require_confirmation  # noqa: E402
+
+from storage import _normalize_database_uri  # noqa: E402
 
 
 def _row_batches(connection, table, chunk_size):
@@ -165,4 +173,5 @@ def main():
 
 
 if __name__ == "__main__":
+    require_confirmation('migrate_sqlite_to_external_db')
     main()

@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-import re, json, sqlite3, os, ast, operator as op
+import re, json, sqlite3, os, ast, secrets, operator as op
 from urllib.parse import urlparse
 from flask import request, render_template as flask_render_template, g, session, redirect, url_for
 from openpyxl.utils import range_boundaries
 from datetime import datetime, timedelta
 from sqlalchemy import inspect, text
 from models import db, User, AppRole, SystemLog, Notification, MasterData, NewsCategory, LibraryField, ContactGroup, ProfessionalUnit
-from security_utils.runtime_security import generate_temporary_password
+from security_utils.runtime_security import generate_temporary_password, extract_client_ip, parse_trusted_cidrs
 
 
 # ==================== SECURITY FUNCTIONS ====================
@@ -14,12 +14,13 @@ from security_utils.runtime_security import generate_temporary_password
 
 def check_csrf_token(session_token, form_token):
     """
-    Check if CSRF token matches (basic implementation).
-    More robust CSRF should be handled by Flask-WTF or similar.
+    Check if CSRF token matches (constant-time comparison).
+    The global enforcement lives in app.py (compare_digest); this helper is
+    kept for callers that verify tokens manually.
     """
     if not session_token or not form_token:
         return False
-    return session_token == form_token
+    return secrets.compare_digest(str(session_token), str(form_token))
 
 def is_safe_redirect_url(url):
     """
@@ -34,13 +35,22 @@ def is_safe_redirect_url(url):
 
 def get_client_ip():
     """
-    Get client IP address, considering proxy headers.
+    Get client IP address — bản chuẩn trusted-proxy.
+
+    Chỉ nhận X-Forwarded-For khi remote_addr thuộc TRUSTED_PROXY_CIDRS,
+    thống nhất với security_utils.security_helpers.get_client_ip để client
+    thường không thể giả header đổi được IP ghi nhận (lockout/log nhất quán).
     """
-    # Check for forwarded headers (when behind proxy)
-    forwarded = request.headers.get('X-Forwarded-For')
-    if forwarded:
-        return forwarded.split(',')[0].strip()
-    return request.remote_addr or '127.0.0.1'
+    try:
+        from flask import current_app
+        trusted_cidrs = parse_trusted_cidrs(current_app.config.get('TRUSTED_PROXY_CIDRS', ''))
+        return extract_client_ip(
+            request.remote_addr or '',
+            request.headers.get('X-Forwarded-For', '') or '',
+            trusted_cidrs=trusted_cidrs,
+        )
+    except Exception:
+        return request.remote_addr or '127.0.0.1'
 
 def log_security_event(event_type, details):
     """
@@ -389,6 +399,8 @@ def apply_migrations(app):
         ("user", "must_change_password", "BOOLEAN DEFAULT 1"), 
         ("user", "unit_key", "VARCHAR(100)"),
         ("user", "session_version", "INTEGER DEFAULT 0"),
+        ("user", "totp_secret_encrypted", "VARCHAR(255)"),
+        ("user", "totp_enabled", "BOOLEAN DEFAULT 0"),
         ("user", "email", "VARCHAR(200)"),
         ("user", "unit_id", "INTEGER"),
         ("app_role", "perms", "TEXT"),

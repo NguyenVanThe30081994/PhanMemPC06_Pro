@@ -48,6 +48,14 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_NAME = os.environ.get('SESSION_COOKIE_NAME', 'pc06_session')
 SESSION_REFRESH_EACH_REQUEST = True
+
+# Force HTTPS redirect ở tầng ứng dụng (song song với RewriteRule .htaccess).
+# Mặc định: bật khi FLASK_ENV=production; ghi đè bằng PC06_FORCE_HTTPS=0/1.
+_force_https_raw = os.environ.get('PC06_FORCE_HTTPS', '').strip().lower()
+if _force_https_raw:
+    PC06_FORCE_HTTPS = _force_https_raw in ('1', 'true', 'yes', 'on')
+else:
+    PC06_FORCE_HTTPS = os.environ.get('FLASK_ENV') == 'production'
 HSTS_MAX_AGE_SECONDS = int(os.environ.get('HSTS_MAX_AGE_SECONDS', 31536000))
 HSTS_INCLUDE_SUBDOMAINS = os.environ.get('HSTS_INCLUDE_SUBDOMAINS', 'true').lower() == 'true'
 HSTS_PRELOAD = os.environ.get('HSTS_PRELOAD', 'false').lower() == 'true'
