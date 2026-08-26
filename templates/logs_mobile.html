@@ -4,7 +4,7 @@
 
 {% block head %}
 <style>
-    .mobile-log-hero { background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff; padding: 20px; border-radius: 24px; margin-bottom: 16px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); }
+    .mobile-log-hero { background: linear-gradient(135deg, #0f172a 0%, #0052cc 55%, #0066ff 100%); color: #fff; padding: 20px; border-radius: 24px; margin-bottom: 16px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); }
     .mobile-log-hero h1 { margin: 10px 0 8px; font-size: 1.5rem; font-weight: 800; }
     .mobile-log-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.9rem; }
     .mobile-log-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
@@ -20,7 +20,7 @@
 <section class="mobile-page-actions">
     <form method="POST" action="/logs">
         <input type="hidden" name="action" value="backup">
-        <button type="submit" class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" aria-label="Xuất Excel" title="Xuất Excel"><i class="fa-solid fa-file-excel"></i><span class="visually-hidden">Xuất Excel</span></button>
+        <button type="submit" class="btn btn-mobile" style="background:#eff6ff;color:#0052cc;" aria-label="Xuất Excel" title="Xuất Excel"><i class="fa-solid fa-file-excel"></i><span class="visually-hidden">Xuất Excel</span></button>
     </form>
     <button class="btn btn-mobile btn-mobile-primary" type="button" data-bs-toggle="modal" data-bs-target="#clearLogsModal" aria-label="Dọn nhật ký" title="Dọn nhật ký"><i class="fa-solid fa-broom"></i><span class="visually-hidden">Dọn nhật ký</span></button>
 </section>

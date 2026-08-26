@@ -41,6 +41,11 @@
     --radius-lg: 14px;
     --corner-card: 14px;
 
+    /* Tokens previously used but never defined (audit 2026-08) */
+    --bg-subtle: #f9fafb;
+    --dark: #1f2937;
+    --primary-rgb: 0, 102, 255;
+
     --transition: all 0.12s ease-out;
 }
 
@@ -76,6 +81,10 @@
     --radius-md: 12px;
     --radius-lg: 14px;
     --corner-card: 14px;
+
+    --bg-subtle: #263041;
+    --dark: #f3f4f6;
+    --primary-rgb: 59, 130, 246;
 
     --transition: all 0.12s ease-out;
 }
@@ -627,4 +636,67 @@ hr {
     .main-content {
         padding-top: calc(var(--nav-height) + 24px) !important;
     }
+}
+
+/* ---------- 16. Accessibility floor (audit 2026-08) ---------- */
+/* Focus ring toàn cục cho điều hướng bàn phím.
+   Không dùng !important: các control có chỉ báo focus riêng
+   (box-shadow ring, :focus-within của container) giữ nguyên. */
+:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* Input lồng trong container tìm kiếm không tự vẽ outline —
+   container phải báo trạng thái focus */
+.pc06-search-control:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+}
+
+/* Browser surfaces theo palette (craft-floor) */
+::selection {
+    background: rgba(var(--primary-rgb), 0.18);
+    color: var(--text-main);
+}
+
+input, textarea, select {
+    caret-color: var(--primary);
+}
+
+/* Số liệu trong bảng căn cột đều */
+table, .table {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Tôn trọng người dùng giảm chuyển động */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Skip-link: ẩn tới khi nhận focus bàn phím */
+.skip-link {
+    position: absolute;
+    top: -48px;
+    left: 12px;
+    z-index: 2000;
+    padding: 10px 16px;
+    background: var(--primary);
+    color: #fff;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    font-weight: 600;
+    text-decoration: none;
+    transition: top 0.15s ease-out;
+}
+
+.skip-link:focus {
+    top: 0;
+    color: #fff;
 }

@@ -168,6 +168,8 @@
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
@@ -231,7 +233,7 @@
 
 <main class="tree" id="tree">
   <div class="empty-state">
-    <div class="big">📄</div>
+    <div class="big"><i class="fa-solid fa-file-lines" aria-hidden="true"></i></div>
     <h3>Chưa có đề cương nào được tải lên</h3>
     <p>Chọn file <strong>.docx</strong> hoặc <strong>.txt</strong> ở phía trên rồi bấm "Phân tích cấu trúc".<br>Cấu trúc mục lục sẽ được nhận diện tự động theo từng cấp (I, 1, 1.1, 1.1.1, gạch đầu dòng, dấu +).</p>
   </div>
@@ -638,11 +640,23 @@
   document.getElementById('btnSaveDocx').addEventListener('click', saveToDocx);
   document.getElementById('btnReset').addEventListener('click', function () {
     if (!outlineData || !originalData) return;
-    if (!window.confirm('Khôi phục toàn bộ đề cương về trạng thái ban đầu? Mọi sửa đổi sẽ mất.')) return;
-    outlineData = clone(originalData);
-    collapsed = {};
-    render();
-    toast('Đã khôi phục đề cương gốc');
+    Swal.fire({
+      title: 'Xác nhận',
+      text: 'Khôi phục toàn bộ đề cương về trạng thái ban đầu? Mọi sửa đổi sẽ mất.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy',
+      reverseButtons: true,
+      buttonsStyling: false,
+      customClass: { confirmButton: 'btn btn-danger px-4 me-2', cancelButton: 'btn btn-outline-secondary px-4' }
+    }).then(function (result) {
+      if (!result.isConfirmed) return;
+      outlineData = clone(originalData);
+      collapsed = {};
+      render();
+      toast('Đã khôi phục đề cương gốc');
+    });
   });
 
   document.getElementById('editSave').addEventListener('click', function () { closeEdit(true); });

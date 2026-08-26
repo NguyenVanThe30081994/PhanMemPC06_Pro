@@ -25,14 +25,14 @@
         </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
-                <thead class="tiny text-muted text-uppercase">
+                <thead class="tiny text-muted text-uppercase" scope="col">
                     <tr>
-                        <th class="ps-4">Tên đơn vị</th>
-                        <th>Mã</th>
-                        <th>Cấp</th>
-                        <th class="text-center">Số tài khoản</th>
-                        <th class="text-center">Trạng thái</th>
-                        <th class="pe-4 text-end">Thao tác</th>
+                        <th class="ps-4" scope="col">Tên đơn vị</th>
+                        <th scope="col">Mã</th>
+                        <th scope="col">Cấp</th>
+                        <th class="text-center" scope="col">Số tài khoản</th>
+                        <th class="text-center" scope="col">Trạng thái</th>
+                        <th class="pe-4 text-end" scope="col">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -56,7 +56,7 @@
                                 <button class="btn btn-light btn-circle btn-circle-sm border shadow-sm" title="Chỉnh sửa" onclick='openEditUnit({{ u.id }}, {{ u.name|tojson }}, {{ u.code|tojson }}, {{ u.parent_id or "null" }}, {{ u.level|tojson }}, {{ 'true' if u.is_active else 'false' }})'>
                                     <i class="fa-solid fa-pen-to-square tiny text-primary"></i>
                                 </button>
-                                <form method="POST" class="d-inline m-0" onsubmit="return confirm('Xóa đơn vị này?')">
+                                <form method="POST" class="d-inline m-0" onsubmit="return pc06ConfirmSubmit(event, 'Xóa đơn vị này?')">
                                     <input type="hidden" name="action" value="delete_unit">
                                     <input type="hidden" name="unit_id" value="{{ u.id }}">
                                     <button type="submit" class="btn btn-light btn-circle btn-circle-sm border shadow-sm" title="Xóa đơn vị">

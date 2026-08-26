@@ -3,10 +3,10 @@
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="fw-bold text-primary">
-            <i class="bi bi-collection me-2"></i>Quản lý Danh mục
+            <i class="fa-solid fa-layer-group me-2"></i>Quản lý Danh mục
         </h4>
         <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
-            <i class="bi bi-plus-lg me-1"></i> Thêm mới
+            <i class="fa-solid fa-plus me-1"></i> Thêm mới
         </button>
     </div>
 
@@ -44,15 +44,15 @@
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0" id="categoryTable">
-                    <thead class="table-light">
+                    <thead class="table-light" scope="col">
                         <tr>
-                            <th class="ps-4">Mã</th>
-                            <th>Tên danh mục</th>
-                            <th>Loại</th>
-                            <th>Danh mục cha</th>
-                            <th>Thứ tự</th>
-                            <th>Trạng thái</th>
-                            <th class="text-end pe-4">Thao tác</th>
+                            <th class="ps-4" scope="col">Mã</th>
+                            <th scope="col">Tên danh mục</th>
+                            <th scope="col">Loại</th>
+                            <th scope="col">Danh mục cha</th>
+                            <th scope="col">Thứ tự</th>
+                            <th scope="col">Trạng thái</th>
+                            <th class="text-end pe-4" scope="col">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -76,17 +76,17 @@
                             </td>
                             <td class="text-end pe-4">
                                 <button class="btn btn-sm btn-outline-primary me-1" onclick="editCategory({{ cat.id }}, '{{ cat.name }}', '{{ cat.code }}', '{{ cat.type }}', {{ cat.parent_id or 'null' }}, {{ cat.order }}, {{ 'true' if cat.is_active else 'false' }})">
-                                    <i class="bi bi-pencil"></i>
+                                    <i class="fa-solid fa-pen"></i>
                                 </button>
                                 <button class="btn btn-sm btn-outline-danger" onclick="deleteCategory({{ cat.id }})">
-                                    <i class="bi bi-trash"></i>
+                                    <i class="fa-solid fa-trash"></i>
                                 </button>
                             </td>
                         </tr>
                         {% else %}
                         <tr>
                             <td colspan="7" class="text-center py-4 text-muted">
-                                <i class="bi bi-inbox d-block mb-2" style="font-size: 2rem;"></i>
+                                <i class="fa-solid fa-inbox d-block mb-2" style="font-size: 2rem;"></i>
                                 Chưa có danh mục nào
                             </td>
                         </tr>
@@ -239,18 +239,20 @@ document.getElementById('addCategoryForm').addEventListener('submit', async func
         });
         if (res.ok) {
             // Save scroll position before reload
-            const scrollPos = window.scrollY;
             bootstrap.Modal.getInstance(document.getElementById('addCategoryModal')).hide();
-            alert('Thêm danh mục thành công!');
-            // Reload and restore scroll position
-            setTimeout(() => {
+            Swal.fire({
+                icon: 'success',
+                text: 'Đã thêm danh mục.',
+                timer: 1600,
+                showConfirmButton: false
+            }).then(() => {
                 location.reload();
-                window.scrollTo(0, scrollPos);
-            }, 500);
+                window.scrollTo(0, window.scrollY);
+            });
         } else {
-            alert('Lỗi khi thêm danh mục');
+            pcAlert('Lỗi khi thêm danh mục', 'error');;
         }
-    } catch(err) { alert('Lỗi: ' + err); }
+    } catch(err) { pcAlert('Lỗi: ' + err, 'error');; }
 });
 
 // Edit category
@@ -281,30 +283,33 @@ document.getElementById('editCategoryForm').addEventListener('submit', async fun
             body: JSON.stringify(data)
         });
         if (res.ok) {
-            const scrollPos = window.scrollY;
             bootstrap.Modal.getInstance(document.getElementById('editCategoryModal')).hide();
-            alert('Cập nhật thành công!');
-            setTimeout(() => {
+            Swal.fire({
+                icon: 'success',
+                text: 'Đã cập nhật danh mục.',
+                timer: 1600,
+                showConfirmButton: false
+            }).then(() => {
                 location.reload();
-                window.scrollTo(0, scrollPos);
-            }, 500);
+                window.scrollTo(0, window.scrollY);
+            });
         } else {
-            alert('Lỗi khi cập nhật');
+            pcAlert('Lỗi khi cập nhật', 'error');;
         }
-    } catch(err) { alert('Lỗi: ' + err); }
+    } catch(err) { pcAlert('Lỗi: ' + err, 'error');; }
 });
 
 // Delete category
 async function deleteCategory(id) {
-    if (!confirm('Bạn có chắc muốn xóa danh mục này?')) return;
+    if (!(await pcConfirm('Bạn có chắc muốn xóa danh mục này?'))) return;
     try {
         const res = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
         if (res.ok) location.reload();
         else {
             const data = await res.json();
-            alert(data.error || 'Lỗi khi xóa');
+            pcAlert(data.error || 'Lỗi khi xóa', 'error');;
         }
-    } catch(err) { alert('Lỗi: ' + err); }
+    } catch(err) { pcAlert('Lỗi: ' + err, 'error');; }
 }
 </script>
 {% endblock %}

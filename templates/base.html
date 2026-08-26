@@ -7,7 +7,6 @@
     <meta name="csrf-token" content="{{ csrf_token_value }}">
     <title>{{ title|default("Hệ thống Quản trị PC06") }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link
         href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
@@ -153,7 +152,7 @@
 
         .notif-item.unread {
             border-left: 3px solid var(--primary);
-            background: rgba(37, 99, 235, 0.03);
+            background: rgba(0, 102, 255, 0.03);
         }
 
         .notif-source-tag {
@@ -168,7 +167,7 @@
 
         .notif-source-tag.task {
             background: #dbeafe;
-            color: #1d4ed8;
+            color: #0052cc;
         }
 
         .notif-source-tag.news {
@@ -380,9 +379,9 @@
 
         [data-theme="dark"] .bg-primary-subtle,
         [data-theme="dark"] .bg-info-subtle {
-            background-color: rgba(37, 99, 235, 0.15) !important;
+            background-color: rgba(0, 102, 255, 0.15) !important;
             color: #60a5fa !important;
-            border: 1px solid rgba(37, 99, 235, 0.2) !important;
+            border: 1px solid rgba(0, 102, 255, 0.2) !important;
         }
 
         [data-theme="dark"] .hover-bg-light:hover {
@@ -677,6 +676,7 @@
 </head>
 
 <body class="pc06-bdhvs-body">
+    <a class="skip-link" href="#main-content">Nhảy đến nội dung chính</a>
     {% set submenu_parent = sidebar_submenu_parent|default('') %}
     {% set operations_active = False %}
     {% set lookup_active = request.endpoint in ['portal_bp.notifications_board', 'portal_bp.contacts'] or request.path.startswith('/links') %}
@@ -877,7 +877,7 @@
         </div>
     </nav>
 
-    <main class="main-content"
+    <main class="main-content" id="main-content"
         style="padding-top: calc(var(--nav-height) + env(safe-area-inset-top, 0px)); min-height: 100vh;">
         <div class="container-fluid px-lg-5 py-4 h-100">
             {% with messages = get_flashed_messages(with_categories=true) %}
@@ -1080,6 +1080,44 @@
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/category-picker.js') }}"></script>
     {% block scripts %}{% endblock %}
+
+    <script>
+        // ===== Dialog chuẩn hóa (SweetAlert2) — thay alert/confirm native =====
+        window.pcAlert = function (message, type) {
+            if (typeof Swal === 'undefined') { window.alert(message); return; }
+            Swal.fire({
+                icon: type || 'info',
+                text: message,
+                confirmButtonText: 'Đã hiểu',
+                buttonsStyling: false,
+                customClass: { confirmButton: 'btn btn-primary px-4' }
+            });
+        };
+
+        window.pcConfirm = function (message) {
+            if (typeof Swal === 'undefined') { return Promise.resolve(window.confirm(message)); }
+            return Swal.fire({
+                title: 'Xác nhận',
+                text: message || 'Bạn có chắc chắn?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Đồng ý',
+                cancelButtonText: 'Hủy',
+                reverseButtons: true,
+                buttonsStyling: false,
+                customClass: { confirmButton: 'btn btn-danger px-4 me-2', cancelButton: 'btn btn-outline-secondary px-4' }
+            }).then(function (result) { return result.isConfirmed; });
+        };
+
+        window.pc06ConfirmSubmit = function (event, message) {
+            event.preventDefault();
+            var form = event.target;
+            window.pcConfirm(message).then(function (ok) {
+                if (ok) { form.submit(); }
+            });
+            return false;
+        };
+    </script>
 
     <script>
         (function () {

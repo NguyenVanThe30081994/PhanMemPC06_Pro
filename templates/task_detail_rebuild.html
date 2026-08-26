@@ -37,7 +37,7 @@
                 <h2>{{ detail_context.next_step_title }}</h2>
                 <p>{{ detail_context.next_step_body }}</p>
                 {% if can_delete_task %}
-                <form action="{{ url_for('tasks_bp.delete_task', tid=task.id) }}" method="POST" onsubmit="return confirm('Xóa công việc này?')" class="mt-3">
+                <form action="{{ url_for('tasks_bp.delete_task', tid=task.id) }}" method="POST" onsubmit="return pc06ConfirmSubmit(event, 'Xóa công việc này?')" class="mt-3">
                     <button class="btn btn-outline-danger btn-sm" type="submit">Xóa công việc</button>
                 </form>
                 {% endif %}
@@ -193,13 +193,13 @@
                                 {% if outline_matrix.rows %}
                                 <div class="table-responsive">
                                     <table class="table align-middle">
-                                        <thead>
+                                        <thead scope="col">
                                             <tr>
-                                                <th style="min-width: 260px;">Đầu mục</th>
+                                                <th style="min-width: 260px;" scope="col">Đầu mục</th>
                                                 {% for unit_name in outline_matrix.unit_names %}
-                                                <th class="text-center">{{ unit_name }}</th>
+                                                <th class="text-center" scope="col">{{ unit_name }}</th>
                                                 {% endfor %}
-                                                <th class="text-center">Tổng</th>
+                                                <th class="text-center" scope="col">Tổng</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -258,7 +258,7 @@
                                                     {% if row.item.report_kind == 'number' %}
                                                     <form action="{{ url_for('tasks_bp.toggle_task_item_aggregate', tid=task.id, item_id=row.item.id) }}" method="POST" class="d-inline-block mt-2">
                                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                        <button class="btn btn-sm {% if row.item.allow_aggregate %}btn-success{% else %}btn-outline-secondary{% endif %}" type="submit" title="Cho phép cộng gộp số liệu các đơn vị">Cộng gộp {% if row.item.allow_aggregate %}✓{% endif %}</button>
+                                                        <button class="btn btn-sm {% if row.item.allow_aggregate %}btn-success{% else %}btn-outline-secondary{% endif %}" type="submit" title="Cho phép cộng gộp số liệu các đơn vị">Cộng gộp {% if row.item.allow_aggregate %}<i class="fa-solid fa-check ms-1" aria-hidden="true"></i>{% endif %}</button>
                                                     </form>
                                                     {% endif %}
                                                 </td>
@@ -548,7 +548,7 @@
                                             <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
                                                 {% if can_manage_task_view %}
                                                 <button type="button" class="btn btn-sm {% if row.item.synthesis_content %}btn-success{% else %}btn-outline-primary{% endif %}" data-synthesis-open data-item-id="{{ row.item.id }}" data-item-code="{{ row.item.item_code or '' }}" data-item-title="{{ row.item.title }}">
-                                                    <i class="fa-solid fa-layer-group me-1"></i>Tổng hợp{% if row.item.synthesis_content %} ✓{% endif %}
+                                                    <i class="fa-solid fa-layer-group me-1"></i>Tổng hợp{% if row.item.synthesis_content %} <i class="fa-solid fa-check ms-1" aria-hidden="true"></i>{% endif %}
                                                 </button>
                                                 {% endif %}
                                                 <span class="badge bg-light text-dark">{{ row.submitted_count }}/{{ row.total_count }} đã nộp</span>
@@ -1143,12 +1143,12 @@
                                         {% set grid_cols = field.columns if field.columns else ['Cột 1', 'Cột 2', 'Cột 3'] %}
                                         <div class="task-table-grid" data-table-grid data-field-key="{{ field.field_key }}" data-columns="{{ grid_cols|join('||') }}">
                                             <table class="table table-bordered table-sm align-middle mb-2">
-                                                <thead>
+                                                <thead scope="col">
                                                     <tr>
                                                         {% for col in grid_cols %}
-                                                        <th>{{ col }}</th>
+                                                        <th scope="col">{{ col }}</th>
                                                         {% endfor %}
-                                                        <th style="width: 60px;"></th>
+                                                        <th style="width: 60px;" scope="col"></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -1194,7 +1194,7 @@
 <style>
     .import-config-row-child {
         margin-left: 42px;
-        border-left: 3px solid rgba(37, 99, 235, 0.25) !important;
+        border-left: 3px solid rgba(0, 102, 255, 0.25) !important;
         background: rgba(248, 250, 252, 0.85);
     }
 
@@ -1246,7 +1246,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #2563eb;
+        background: #0066ff;
         color: #fff;
         border-radius: 8px;
         font-weight: 700;
@@ -1384,8 +1384,8 @@
     }
 
     .task-detail-pill-info {
-        background: rgba(37, 99, 235, 0.1);
-        color: #1d4ed8;
+        background: rgba(0, 102, 255, 0.1);
+        color: #0052cc;
     }
 
     .task-detail-pill-success {
@@ -2226,12 +2226,12 @@
     applyImportAssignmentBtn?.addEventListener('click', () => {
         const selectedRows = Array.from(importRows?.querySelectorAll('[data-import-config-row]') || []).filter((row) => row.querySelector('[data-import-row-check]')?.checked);
         if (!selectedRows.length) {
-            window.alert('Cần chọn ít nhất một dòng để gán.');
+            pcAlert('Cần chọn ít nhất một dòng để gán.', 'warning');;
             return;
         }
         const payload = getCurrentImportAssignmentPayload();
         if (!validateImportAssignmentPayload(payload)) {
-            window.alert('Cần chọn người nhận hoặc vai trò phù hợp trước khi gán.');
+            pcAlert('Cần chọn người nhận hoặc vai trò phù hợp trước khi gán.', 'warning');;
             return;
         }
         selectedRows.forEach((row) => updateImportRowAssignment(row, payload));
@@ -2514,7 +2514,7 @@
         btn.addEventListener('click', function () {
             var modal = getModal();
             if (!modal) {
-                window.alert('Bootstrap chưa sẵn sàng, hãy thử lại.');
+                pcAlert('Bootstrap chưa sẵn sàng, hãy thử lại.', 'warning');;
                 return;
             }
             openSynthesis(btn.dataset.itemId, btn.dataset.itemCode, btn.dataset.itemTitle);
@@ -2531,7 +2531,7 @@
             parts.push('— ' + s.unit_name + ': ' + text.trim());
         });
         if (!parts.length) {
-            window.alert('Chưa có đơn vị nào nộp nội dung để ghép.');
+            pcAlert('Chưa có đơn vị nào nộp nội dung để ghép.', 'warning');;
             return;
         }
         editorEl.value = parts.join('\n\n');
@@ -2543,13 +2543,14 @@
     });
 
     document.getElementById('synthesisDeleteBtn').addEventListener('click', function () {
-        if (!window.confirm('Xóa văn bản tổng hợp của đầu mục này? Khi đó xuất Word sẽ gộp tự động như cũ.')) return;
-        saveSynthesis('');
+        pcConfirm('Xóa văn bản tổng hợp của đầu mục này? Khi đó xuất Word sẽ gộp tự động như cũ.').then(function (ok) {
+            if (ok) { saveSynthesis(''); }
+        });
     });
 
     document.getElementById('synthesisSaveBtn').addEventListener('click', function () {
         if (!editorEl.value.trim()) {
-            window.alert('Chưa có nội dung để lưu. Nếu muốn xóa tổng hợp, dùng nút "Xóa tổng hợp".');
+            pcAlert('Chưa có nội dung để lưu. Nếu muốn xóa tổng hợp, dùng nút "Xóa tổng hợp".', 'warning');;
             return;
         }
         saveSynthesis(editorEl.value);

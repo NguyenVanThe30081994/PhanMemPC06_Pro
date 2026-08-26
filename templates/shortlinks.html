@@ -35,15 +35,15 @@
         {% if links %}
         <div class="shortlink-table-wrap table-responsive">
             <table class="table table-hover align-middle mb-0">
-                <thead class="pill-thead">
+                <thead class="pill-thead" scope="col">
                     <tr>
-                        <th class="ps-4">Tên / Ghi chú</th>
-                        <th>Đường dẫn gốc</th>
-                        <th>Liên kết rút gọn</th>
-                        <th class="text-center">Lượt mở</th>
-                        <th class="text-center">QR</th>
-                        <th class="text-center">Ngày tạo</th>
-                        <th class="pe-4 text-end">Thao tác</th>
+                        <th class="ps-4" scope="col">Tên / Ghi chú</th>
+                        <th scope="col">Đường dẫn gốc</th>
+                        <th scope="col">Liên kết rút gọn</th>
+                        <th class="text-center" scope="col">Lượt mở</th>
+                        <th class="text-center" scope="col">QR</th>
+                        <th class="text-center" scope="col">Ngày tạo</th>
+                        <th class="pe-4 text-end" scope="col">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -79,7 +79,7 @@
                         <td class="text-center text-muted small">{{ link.created_at.strftime('%d/%m/%Y') }}</td>
                         <td class="pe-4 text-end">
                             {% if is_admin or link.created_by == session.uid %}
-                            <form method="POST" action="{{ url_for('shortlink_bp.delete_link', link_id=link.id) }}" class="d-inline m-0" onsubmit="return confirm('Xóa liên kết này?')">
+                            <form method="POST" action="{{ url_for('shortlink_bp.delete_link', link_id=link.id) }}" class="d-inline m-0" onsubmit="return pc06ConfirmSubmit(event, 'Xóa liên kết này?')">
                                 <button type="submit" class="btn btn-light btn-circle btn-circle-sm border shadow-sm text-danger" title="Xóa">
                                     <i class="fa-solid fa-trash-can tiny"></i>
                                 </button>

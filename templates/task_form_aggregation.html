@@ -23,14 +23,14 @@
     {% if rows %}
     <div class="table-responsive">
         <table class="table table-bordered table-hover table-sm">
-            <thead class="table-light">
+            <thead class="table-light" scope="col">
                 <tr>
-                    <th>Đơn vị</th>
-                    <th>Người nhận</th>
-                    <th>Trạng thái</th>
-                    <th>Thời điểm nộp</th>
+                    <th scope="col">Đơn vị</th>
+                    <th scope="col">Người nhận</th>
+                    <th scope="col">Trạng thái</th>
+                    <th scope="col">Thời điểm nộp</th>
                     {% for field in fields %}
-                    <th>{{ field.field_label }}</th>
+                    <th scope="col">{{ field.field_label }}</th>
                     {% endfor %}
                 </tr>
             </thead>

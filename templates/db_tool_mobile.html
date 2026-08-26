@@ -4,7 +4,7 @@
 
 {% block head %}
 <style>
-    .mobile-db-hero { background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff; padding: 20px; border-radius: 24px; margin-bottom: 16px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); }
+    .mobile-db-hero { background: linear-gradient(135deg, #0f172a 0%, #0052cc 55%, #0066ff 100%); color: #fff; padding: 20px; border-radius: 24px; margin-bottom: 16px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); }
     .mobile-db-hero h1 { margin: 10px 0 8px; font-size: 1.5rem; font-weight: 800; }
     .mobile-db-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.9rem; }
     .mobile-db-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
@@ -27,7 +27,7 @@
     <p class="text-muted small mb-4">Thao tác này xóa toàn bộ dữ liệu hiện có và không thể hoàn tác.</p>
     <form id="resetForm" action="{{ url_for('admin_bp.db_manage') }}" method="POST">
         <input type="hidden" name="action" value="reset">
-        <button type="button" class="btn btn-danger w-100 rounded-pill fw-bold" aria-label="Reset hệ thống" title="Reset hệ thống" onclick="if(confirm('Xác nhận reset toàn bộ hệ thống? Dữ liệu hiện tại sẽ bị xóa vĩnh viễn.')) document.getElementById('resetForm').submit();"><i class="fa-solid fa-triangle-exclamation"></i><span class="visually-hidden">Reset hệ thống</span></button>
+        <button type="button" class="btn btn-danger w-100 rounded-pill fw-bold" aria-label="Reset hệ thống" title="Reset hệ thống" onclick="pcConfirm('Xác nhận reset toàn bộ hệ thống? Dữ liệu hiện tại sẽ bị xóa vĩnh viễn.').then(function (ok) { if (ok) { document.getElementById('resetForm').submit(); } })"><i class="fa-solid fa-triangle-exclamation"></i><span class="visually-hidden">Reset hệ thống</span></button>
     </form>
 </section>
 {% endblock %}

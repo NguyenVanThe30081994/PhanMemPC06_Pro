@@ -71,34 +71,35 @@
 /* ===== IMPROVEMENTS FROM BDHVS DESIGN ===== */
 
 /* 1. Better CSS Variables */
+/* Đồng bộ flat-theme.css (nguồn token chuẩn) — chỉ còn giá trị trùng lặp phòng khi file bị nạp một mình */
 :root {
-    /* Màu sắc cải thiện */
+    /* Màu sắc */
     --primary: #0066FF;
-    --primary-light: #4D94FF;
-    --primary-gradient: linear-gradient(135deg, #0052CC 0%, #0066FF 100%);
-    
-    /* Background mượt mà hơn */
-    --bg-body: #f1f5f9;
+    --primary-light: #2f7dff;
+    --primary-gradient: linear-gradient(180deg, #0066FF 0%, #0066FF 100%);
+
+    /* Background */
+    --bg-body: #f3f4f6;
     --bg-surface: #ffffff;
-    
-    /* Text rõ ràng hơn */
-    --text-main: #0f172a;
-    --text-muted: #64748b;
-    
-    /* Shadows nhẹ, phẳng (Windows 11 style) */
-    --shadow-sm: 0 1px 2px rgba(15,23,42,0.05);
-    --shadow-md: 0 2px 8px rgba(15,23,42,0.06);
-    --shadow-lg: 0 4px 14px rgba(15,23,42,0.09);
-    --shadow-primary: 0 2px 8px rgba(0, 102, 255, 0.18);
-    
-    /* Border radius mượt mà */
+
+    /* Text */
+    --text-main: #1f2937;
+    --text-muted: #6b7280;
+
+    /* Shadows phẳng */
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-lg: none;
+    --shadow-primary: none;
+
+    /* Border radius */
     --radius-sm: 10px;
-    --radius-md: 14px;
-    --radius-lg: 18px;
+    --radius-md: 12px;
+    --radius-lg: 14px;
     --radius-full: 100px;
-    
+
     /* Transitions nhẹ */
-    --transition: all 0.15s ease-out;
+    --transition: all 0.12s ease-out;
 }
 
 /* 2. Cải thiện Cards */
@@ -219,60 +220,60 @@
 }
 
 /* --- LIGHT THEME (DEFAULT) --- */
+/* Giá trị đồng bộ với flat-theme.css (nguồn token chuẩn, nạp cuối) */
 :root, [data-theme="light"] {
-    --primary: #0066FF; 
-    --primary-light: #4D94FF;
-    --primary-soft: rgba(0, 102, 255, 0.05);
-    --primary-gradient: linear-gradient(135deg, #0052CC 0%, #0066FF 100%);
-    --bg-body: #f1f5f9; /* Slate base for better contrast with cards */
+    --primary: #0066FF;
+    --primary-light: #2f7dff;
+    --primary-soft: rgba(0, 102, 255, 0.07);
+    --primary-gradient: linear-gradient(180deg, #0066FF 0%, #0066FF 100%);
+    --bg-body: #f3f4f6;
     --bg-surface: #ffffff;
-    --bg-sidebar: rgba(255, 255, 255, 0.7);
-    --text-main: #0f172a; /* Deeper slate for text clarity */
-    --text-muted: #64748b;
-    --border: #e2e8f0;
-    --border-light: #f1f5f9;
-    --glass-bg: rgba(255, 255, 255, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.4);
-    --glass-border-bottom: rgba(0, 0, 0, 0.05);
-    --glass-blur: 25px;
-    --glass-saturate: 180%;
-    
-    /* LIQUID GLASS SHADOWS - Layered depth */
-    --liquid-shadow-ambient: 0 6px 18px rgba(0,0,0,0.05);
-    --liquid-shadow-contact: 0 1px 3px rgba(0,0,0,0.03);
-    --glass-shadow: var(--liquid-shadow-ambient), var(--liquid-shadow-contact);
-    
-    /* HYBRID-NEXT ELEVATION SYSTEM (nhẹ, phẳng) */
-    --shadow-lvl1: 0 1px 2px rgba(15,23,42,0.05);
-    --shadow-lvl2: 0 2px 8px rgba(15,23,42,0.06);
-    --shadow-lvl3: 0 4px 14px rgba(15,23,42,0.09);
-    --shadow-primary: 0 2px 8px rgba(0, 102, 255, 0.18);
-    --corner-card: 18px;
-    --glass-blur: 16px;
+    --bg-sidebar: #ffffff;
+    --text-main: #1f2937;
+    --text-muted: #6b7280;
+    --border: #e5e7eb;
+    --border-light: #f3f4f6;
+    --glass-bg: #ffffff;
+    --glass-border: transparent;
+    --glass-border-bottom: transparent;
+    --glass-blur: 0px;
+    --glass-saturate: 100%;
+
+    /* Elevation phẳng — flat-theme tắt toàn bộ shadow */
+    --liquid-shadow-ambient: none;
+    --liquid-shadow-contact: none;
+    --glass-shadow: none;
+    --shadow-lvl1: none;
+    --shadow-lvl2: none;
+    --shadow-lvl3: none;
+    --shadow-primary: none;
+    --corner-card: 14px;
 }
 
-/* --- DARK THEME --- */
+/* --- DARK THEME (đồng bộ flat-theme.css) --- */
 [data-theme="dark"] {
     --primary: #3b82f6;
     --primary-light: #60a5fa;
-    --primary-gradient: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
-    --bg-body: #0f172a;
-    --bg-surface: #1e293b;
-    --bg-sidebar: rgba(15, 23, 42, 0.85);
-    --text-main: #f8fafc;
-    --text-muted: #94a3b8;
-    --border: #334155;
-    --glass-bg: rgba(30, 41, 59, 0.5);
-    --glass-border: rgba(255, 255, 255, 0.12);
-    --glass-border-bottom: rgba(0, 0, 0, 0.2);
-    --glass-blur: 25px;
-    --glass-saturate: 200%;
-    --glass-shadow: 0 15px 35px rgba(0, 0, 0, 0.4), 0 5px 15px rgba(0, 0, 0, 0.2);
-    
-    /* ELEVATION SYSTEM (DARK) - SOFTENED */
-    --shadow-lvl1: 0 1px 3px rgba(0, 0, 0, 0.4);
-    --shadow-lvl2: 0 4px 12px rgba(0, 0, 0, 0.5);
-    --shadow-lvl3: 0 12px 24px rgba(0, 0, 0, 0.6);
+    --primary-soft: rgba(59, 130, 246, 0.12);
+    --primary-gradient: linear-gradient(180deg, #3b82f6 0%, #3b82f6 100%);
+    --bg-body: #111827;
+    --bg-surface: #1f2937;
+    --bg-sidebar: #1f2937;
+    --text-main: #f3f4f6;
+    --text-muted: #9ca3af;
+    --border: #374151;
+    --border-light: #2b3648;
+    --glass-bg: #1f2937;
+    --glass-border: transparent;
+    --glass-border-bottom: transparent;
+    --glass-blur: 0px;
+    --glass-saturate: 100%;
+    --glass-shadow: none;
+
+    /* Elevation phẳng */
+    --shadow-lvl1: none;
+    --shadow-lvl2: none;
+    --shadow-lvl3: none;
 }
 
 /* --- DARK MODE BOOTSTRAP OVERRIDES (Hi-Def Theme Sync) --- */
@@ -775,8 +776,8 @@ body {
 
 @media screen and (min-width: 1920px) {
     :root {
-        --font-size-base: 16px;
-        --container-padding: 56px;
+        --font-size-base: 17px;
+        --container-padding: 52px;
     }
 }
 
@@ -986,7 +987,7 @@ body {
 }
 
 .desktop-nav-link:hover {
-    background: rgba(37, 99, 235, 0.08);
+    background: rgba(0, 102, 255, 0.08);
     color: var(--primary);
     transform: translateX(3px);
 }
@@ -994,7 +995,7 @@ body {
 .desktop-nav-link.active {
     background: linear-gradient(135deg, var(--primary), #3b82f6);
     color: #fff;
-    box-shadow: 0 14px 28px rgba(37, 99, 235, 0.22);
+    box-shadow: 0 14px 28px rgba(0, 102, 255, 0.22);
 }
 
 .desktop-nav-link.has-children {
@@ -1573,10 +1574,6 @@ body {
     background: var(--bg-subtle) !important;
 }
 
-[data-theme="dark"] .pill-thead {
-    background: rgba(15, 23, 42, 0.6) !important;
-}
-
 .pill-thead th {
     color: #0066ff !important;
     font-weight: 900 !important;
@@ -1754,7 +1751,7 @@ body {
 
 .chat-input:focus {
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
 }
 
 .chat-btn {
@@ -1813,8 +1810,8 @@ body {
     border-left-color: var(--primary-light);
 }
 
-/* CUSTOM SCROLLBAR YẾU TỐ SANG TRỌNG */
-::-webkit-scrollbar { width: 8px; height: 8px; }
+/* CUSTOM SCROLLBAR YẾU TỐ SANG TRỌNG
+   (:: -webkit-scrollbar đã khai báo ở mục 8; giữ lại track/thumb riêng) */
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 12px; border: 2px solid transparent; background-clip: padding-box; }
 ::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
@@ -1841,12 +1838,12 @@ body {
 .btn-primary {
     background: var(--primary);
     border: none;
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    box-shadow: 0 2px 8px rgba(0, 102, 255, 0.25);
     transition: background-color 0.15s ease-out, box-shadow 0.15s ease-out;
 }
 .btn-primary:hover {
     background: var(--primary-light);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 102, 255, 0.3);
 }
 
 /* ========================================================
@@ -2124,12 +2121,12 @@ body {
 }
 
 .nav-link.active.fw-bold {
-    background: rgba(37, 99, 235, 0.08) !important;
+    background: rgba(0, 102, 255, 0.08) !important;
     color: var(--primary) !important;
     border-left: 4px solid var(--primary) !important;
     padding-left: 1.25rem !important;
     border-radius: 0 8px 8px 0;
-    box-shadow: 2px 0 10px rgba(37, 99, 235, 0.05);
+    box-shadow: 2px 0 10px rgba(0, 102, 255, 0.05);
 }
 
 .app-split-col-ops {
@@ -2160,32 +2157,34 @@ body {
 
 /* Enhanced Buttons for "Nổi khối" */
 .btn-primary.shadow-sm, .btn-success.shadow-sm {
-    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2), 0 2px 4px -1px rgba(37, 99, 235, 0.1) !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 102, 255, 0.2), 0 2px 4px -1px rgba(0, 102, 255, 0.1) !important;
 }
 
 .btn-primary.shadow-sm:hover, .btn-success.shadow-sm:hover {
-    box-shadow: 0 4px 8px -1px rgba(37, 99, 235, 0.2) !important;
+    box-shadow: 0 4px 8px -1px rgba(0, 102, 255, 0.2) !important;
 }
 
 @media (min-width: 1600px) {
     :root {
-        --font-size-base: 17px;
-        --nav-height: 85px;
-        --card-gap: 32px;
-        --container-padding: 64px;
-        --sidebar-width: 320px;
-        --desktop-sidebar-width: 310px;
+        --font-size-base: 16px;
+        --nav-height: 72px;
+        --card-gap: 28px;
+        --container-padding: 44px;
+        --sidebar-width: 330px;
+        --desktop-sidebar-width: 300px;
     }
 }
 
+/* Thang token đơn điệu theo bề rộng màn hình (audit 2026-08):
+   mọi giá trị chỉ tăng khi màn hình rộng hơn */
 @media (min-width: 2000px) {
     :root {
-        --font-size-base: 16px;
-        --nav-height: 68px;
-        --card-gap: 28px;
+        --font-size-base: 17px;
+        --nav-height: 76px;
+        --card-gap: 32px;
         --container-padding: 56px;
         --sidebar-width: 350px;
-        --desktop-sidebar-width: 292px;
+        --desktop-sidebar-width: 308px;
     }
     .container-fluid {
         max-width: 2200px;
@@ -2452,7 +2451,7 @@ body {
 .search-box-modern:focus-within {
     background: #fff;
     border-color: var(--primary);
-    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.1);
 }
 
 [data-theme='dark'] .search-box-modern:focus-within {
@@ -2500,7 +2499,7 @@ body {
     background: var(--primary);
     color: #fff;
     border-color: var(--primary);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 102, 255, 0.3);
 }
 
 .filter-divider {

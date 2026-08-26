@@ -16,25 +16,25 @@
     .mobile-chip-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
     .mobile-chip-row::-webkit-scrollbar { display: none; }
     .mobile-chip { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-body); color: var(--text-muted); font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
-    .mobile-chip.active { background: #2563eb; color: #fff; border-color: transparent; }
+    .mobile-chip.active { background: #0066ff; color: #fff; border-color: transparent; }
     .mobile-contact-list { display: grid; gap: 14px; }
     .mobile-contact-card { padding: 16px; }
     .mobile-contact-head { display: flex; gap: 12px; align-items: center; }
-    .mobile-contact-avatar { width: 46px; height: 46px; border-radius: 50%; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; }
+    .mobile-contact-avatar { width: 46px; height: 46px; border-radius: 50%; background: #0066ff; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; }
     .mobile-contact-copy { min-width: 0; flex: 1; }
     .mobile-contact-copy h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-main); }
     .mobile-contact-copy p { margin: 5px 0 0; color: var(--text-muted); font-size: 0.82rem; }
-    .mobile-contact-phone { display: inline-block; margin-top: 10px; color: #1d4ed8; font-weight: 800; text-decoration: none; }
+    .mobile-contact-phone { display: inline-block; margin-top: 10px; color: #0052cc; font-weight: 800; text-decoration: none; }
     .mobile-contact-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--border); }
-    .mobile-contact-fab { position: fixed; bottom: 88px; right: 18px; width: 58px; height: 58px; border-radius: 14px; border: 0; background: #2563eb; color: #fff; }
+    .mobile-contact-fab { position: fixed; bottom: 88px; right: 18px; width: 58px; height: 58px; border-radius: 14px; border: 0; background: #0066ff; color: #fff; }
 </style>
 {% endblock %}
 
 {% block content %}
 {% if can_module('contact', 'process') %}
 <section class="mobile-page-actions cols-3">
-    <a class="btn btn-mobile" href="{{ url_for('portal_bp.contact_template') }}" style="background:#eff6ff;color:#1d4ed8;" aria-label="Tải biểu mẫu" title="Tải biểu mẫu"><i class="fa-solid fa-download"></i><span class="visually-hidden">Tải biểu mẫu</span></a>
-    <button class="btn btn-mobile" type="button" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#importContactModal" aria-label="Nhập Excel" title="Nhập Excel"><i class="fa-solid fa-file-excel"></i><span class="visually-hidden">Nhập Excel</span></button>
+    <a class="btn btn-mobile" href="{{ url_for('portal_bp.contact_template') }}" style="background:#eff6ff;color:#0052cc;" aria-label="Tải biểu mẫu" title="Tải biểu mẫu"><i class="fa-solid fa-download"></i><span class="visually-hidden">Tải biểu mẫu</span></a>
+    <button class="btn btn-mobile" type="button" style="background:#eff6ff;color:#0052cc;" data-bs-toggle="modal" data-bs-target="#importContactModal" aria-label="Nhập Excel" title="Nhập Excel"><i class="fa-solid fa-file-excel"></i><span class="visually-hidden">Nhập Excel</span></button>
     <button class="btn btn-mobile btn-mobile-primary" type="button" data-bs-toggle="modal" data-bs-target="#addContactModal" aria-label="Thêm liên hệ" title="Thêm liên hệ"><i class="fa-solid fa-plus"></i><span class="visually-hidden">Thêm liên hệ</span></button>
 </section>
 {% endif %}
@@ -66,7 +66,7 @@
         {% if can_module('contact', 'process') %}
         <div class="mobile-contact-foot">
             <span class="small text-muted">Xử lý liên hệ</span>
-            <form method="POST" action="{{ url_for('portal_bp.contact_delete', cid=c.id) }}" class="m-0" onsubmit="return confirm('Xóa liên hệ này?')">
+            <form method="POST" action="{{ url_for('portal_bp.contact_delete', cid=c.id) }}" class="m-0" onsubmit="return pc06ConfirmSubmit(event, 'Xóa liên hệ này?')">
                 <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill" aria-label="Xóa liên hệ" title="Xóa liên hệ"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xóa liên hệ</span></button>
             </form>
         </div>

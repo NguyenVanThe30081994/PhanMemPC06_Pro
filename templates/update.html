@@ -55,9 +55,9 @@
                                 <h6 class="fw-bold text-dark mb-2"><i class="fa-brands fa-git-alt me-2 text-orange"></i>Cập nhật qua Git</h6>
                                 <p class="text-muted small mb-4">Tự động đồng bộ hóa mã nguồn từ kho lưu trữ chính thức trên máy chủ.</p>
                             </div>
-                            <form action="{{ url_for('admin_bp.system_update') }}" method="POST">
+                            <form id="gitPullForm" action="{{ url_for('admin_bp.system_update') }}" method="POST">
                                 <input type="hidden" name="action" value="git_pull">
-                                <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold" onclick="return confirm('Hệ thống sẽ thực hiện Git Pull. Bạn có chắc chắn?')">
+                                <button type="button" class="btn btn-primary w-100 rounded-pill fw-bold" onclick="pcConfirm('Hệ thống sẽ thực hiện Git Pull. Bạn có chắc chắn?').then(function (ok) { if (ok) { document.getElementById('gitPullForm').submit(); } })">
                                     KIỂM TRA & TẢI VỀ
                                 </button>
                             </form>

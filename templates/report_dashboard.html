@@ -48,12 +48,12 @@
 
             <div class="table-responsive">
                 <table class="table table-bordered table-hover table-sm mb-0">
-                    <thead class="table-light">
+                    <thead class="table-light" scope="col">
                         <tr>
-                            <th>Đơn vị</th>
-                            <th style="width:100px;">Trạng thái</th>
-                            <th style="width:120px;">Đã nộp</th>
-                            <th>Người nhận</th>
+                            <th scope="col">Đơn vị</th>
+                            <th style="width:100px;" scope="col">Trạng thái</th>
+                            <th style="width:120px;" scope="col">Đã nộp</th>
+                            <th scope="col">Người nhận</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -75,7 +75,7 @@
                                 <span class="d-inline-block me-2 mb-1">
                                     {{ assignee.name }}
                                     {% if assignee.status == "submitted" %}
-                                    <span class="badge bg-success" title="{{ assignee.submitted_at }}">✓</span>
+                                    <span class="badge bg-success" title="{{ assignee.submitted_at }}"><i class="fa-solid fa-check" aria-hidden="true"></i></span>
                                     {% else %}
                                     <span class="badge bg-secondary" title="Chưa nộp">—</span>
                                     {% endif %}

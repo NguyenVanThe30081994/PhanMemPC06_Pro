@@ -1352,12 +1352,12 @@
             assignmentHtml = `
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
-                        <thead>
+                        <thead scope="col">
                             <tr>
-                                <th>Đầu mục</th>
-                                <th>Gợi ý giao việc</th>
-                                <th>Chuẩn hóa đầu ra</th>
-                                ${!isLocked ? '<th>Thao tác</th>' : ''}
+                                <th scope="col">Đầu mục</th>
+                                <th scope="col">Gợi ý giao việc</th>
+                                <th scope="col">Chuẩn hóa đầu ra</th>
+                                ${!isLocked ? '<th scope="col">Thao tác</th>' : ''}
                             </tr>
                         </thead>
                         <tbody>
@@ -1413,12 +1413,12 @@
                 </div>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
-                        <thead>
+                        <thead scope="col">
                             <tr>
-                                <th>Field biểu mẫu</th>
-                                <th>Phạm vi hiện tại</th>
-                                <th>Gợi ý AI</th>
-                                ${!isLocked ? '<th>Thao tác</th>' : ''}
+                                <th scope="col">Field biểu mẫu</th>
+                                <th scope="col">Phạm vi hiện tại</th>
+                                <th scope="col">Gợi ý AI</th>
+                                ${!isLocked ? '<th scope="col">Thao tác</th>' : ''}
                             </tr>
                         </thead>
                         <tbody>
@@ -1479,12 +1479,12 @@
                 </div>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
-                        <thead>
+                        <thead scope="col">
                             <tr>
-                                <th>Chỉ tiêu</th>
-                                <th>Phạm vi hiện tại</th>
-                                <th>Gợi ý AI</th>
-                                ${!isLocked ? '<th>Thao tác</th>' : ''}
+                                <th scope="col">Chỉ tiêu</th>
+                                <th scope="col">Phạm vi hiện tại</th>
+                                <th scope="col">Gợi ý AI</th>
+                                ${!isLocked ? '<th scope="col">Thao tác</th>' : ''}
                             </tr>
                         </thead>
                         <tbody>
@@ -1610,11 +1610,11 @@
                             <div class="fw-semibold mb-2">Danh sách người nhận</div>
                             <div class="table-responsive">
                                 <table class="table table-sm align-middle mb-0">
-                                    <thead>
+                                    <thead scope="col">
                                         <tr>
-                                            <th>Người nhận</th>
-                                            <th>Đơn vị</th>
-                                            <th>Khối lượng</th>
+                                            <th scope="col">Người nhận</th>
+                                            <th scope="col">Đơn vị</th>
+                                            <th scope="col">Khối lượng</th>
                                         </tr>
                                     </thead>
                                     <tbody>

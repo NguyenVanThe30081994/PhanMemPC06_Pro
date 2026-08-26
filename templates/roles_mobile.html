@@ -4,7 +4,7 @@
 
 {% block head %}
 <style>
-    .mobile-role-hero { background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff; padding: 20px; border-radius: 24px; margin-bottom: 16px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); }
+    .mobile-role-hero { background: linear-gradient(135deg, #0f172a 0%, #0052cc 55%, #0066ff 100%); color: #fff; padding: 20px; border-radius: 24px; margin-bottom: 16px; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18); }
     .mobile-role-hero h1 { margin: 10px 0 8px; font-size: 1.5rem; font-weight: 800; }
     .mobile-role-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.9rem; }
     .mobile-role-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
@@ -16,9 +16,9 @@
 {% block content %}
 {% if can_manage_roles %}
 <section class="mobile-page-actions cols-4">
-    <a class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" href="{{ url_for('admin_bp.export_users', role_id=selected_role_id, unit=selected_unit, q=search_query) }}" aria-label="{{ 'Xuất ' ~ selected_role.name if selected_role else 'Xuất danh sách tài khoản' }}" title="{{ 'Xuất ' ~ selected_role.name if selected_role else 'Xuất danh sách tài khoản' }}"><i class="fa-solid fa-file-arrow-down"></i></a>
-    <button class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#importUserModal"><i class="fa-solid fa-file-excel"></i></button>
-    <button class="btn btn-mobile" style="background:#eff6ff;color:#1d4ed8;" data-bs-toggle="modal" data-bs-target="#addRoleModal"><i class="fa-solid fa-user-tag"></i></button>
+    <a class="btn btn-mobile" style="background:#eff6ff;color:#0052cc;" href="{{ url_for('admin_bp.export_users', role_id=selected_role_id, unit=selected_unit, q=search_query) }}" aria-label="{{ 'Xuất ' ~ selected_role.name if selected_role else 'Xuất danh sách tài khoản' }}" title="{{ 'Xuất ' ~ selected_role.name if selected_role else 'Xuất danh sách tài khoản' }}"><i class="fa-solid fa-file-arrow-down"></i></a>
+    <button class="btn btn-mobile" style="background:#eff6ff;color:#0052cc;" data-bs-toggle="modal" data-bs-target="#importUserModal"><i class="fa-solid fa-file-excel"></i></button>
+    <button class="btn btn-mobile" style="background:#eff6ff;color:#0052cc;" data-bs-toggle="modal" data-bs-target="#addRoleModal"><i class="fa-solid fa-user-tag"></i></button>
     <button class="btn btn-mobile btn-mobile-primary" data-bs-toggle="modal" data-bs-target="#addUserModal"><i class="fa-solid fa-plus"></i></button>
 </section>
 {% endif %}
@@ -325,10 +325,10 @@ function handleMobileUserCheckAllChange() {
     updateMobileUserBulkSelectionState();
 }
 
-function submitMobileBulkUserDelete() {
+async function submitMobileBulkUserDelete() {
     const selectedIds = Array.from(document.querySelectorAll('.mobile-user-row-check:checked')).map((item) => Number(item.value)).filter(Boolean);
     if (!selectedIds.length) return;
-    if (!confirm(`Xóa ${selectedIds.length} tài khoản đã chọn?`)) return;
+    if (!(await pcConfirm(`Xóa ${selectedIds.length} tài khoản đã chọn?`))) return;
     document.getElementById('mobileBulkUserDeleteSelectedIds').value = JSON.stringify(selectedIds);
     document.getElementById('mobileBulkUserDeleteForm').submit();
 }
@@ -339,14 +339,14 @@ function submitMobileBulkPasswordReset() {
         .map((item) => Number(item.value))
         .filter(Boolean);
     if (!resettableIds.length) {
-        alert('Không có tài khoản nào trong danh sách hiện tại để reset mật khẩu.');
+        pcAlert('Không có tài khoản nào trong danh sách hiện tại để reset mật khẩu.', 'warning');
         return;
     }
     const tempPassword = window.prompt(`Nhập mật khẩu tạm thời mạnh cho ${resettableIds.length} tài khoản được chọn.`, '');
     if (!tempPassword) return;
     const confirmPassword = window.prompt('Nhập lại mật khẩu tạm thời để xác nhận.', '');
     if (tempPassword !== confirmPassword) {
-        alert('Mật khẩu xác nhận không khớp.');
+        pcAlert('Mật khẩu xác nhận không khớp.', 'error');
         return;
     }
     document.getElementById('mobileBulkPasswordResetSelectedIds').value = JSON.stringify(resettableIds);

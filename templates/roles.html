@@ -86,18 +86,18 @@
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="pill-thead">
+                        <thead class="pill-thead" scope="col">
                             <tr>
                                 {% if can_manage_roles %}
-                                <th style="width: 52px;" class="text-center">
+                                <th style="width: 52px;" class="text-center" scope="col">
                                     <input type="checkbox" class="form-check-input" id="userCheckAll" onchange="handleUserCheckAllChange()">
                                 </th>
                                 {% endif %}
-                                <th class="ps-4">Người dùng</th>
-                                <th>Đơn vị</th>
-                                <th>Vai trò</th>
-                                <th>Trạng thái</th>
-                                <th class="pe-4 text-end">Thao tác</th>
+                                <th class="ps-4" scope="col">Người dùng</th>
+                                <th scope="col">Đơn vị</th>
+                                <th scope="col">Vai trò</th>
+                                <th scope="col">Trạng thái</th>
+                                <th class="pe-4 text-end" scope="col">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -133,7 +133,7 @@
                                         <a href="/admin/user/toggle-status/{{ u.id }}" class="btn btn-light btn-circle btn-circle-sm border shadow-sm" title="{{ 'Khóa tài khoản' if u.is_active else 'Mở khóa' }}">
                                             <i class="fa-solid {{ 'fa-lock' if u.is_active else 'fa-lock-open' }} tiny {% if u.is_active %}text-warning{% else %}text-success{% endif %}"></i>
                                         </a>
-                                        <form method="POST" action="{{ url_for('admin_bp.delete_user', uid=u.id) }}" class="d-inline m-0" onsubmit="return confirm('Xóa tài khoản này?')">
+                                        <form method="POST" action="{{ url_for('admin_bp.delete_user', uid=u.id) }}" class="d-inline m-0" onsubmit="return pc06ConfirmSubmit(event, 'Xóa tài khoản này?')">
                                             <button type="submit" class="btn btn-light btn-circle btn-circle-sm border shadow-sm" title="Xóa tài khoản">
                                                 <i class="fa-solid fa-trash-can tiny text-danger"></i>
                                             </button>
@@ -184,7 +184,7 @@
                                 Phân quyền
                             </button>
                             {% if r.name not in ['Quản trị hệ thống', 'admin_system'] %}
-                            <form method="POST" class="d-inline m-0" onsubmit="return confirm('Xóa vai trò này?')">
+                            <form method="POST" class="d-inline m-0" onsubmit="return pc06ConfirmSubmit(event, 'Xóa vai trò này?')">
                                 <input type="hidden" name="action" value="delete_role">
                                 <input type="hidden" name="role_id" value="{{ r.id }}">
                                 <button type="submit" class="btn btn-bdhvs light text-danger" title="Xóa vai trò">
@@ -232,12 +232,12 @@
                     </div>
                     <div class="table-responsive">
                         <table class="table table-sm table-borderless align-middle">
-                            <thead class="tiny text-muted text-uppercase">
+                            <thead class="tiny text-muted text-uppercase" scope="col">
                                 <tr>
-                                    <th>Chức năng</th>
-                                    <th class="text-center">Xem</th>
-                                    <th class="text-center">Xử lý</th>
-                                    <th class="text-center">Thực hiện</th>
+                                    <th scope="col">Chức năng</th>
+                                    <th class="text-center" scope="col">Xem</th>
+                                    <th class="text-center" scope="col">Xử lý</th>
+                                    <th class="text-center" scope="col">Thực hiện</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -282,12 +282,12 @@
                 <div class="modal-body p-4">
                     <div class="table-responsive">
                         <table class="table table-sm table-borderless align-middle">
-                            <thead class="tiny text-muted text-uppercase">
+                            <thead class="tiny text-muted text-uppercase" scope="col">
                                 <tr>
-                                    <th>Chức năng</th>
-                                    <th class="text-center">Xem</th>
-                                    <th class="text-center">Xử lý</th>
-                                    <th class="text-center">Thực hiện</th>
+                                    <th scope="col">Chức năng</th>
+                                    <th class="text-center" scope="col">Xem</th>
+                                    <th class="text-center" scope="col">Xử lý</th>
+                                    <th class="text-center" scope="col">Thực hiện</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -558,10 +558,10 @@ function handleUserCheckAllChange() {
     updateUserBulkSelectionState();
 }
 
-function submitBulkUserDelete() {
+async function submitBulkUserDelete() {
     const selectedIds = Array.from(document.querySelectorAll('.user-row-check:checked')).map((item) => Number(item.value)).filter(Boolean);
     if (!selectedIds.length) return;
-    if (!confirm(`Xóa ${selectedIds.length} tài khoản đã chọn?`)) return;
+    if (!(await pcConfirm(`Xóa ${selectedIds.length} tài khoản đã chọn?`))) return;
     document.getElementById('bulkUserDeleteSelectedIds').value = JSON.stringify(selectedIds);
     document.getElementById('bulkUserDeleteForm').submit();
 }
@@ -572,14 +572,14 @@ function submitBulkPasswordReset() {
         .map((item) => Number(item.value))
         .filter(Boolean);
     if (!resettableIds.length) {
-        alert('Không có tài khoản nào trong danh sách hiện tại để reset mật khẩu.');
+        pcAlert('Không có tài khoản nào trong danh sách hiện tại để reset mật khẩu.', 'warning');
         return;
     }
     const tempPassword = window.prompt(`Nhập mật khẩu tạm thời mạnh cho ${resettableIds.length} tài khoản được chọn.`, '');
     if (!tempPassword) return;
     const confirmPassword = window.prompt('Nhập lại mật khẩu tạm thời để xác nhận.', '');
     if (tempPassword !== confirmPassword) {
-        alert('Mật khẩu xác nhận không khớp.');
+        pcAlert('Mật khẩu xác nhận không khớp.', 'error');
         return;
     }
     document.getElementById('bulkPasswordResetSelectedIds').value = JSON.stringify(resettableIds);
@@ -678,15 +678,15 @@ document.querySelectorAll('form').forEach((form) => {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: rgba(37, 99, 235, 0.08);
-        color: #1d4ed8;
+        background: rgba(0, 102, 255, 0.08);
+        color: #0052cc;
         font-weight: 900;
         flex-shrink: 0;
     }
     .system-filter-chip.active {
-        border-color: rgba(37, 99, 235, 0.32);
-        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(37, 99, 235, 0.92));
-        box-shadow: 0 18px 34px rgba(37, 99, 235, 0.14);
+        border-color: rgba(0, 102, 255, 0.32);
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(0, 102, 255, 0.92));
+        box-shadow: 0 18px 34px rgba(0, 102, 255, 0.14);
     }
     .system-filter-chip.active strong,
     .system-filter-chip.active span {

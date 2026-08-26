@@ -8,7 +8,7 @@
             <p class="text-muted mb-0">Dashboard quản lý và theo dõi hoạt động</p>
         </div>
         <div class="text-end">
-            <div class="badge px-4 py-2 rounded-pill mb-1" style="background: #dbeafe; color: #1D4ED8; border: none; font-weight: 700;">
+            <div class="badge px-4 py-2 rounded-pill mb-1" style="background: #dbeafe; color: #0052CC; border: none; font-weight: 700;">
                 <i class="fa-regular fa-clock me-2"></i>{{ dt_str }}
             </div>
             <div class="text-muted small">Cập nhật lúc: {{ dt_str.split(' ')[1] }}</div>
@@ -22,12 +22,12 @@
         <div class="card border-0 h-100" style="border-radius: 20px; background: #fff; box-shadow: 0 4px 16px rgba(15,23,42,0.06);">
             <div class="card-body p-4">
                 <div class="d-flex align-items-center gap-3 mb-3">
-                    <div style="width: 56px; height: 56px; background: #2563eb; border-radius: 14px; display: flex; align-items: center; justify-content: center;">
+                    <div style="width: 56px; height: 56px; background: #0066ff; border-radius: 14px; display: flex; align-items: center; justify-content: center;">
                         <i class="fa-solid fa-list-check text-white fs-5"></i>
                     </div>
                     <div>
                         <h6 class="text-muted small mb-1 text-uppercase fw-bold" style="font-size: 11px;">Tổng công việc</h6>
-                        <h2 class="fw-bold mb-0" style="color: #2563eb; font-size: 2rem;">{{ tot }}</h2>
+                        <h2 class="fw-bold mb-0" style="color: #0066ff; font-size: 2rem;">{{ tot }}</h2>
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-2">
@@ -128,12 +128,12 @@
                     {% for assign, task in recent_activity %}
                     <div class="activity-item d-flex gap-3 mb-3 pb-3 border-bottom">
                         <div style="width: 45px; height: 45px; background: {% if assign.status == 'Hoàn thành' %}#d1fae5{% elif assign.status == 'Đang thực hiện' %}#dbeafe{% else %}#fef3c7{% endif %}; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                            <i class="fa-solid fa-file-pen" style="color: {% if assign.status == 'Hoàn thành' %}#059669{% elif assign.status == 'Đang thực hiện' %}#1D4ED8{% else %}#92400E{% endif %};"></i>
+                            <i class="fa-solid fa-file-pen" style="color: {% if assign.status == 'Hoàn thành' %}#059669{% elif assign.status == 'Đang thực hiện' %}#0052CC{% else %}#92400E{% endif %};"></i>
                         </div>
                         <div class="flex-grow-1">
                             <div class="d-flex justify-content-between align-items-start mb-1">
                                 <h6 class="fw-bold mb-0" style="color: #1e293b; font-size: 14px;">{{ task.title }}</h6>
-                                <span class="badge" style="background: {% if assign.status == 'Hoàn thành' %}#d1fae5{% elif assign.status == 'Đang thực hiện' %}#dbeafe{% else %}#fef3c7{% endif %}; color: {% if assign.status == 'Hoàn thành' %}#059669{% elif assign.status == 'Đang thực hiện' %}#1D4ED8{% else %}#92400E{% endif %}; border: none; padding: 4px 10px; font-size: 10px; font-weight: 600;">
+                                <span class="badge" style="background: {% if assign.status == 'Hoàn thành' %}#d1fae5{% elif assign.status == 'Đang thực hiện' %}#dbeafe{% else %}#fef3c7{% endif %}; color: {% if assign.status == 'Hoàn thành' %}#059669{% elif assign.status == 'Đang thực hiện' %}#0052CC{% else %}#92400E{% endif %}; border: none; padding: 4px 10px; font-size: 10px; font-weight: 600;">
                                     {{ assign.status }}
                                 </span>
                             </div>
@@ -186,7 +186,7 @@
                 <h6 class="fw-bold mb-3" style="color: #1e293b;">Công cụ nhanh</h6>
                 <div class="d-grid gap-2">
                     <a href="/tasks" class="btn text-start p-3 d-flex align-items-center gap-3" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px;">
-                        <div style="width: 40px; height: 40px; background: #2563eb; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <div style="width: 40px; height: 40px; background: #0066ff; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
                             <i class="fa-solid fa-list-check text-white"></i>
                         </div>
                         <div class="flex-grow-1">

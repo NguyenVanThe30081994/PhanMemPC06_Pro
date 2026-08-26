@@ -203,7 +203,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #2563eb;
+        background: #0066ff;
         color: #fff;
         border-radius: 8px;
         font-weight: 700;
@@ -243,7 +243,7 @@
 
     .wizard-outline-row-child {
         margin-left: 42px;
-        border-left: 3px solid rgba(37, 99, 235, 0.25) !important;
+        border-left: 3px solid rgba(0, 102, 255, 0.25) !important;
         background: rgba(248, 250, 252, 0.85) !important;
     }
 
@@ -347,8 +347,8 @@
         height: 38px;
         padding: 0 14px;
         border-radius: 999px;
-        background: rgba(37, 99, 235, 0.09);
-        color: #1d4ed8;
+        background: rgba(0, 102, 255, 0.09);
+        color: #0052cc;
         font-weight: 800;
     }
 
@@ -443,8 +443,8 @@
     }
 
     .task-pill-mode {
-        background: rgba(37, 99, 235, 0.1);
-        color: #1d4ed8;
+        background: rgba(0, 102, 255, 0.1);
+        color: #0052cc;
     }
 
     .task-card-link {
@@ -499,7 +499,7 @@
         display: block;
         height: 100%;
         border-radius: inherit;
-        background: linear-gradient(90deg, #2563eb, #38bdf8);
+        background: linear-gradient(90deg, #0066ff, #38bdf8);
     }
 
     .task-empty-state {
@@ -576,7 +576,7 @@
     }
 
     .task-stat-item.danger i { color: #b91c1c; background: rgba(239, 68, 68, 0.12); }
-    .task-stat-item.primary i { color: #1d4ed8; background: rgba(37, 99, 235, 0.12); }
+    .task-stat-item.primary i { color: #0052cc; background: rgba(0, 102, 255, 0.12); }
     .task-stat-item.warning i { color: #b45309; background: rgba(245, 158, 11, 0.14); }
     .task-stat-item.success i { color: #047857; background: rgba(16, 185, 129, 0.14); }
 
@@ -602,9 +602,9 @@
     }
 
     .task-nav-tabs .nav-link.active {
-        color: #1d4ed8;
+        color: #0052cc;
         background: rgba(219, 234, 254, 0.9);
-        border-color: rgba(37, 99, 235, 0.18);
+        border-color: rgba(0, 102, 255, 0.18);
     }
 
     .task-tab-content {
@@ -635,9 +635,9 @@
     }
 
     .wizard-heading-level-1 {
-        background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(59, 130, 246, 0.05));
-        border: 1px solid rgba(37, 99, 235, 0.2);
-        border-left: 4px solid #2563eb;
+        background: linear-gradient(135deg, rgba(0, 102, 255, 0.08), rgba(59, 130, 246, 0.05));
+        border: 1px solid rgba(0, 102, 255, 0.2);
+        border-left: 4px solid #0066ff;
         padding: 12px 16px;
         border-radius: 12px;
         margin: 8px 0;
@@ -646,7 +646,7 @@
     .wizard-heading-level-1 .heading-title {
         font-size: 1.05rem;
         font-weight: 800;
-        color: #1d4ed8;
+        color: #0052cc;
         margin: 0;
     }
 
@@ -864,8 +864,8 @@
     }
 
     [data-theme="dark"] .task-nav-tabs .nav-link.active {
-        background: rgba(37, 99, 235, 0.2);
-        border-color: rgba(37, 99, 235, 0.35);
+        background: rgba(0, 102, 255, 0.2);
+        border-color: rgba(0, 102, 255, 0.35);
         color: #93c5fd;
     }
 
@@ -890,7 +890,7 @@
     }
 
     [data-theme="dark"] .task-create-btn {
-        box-shadow: 0 14px 30px rgba(37, 99, 235, 0.28);
+        box-shadow: 0 14px 30px rgba(0, 102, 255, 0.28);
     }
 
     .task-card-corner-actions {
@@ -927,7 +927,7 @@
     }
 
     .btn-icon-corner:hover i {
-        color: #1d4ed8;
+        color: #0052cc;
     }
 
     .btn-icon-corner.btn-danger:hover i {
@@ -1234,21 +1234,21 @@
                         <div class="row g-3">
                             <div class="col-lg-4">
                                 <button type="button" class="card w-100 h-100 text-start p-3 border-2 task-type-card is-selected" data-task-type="OUTLINE">
-                                    <div class="fs-3">📋</div>
+                                    <div class="fs-3"><i class="fa-solid fa-list-check" aria-hidden="true"></i></div>
                                     <div class="fw-bold mt-2">Theo đề cương</div>
                                     <div class="small text-muted mt-1">Tải đề cương Word → hệ thống gom nội dung theo từng mục → quản trị gán mục đó cho đơn vị và chọn hình thức báo cáo.</div>
                                 </button>
                             </div>
                             <div class="col-lg-4">
                                 <button type="button" class="card w-100 h-100 text-start p-3 border-2 task-type-card" data-task-type="FILE">
-                                    <div class="fs-3">📄</div>
+                                    <div class="fs-3"><i class="fa-solid fa-file-lines" aria-hidden="true"></i></div>
                                     <div class="fw-bold mt-2">Nộp file / văn bản</div>
                                     <div class="small text-muted mt-1">Giao việc trực tiếp; người nhận nộp nội dung tóm tắt + file minh chứng, công văn, văn bản tổng hợp.</div>
                                 </button>
                             </div>
                             <div class="col-lg-4">
                                 <button type="button" class="card w-100 h-100 text-start p-3 border-2 task-type-card" data-task-type="FORM">
-                                    <div class="fs-3">📊</div>
+                                    <div class="fs-3"><i class="fa-solid fa-table-cells" aria-hidden="true"></i></div>
                                     <div class="fw-bold mt-2">Biểu mẫu / bảng số</div>
                                     <div class="small text-muted mt-1">Điền như Google Form hoặc bảng Excel; xuất tổng hợp dữ liệu ra file Excel.</div>
                                 </button>
@@ -2018,7 +2018,7 @@
         remove.type = 'button';
         remove.className = 'btn btn-sm btn-outline-danger';
         remove.title = 'Bỏ file này';
-        remove.textContent = '✕';
+        remove.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
         remove.addEventListener('click', () => row.remove());
         row.append(label, input, remove);
         wizardOutlineFileList?.appendChild(row);
@@ -2480,19 +2480,19 @@
         const totalCols = visibleCols.length + 3; // ô tích + hình thức + gán
 
         const headerCells = [
-            '<th class="text-center" style="width:34px;"><input class="form-check-input mt-0" type="checkbox" data-wz-table-view-check-all title="Tích tất cả dòng"></th>',
+            '<th class="text-center" style="width:34px;" scope="col"><input class="form-check-input mt-0" type="checkbox" data-wz-table-view-check-all title="Tích tất cả dòng"></th>',
         ].concat(
             visibleCols.map((col) => {
                 const colClass = col.role === 'content' ? 'wz-col-content' : col.role === 'lead' ? 'wz-col-lead' : 'wz-col-other';
                 const savedW = wizardTableUserColWidths[col.index];
-                return `<th class="${colClass}" data-col-index="${col.index}" ${savedW ? `style="width:${savedW}px;"` : ''}>
+                return `<th class="${colClass}" data-col-index="${col.index}" ${savedW ? `style="width:${savedW}px;"` : ''} scope="col">
                     <div class="text-center fw-semibold" style="font-size: 0.85rem;">${escapeHtml(col.header || '')}</div>
                     <span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span>
                 </th>`;
             })
         ).concat([
-            '<th class="wz-col-report" data-col-index="report" ' + (wizardTableUserColWidths.report ? `style="width:${wizardTableUserColWidths.report}px;"` : '') + '><div class="text-center fw-semibold" style="font-size: 0.85rem;">Hình thức báo cáo</div><span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span></th>',
-            '<th class="wz-col-assign" data-col-index="assign" ' + (wizardTableUserColWidths.assign ? `style="width:${wizardTableUserColWidths.assign}px;"` : '') + '><div class="text-center fw-semibold" style="font-size: 0.85rem;">Gán cho ai</div><span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span></th>',
+            '<th class="wz-col-report" data-col-index="report" ' + (wizardTableUserColWidths.report ? `style="width:${wizardTableUserColWidths.report}px;"` : '') + ' scope="col"><div class="text-center fw-semibold" style="font-size: 0.85rem;">Hình thức báo cáo</div><span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span></th>',
+            '<th class="wz-col-assign" data-col-index="assign" ' + (wizardTableUserColWidths.assign ? `style="width:${wizardTableUserColWidths.assign}px;"` : '') + ' scope="col"><div class="text-center fw-semibold" style="font-size: 0.85rem;">Gán cho ai</div><span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span></th>',
         ]);
 
         let bodyHtml = '';
@@ -2552,7 +2552,7 @@
         container.innerHTML = `
             <div class="table-responsive border rounded-3 bg-white">
                 <table class="table table-bordered table-sm align-middle mb-0 wizard-outline-table">
-                    <thead><tr>${headerCells.join('')}</tr></thead>
+                    <thead scope="col"><tr>${headerCells.join('')}</tr></thead>
                     <tbody>${bodyHtml || '<tr><td colspan="' + totalCols + '" class="text-center text-muted py-3">Chưa có dòng nào.</td></tr>'}</tbody>
                 </table>
             </div>
@@ -3130,7 +3130,7 @@
     document.getElementById('wizardApplyAssignBtn')?.addEventListener('click', () => {
         const unitDomains = Array.from(document.querySelectorAll('[data-wizard-unit-checkbox]:checked')).map((cb) => cb.value);
         if (!unitDomains.length) {
-            window.alert('Cần chọn ít nhất một đơn vị nhận việc trước khi gán.');
+            pcAlert('Cần chọn ít nhất một đơn vị nhận việc trước khi gán.', 'warning');;
             return;
         }
         wizardTableViewSuspend = true;
@@ -3249,7 +3249,7 @@
         event.preventDefault();
         const title = document.querySelector('#createTaskModal input[name="title"]')?.value?.trim();
         if (!title) {
-            window.alert('Cần nhập tiêu đề công việc ở bước 4.');
+            pcAlert('Cần nhập tiêu đề công việc ở bước 4.', 'warning');;
             setStep(4);
             return;
         }
@@ -3257,13 +3257,13 @@
             const rows = Array.from(outlineRowsBox?.querySelectorAll('[data-wz-row]') || []);
             const blank = rows.findIndex((row) => !((row.querySelector('input[name="item_title"]')?.value || '').trim() || (row.querySelector('textarea[name="item_content"]')?.value || '').trim()));
             if (blank !== -1) {
-                window.alert(`Dòng ${blank + 1} chưa có nội dung.`);
+                pcAlert(`Dòng ${blank + 1} chưa có nội dung.`, 'warning');;
                 setStep(3);
                 return;
             }
             const unassigned = rows.findIndex((row) => !effectiveWizardRowDomains(row).length);
             if (unassigned !== -1) {
-                window.alert(`Mục ${unassigned + 1} chưa gán đơn vị nhận. Bấm Gán trên dòng đó (hoặc gán mục cha nếu là nội dung con kế thừa).`);
+                pcAlert(`Mục ${unassigned + 1} chưa gán đơn vị nhận. Bấm Gán trên dòng đó (hoặc gán mục cha nếu là nội dung con kế thừa).`, 'warning');;
                 setStep(3);
                 return;
             }
@@ -3272,7 +3272,7 @@
             const fields = Array.from(formFieldList?.querySelectorAll('.form-field-item') || []);
             const blankLabel = fields.findIndex((item) => !(item.querySelector('input[name="form_field_label"]')?.value || '').trim());
             if (!fields.length || blankLabel !== -1) {
-                window.alert('Biểu mẫu cần ít nhất một trường có nhãn rõ ràng.');
+                pcAlert('Biểu mẫu cần ít nhất một trường có nhãn rõ ràng.', 'warning');;
                 setStep(3);
                 return;
             }
@@ -3280,7 +3280,7 @@
             if (source === 'google') {
                 const url = document.querySelector('input[name="google_form_url"]')?.value?.trim() || '';
                 if (!url) {
-                    window.alert('Cần dán link Google Form ở bước 2.');
+                    pcAlert('Cần dán link Google Form ở bước 2.', 'warning');;
                     setStep(2);
                     return;
                 }
@@ -3296,7 +3296,7 @@
             const userIds = Array.from(document.querySelectorAll('input[name="target_users"]:checked')).length;
             const assignMode = assignType?.value || 'unit';
             if ((assignMode === 'role' && !roleIds) || (assignMode === 'user' && !userIds)) {
-                window.alert('Cần chọn ít nhất một đối tượng nhận việc ở bước 3.');
+                pcAlert('Cần chọn ít nhất một đối tượng nhận việc ở bước 3.', 'warning');;
                 setStep(3);
                 return;
             }

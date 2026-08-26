@@ -11,13 +11,13 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Bootstrap 5 CSS (Minimal for grid) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/category-picker.css') }}">
     
     <style>
         :root {
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
+            --primary: #0066ff;
+            --primary-dark: #0052cc;
             --primary-light: #dbeafe;
             --bg-body: #f8fafc;
             --bg-surface: #ffffff;
@@ -36,7 +36,7 @@
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
             --border: #334155;
-            --primary-light: rgba(37, 99, 235, 0.2);
+            --primary-light: rgba(0, 102, 255, 0.2);
         }
 
         /* Dark Mode Global Dynamic Overrides */
@@ -472,6 +472,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/flat-theme.css') }}?v=1.0.0">
 </head>
 <body>
+    <a class="skip-link" href="#main-content">Nhảy đến nội dung chính</a>
     {% if request.endpoint != 'auth_bp.login' %}
     <header class="mobile-header">
         <div class="header-left d-flex align-items-center gap-2">
@@ -509,7 +510,7 @@
     </nav>
     {% endif %}
 
-    <main class="main-content">
+    <main class="main-content" id="main-content">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -650,6 +651,44 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+    <script>
+        // ===== Dialog chuẩn hóa (SweetAlert2) — thay alert/confirm native =====
+        window.pcAlert = function (message, type) {
+            if (typeof Swal === 'undefined') { window.alert(message); return; }
+            Swal.fire({
+                icon: type || 'info',
+                text: message,
+                confirmButtonText: 'Đã hiểu',
+                buttonsStyling: false,
+                customClass: { confirmButton: 'btn btn-primary px-4' }
+            });
+        };
+
+        window.pcConfirm = function (message) {
+            if (typeof Swal === 'undefined') { return Promise.resolve(window.confirm(message)); }
+            return Swal.fire({
+                title: 'Xác nhận',
+                text: message || 'Bạn có chắc chắn?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Đồng ý',
+                cancelButtonText: 'Hủy',
+                reverseButtons: true,
+                buttonsStyling: false,
+                customClass: { confirmButton: 'btn btn-danger px-4 me-2', cancelButton: 'btn btn-outline-secondary px-4' }
+            }).then(function (result) { return result.isConfirmed; });
+        };
+
+        window.pc06ConfirmSubmit = function (event, message) {
+            event.preventDefault();
+            var form = event.target;
+            window.pcConfirm(message).then(function (ok) {
+                if (ok) { form.submit(); }
+            });
+            return false;
+        };
+    </script>
     <script>
         (function () {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
