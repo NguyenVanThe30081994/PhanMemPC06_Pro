@@ -23,6 +23,9 @@ from services.task_runtime_sync import (
 )
 from services.task_units import _task_unit_identity
 
+# aggregator service
+from services.task_report_aggregate import build_aggregate_context, export_outline_docx
+
 
 def _format_report_number(value):
     if value is None:

@@ -152,6 +152,45 @@ from google_forms import (
 
 tasks_bp = Blueprint("tasks_bp", __name__)
 
+
+# ---- Aggregation API & Export ----
+@tasks_bp.route('/api/tasks/<int:task_id>/report/aggregate')
+def task_report_aggregate_api(task_id):
+    """Return aggregated report JSON for a task and optional cycle_key."""
+    from flask import abort
+    cycle_key = request.args.get('cycle') or None
+    # permission
+    if not can_view_task(g, task_id):
+        return jsonify({'error': 'forbidden'}), 403
+    try:
+        data = build_aggregate_context(task_id, cycle_key=cycle_key)
+    except Exception as exc:
+        logger.exception('aggregate error')
+        return jsonify({'error': 'internal_error', 'detail': str(exc)}), 500
+    return jsonify(data)
+
+
+@tasks_bp.route('/tasks/<int:task_id>/export-outline.docx')
+def task_export_outline_docx(task_id):
+    """Export a DOCX file for task outline (aggregate narratives + numeric tables)."""
+    if not can_view_task(g, task_id):
+        return jsonify({'error': 'forbidden'}), 403
+    cycle_key = request.args.get('cycle') or None
+    try:
+        content, filename = export_outline_docx(task_id, cycle_key=cycle_key)
+    except ValueError:
+        return jsonify({'error': 'task_not_found'}), 404
+    except Exception as exc:
+        logger.exception('export docx error')
+        return jsonify({'error': 'internal_error', 'detail': str(exc)}), 500
+
+    return send_file(
+        io.BytesIO(content),
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        as_attachment=True,
+        download_name=filename,
+    )
+
 # Pha 2: hằng số + helper mode/trạng thái đã tách sang services/task_modes.py.
 # Import re-export ở đây giữ nguyên tên cũ cho mọi nơi đang dùng (migrate.py,
 # tests, và chính các hàm bên dưới trong file này).
