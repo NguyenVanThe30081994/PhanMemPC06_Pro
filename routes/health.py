@@ -12,8 +12,10 @@ health_bp = Blueprint('health_bp', __name__)
 def health_check():
     """Health check endpoint for monitoring"""
     try:
-        # Check database connection
-        db.session.execute('SELECT 1')
+        # Check database connection (SQLAlchemy 2.0 yêu cầu text())
+        from sqlalchemy import text
+
+        db.session.execute(text('SELECT 1'))
         db_status = 'ok'
     except Exception:
         # Không trả chi tiết lỗi DB ra endpoint public (B3)

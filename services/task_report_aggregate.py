@@ -13,7 +13,17 @@ from models import Task, TaskItem, TaskAssignment, TaskSubmission, User
 from services.task_modes import _task_assignment_status_label
 from services.task_runtime_sync import _task_assignment_rows, _assignment_report_snapshot
 from sqlalchemy.orm import joinedload, selectinload
-from app import db
+
+
+def _get_db():
+    """Import lười `app.db` để tránh vòng lặp import app -> routes.tasks ->
+    services.task_report_aggregate -> app. Chuỗi này khiến khi chạy
+    `python app.py`, app.py bị nạp lần 2 dưới tên module `app` và đăng ký
+    blueprint trước khi routes/tasks.py kịp gắn hết decorator (Flask >= 3
+    chặn điều này bằng AssertionError)."""
+    from app import db
+
+    return db
 
 
 def _as_number(value):
@@ -32,6 +42,7 @@ def build_aggregate_context(task_id, cycle_key=None, group_by="unit"):
     Returns a dict with items, units, and aggregated values per field.
     group_by: 'unit' or 'assignment' (default 'unit')
     """
+    db = _get_db()
     task = (
         db.session.query(Task)
         .options(selectinload(Task.task_items))

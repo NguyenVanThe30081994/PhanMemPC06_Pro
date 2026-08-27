@@ -160,7 +160,8 @@ def task_report_aggregate_api(task_id):
     from flask import abort
     cycle_key = request.args.get('cycle') or None
     # permission
-    if not can_view_task(g, task_id):
+    task = db.session.get(Task, task_id)
+    if not task or not _can_view_task(task):
         return jsonify({'error': 'forbidden'}), 403
     try:
         data = build_aggregate_context(task_id, cycle_key=cycle_key)
@@ -173,7 +174,10 @@ def task_report_aggregate_api(task_id):
 @tasks_bp.route('/tasks/<int:task_id>/export-outline.docx')
 def task_export_outline_docx(task_id):
     """Export a DOCX file for task outline (aggregate narratives + numeric tables)."""
-    if not can_view_task(g, task_id):
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+    task = db.session.get(Task, task_id)
+    if not task or not _can_view_task(task):
         return jsonify({'error': 'forbidden'}), 403
     cycle_key = request.args.get('cycle') or None
     try:
@@ -367,6 +371,7 @@ from services.task_report_views import (  # noqa: E402
     _structured_task_report_summary_lines,
     _task_report_value_preview,
 )
+from services.task_report_aggregate import export_outline_docx  # noqa: E402
 
 # Pha 2: helper báo cáo Đề án 06 chuyển sang services/task_da06.py.
 from services.task_da06 import (  # noqa: E402

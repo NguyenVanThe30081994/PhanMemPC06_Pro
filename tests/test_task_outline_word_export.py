@@ -251,7 +251,8 @@ class TaskOutlineWordExportTests(unittest.TestCase):
         self._login(outsider_id, is_admin=False)
 
         response = self.client.get(f"/tasks/{self.task_id}/export-outline.docx")
-        self.assertEqual(response.status_code, 302)
+        # Người đã đăng nhập nhưng không có quyền xem việc -> 403
+        self.assertEqual(response.status_code, 403)
 
 
 if __name__ == "__main__":
