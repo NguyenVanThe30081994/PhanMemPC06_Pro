@@ -399,3 +399,147 @@ a:hover { color: var(--pc-primary-strong); }
 .pc-badge-danger { background: var(--pc-danger-bg); color: var(--pc-danger-text); border-color: var(--pc-danger-border); }
 .pc-badge-info { background: var(--pc-info-bg); color: var(--pc-info-text); border-color: var(--pc-info-border); }
 .pc-badge-neutral { background: var(--pc-bg-subtle); color: var(--pc-text-muted); border-color: var(--pc-border); }
+
+/* Tables */
+.pc-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: var(--pc-text-body);
+    color: var(--pc-text);
+}
+.pc-table thead th {
+    font-size: var(--pc-text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: var(--pc-tracking-wide);
+    color: var(--pc-text-muted);
+    background: var(--pc-bg-subtle);
+    text-align: left;
+    white-space: nowrap;
+    padding: .625rem .875rem;
+    border-bottom: 1px solid var(--pc-border);
+}
+.pc-table tbody td {
+    padding: .75rem .875rem;
+    border-bottom: 1px solid var(--pc-border);
+    vertical-align: middle;
+}
+.pc-table tbody tr:last-child td { border-bottom: 0; }
+.pc-table-hover tbody tr { transition: background-color var(--pc-dur-fast) var(--pc-ease); }
+.pc-table-hover tbody tr:hover { background: var(--pc-bg-subtle); }
+
+/* Modal — override Bootstrap (dùng class .pc-modal trực tiếp cũng được) */
+.modal-content, .pc-modal {
+    background: var(--pc-bg-card);
+    color: var(--pc-text);
+    border: 1px solid var(--pc-border);
+    border-radius: var(--pc-radius-xl);
+    box-shadow: var(--pc-shadow-overlay);
+}
+.modal-header { border-bottom: 1px solid var(--pc-border); padding: var(--pc-space-5) var(--pc-space-6); }
+.modal-title { font-weight: 700; font-size: var(--pc-text-h3); color: var(--pc-text); }
+.modal-body { padding: var(--pc-space-6); color: var(--pc-text); }
+.modal-footer { border-top: 1px solid var(--pc-border); padding: var(--pc-space-4) var(--pc-space-6); }
+
+/* Nav */
+.pc-topbar {
+    background: var(--pc-bg-card);
+    border-bottom: 1px solid var(--pc-border);
+    box-shadow: var(--pc-shadow-xs);
+}
+.pc-sidebar {
+    background: var(--pc-bg-card);
+    border-right: 1px solid var(--pc-border);
+}
+.pc-nav-section {
+    font-size: var(--pc-text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: var(--pc-tracking-wide);
+    color: var(--pc-text-subtle);
+    padding: var(--pc-space-3) var(--pc-space-3) var(--pc-space-1);
+}
+.pc-nav-item {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .5rem .875rem;
+    border-radius: var(--pc-radius-pill);
+    color: var(--pc-text-muted);
+    font-weight: 600;
+    font-size: var(--pc-text-sm);
+    text-decoration: none;
+    transition: background-color var(--pc-dur-fast) var(--pc-ease),
+                color var(--pc-dur-fast) var(--pc-ease);
+}
+.pc-nav-item:hover { background: var(--pc-primary-soft); color: var(--pc-primary); }
+.pc-nav-item.active { background: var(--pc-primary); color: #fff; box-shadow: var(--pc-shadow-sm); }
+
+/* Page header */
+.pc-page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--pc-space-4);
+    margin-bottom: var(--pc-space-6);
+}
+.pc-page-title {
+    margin: 0;
+    font-size: var(--pc-text-h1);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    color: var(--pc-text);
+}
+.pc-page-actions { display: flex; align-items: center; gap: .625rem; }
+
+/* Empty state */
+.pc-empty { text-align: center; padding: var(--pc-space-9) var(--pc-space-6); color: var(--pc-text-muted); }
+.pc-empty-icon { font-size: 2rem; color: var(--pc-text-subtle); margin-bottom: var(--pc-space-3); }
+.pc-empty-title { font-weight: 700; color: var(--pc-text); margin-bottom: .25rem; }
+
+/* Pagination */
+.pc-pagination { display: inline-flex; gap: .25rem; }
+.pc-pagination .page-link {
+    min-width: 2.25rem;
+    text-align: center;
+    padding: .45rem .625rem;
+    border: 1px solid var(--pc-border);
+    border-radius: var(--pc-radius-sm);
+    background: var(--pc-bg-card);
+    color: var(--pc-text-muted);
+    font-size: var(--pc-text-sm);
+    font-weight: 600;
+    transition: background-color var(--pc-dur-fast) var(--pc-ease),
+                border-color var(--pc-dur-fast) var(--pc-ease),
+                color var(--pc-dur-fast) var(--pc-ease);
+}
+.pc-pagination .page-link:hover { border-color: var(--pc-primary); color: var(--pc-primary); background: var(--pc-primary-soft); }
+.pc-pagination .page-item.active .page-link {
+    background: var(--pc-primary);
+    border-color: var(--pc-primary);
+    color: #fff;
+    box-shadow: var(--pc-shadow-sm);
+}
+.pc-pagination .page-item.disabled .page-link { opacity: .5; background: var(--pc-bg-subtle); }
+
+/* Login helpers (pilot) */
+.pc-login-divider {
+    display: flex;
+    align-items: center;
+    gap: var(--pc-space-3);
+    margin: var(--pc-space-6) 0;
+    color: var(--pc-text-subtle);
+    font-size: var(--pc-text-xs);
+    font-weight: 700;
+    letter-spacing: var(--pc-tracking-wide);
+}
+.pc-login-divider::before, .pc-login-divider::after { content: ""; flex: 1; height: 1px; background: var(--pc-border); }
+.pc-login-google {
+    width: 100%;
+    background: var(--pc-bg-card);
+    border-color: var(--pc-border-strong);
+    color: var(--pc-text);
+}
+.pc-login-google:hover { border-color: var(--pc-primary); background: var(--pc-bg-subtle); color: var(--pc-text); box-shadow: var(--pc-shadow-xs); }

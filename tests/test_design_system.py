@@ -69,3 +69,15 @@ class DesignSystemContractTests(unittest.TestCase):
             ".pc-badge", ".pc-badge-primary", ".pc-badge-neutral",
         ):
             self.assertIn(cls, css, f"Thiếu component {cls} trong pc06-premium.css")
+
+    def test_premium_css_defines_components_part2(self):
+        css = _read(PREMIUM_CSS)
+        for cls in (
+            ".pc-table", ".pc-table-hover",
+            ".pc-nav-item", ".pc-topbar", ".pc-sidebar", ".pc-nav-section",
+            ".pc-modal", ".pc-page-header", ".pc-page-title", ".pc-page-actions",
+            ".pc-empty", ".pc-empty-icon", ".pc-empty-title",
+            ".pc-pagination",
+            ".pc-login-divider", ".pc-login-google",
+        ):
+            self.assertIn(cls, css, f"Thiếu component {cls} trong pc06-premium.css")
