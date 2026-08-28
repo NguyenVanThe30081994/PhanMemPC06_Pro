@@ -1,5 +1,12 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject M6: Dọn template mồ côi)
+Xóa `templates/update.html` + `templates/categories.html` — xác nhận không route nào render
+(grep toàn bộ routes/services/app.py + builders). Xóa test đọc source mồ côi
+`test_categories_uses_legacy_bridge`. `system_update.html` không liên quan (có route riêng).
+Suite 274 tests — chỉ còn 3 lỗi có sẵn. **HOÀN TẤT GIAI ĐOẠN 2 (M1–M6) triển khai
+chuẩn mực từ `docs/THIET_KE_TONG_GIAO_DIEN_2026.md`.**
+
 ## 2026-08-28 (Giao diện — Subproject M5: bdhvs-layout.css hết hardcode hex)
 Map 83 vị trí hex (29 giá trị) trong `bdhvs-layout.css` sang token `--pc-*` theo bảng
 chuẩn mực Mục 7.3.1: brand `#0066ff/#0052cc` → `--pc-primary/-strong` (chuyển sang navy

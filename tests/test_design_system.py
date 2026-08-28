@@ -495,11 +495,6 @@ class AdminPagesContractTests(unittest.TestCase):
     def test_category_admin_source(self):
         self._check_template_markers("category_admin.html", ("pc-card", "pc-btn"))
 
-    def test_categories_uses_legacy_bridge(self):
-        """categories.html dùng Bootstrap thuần — bridge legacy map sang pc-* tokens."""
-        src = _read(os.path.join(APP_ROOT, "templates", "categories.html"))
-        self.assertIn("btn btn-primary", src)
-
     def test_units_uses_legacy_bridge(self):
         """units.html dùng Bootstrap thuần — bridge legacy map sang pc-* tokens."""
         src = _read(os.path.join(APP_ROOT, "templates", "units.html"))

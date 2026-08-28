@@ -377,12 +377,16 @@ File: `tests/test_design_system.py` (9 class contract test). Quy ước:
 
 | Lĩnh vực | Chuẩn mực | Trạng thái 2026-08-28 |
 |---|---|---|
-| Token màu/kích thước | Hoàn chỉnh light + dark | ✅ Đạt |
-| Component `pc-*` | 9 nhóm | ✅ Đạt (thiếu `pc-skeleton`, theme Swal — theo Mục 4) |
-| Token hóa màn hình | Mức A lý tưởng | ~60% mức A, ~35% mức B, còn mồ côi |
-| Shell | Token hóa không đổi DOM | ✅ Desktop đạt; ⚠️ mobile còn inline + font lệch |
-| Pattern hành vi | pc-empty/pc-skeleton/Swal-token | ⚠️ pc-empty có CSS chưa phổ cập; 2 pattern còn lại chờ triển khai |
+| Token màu/kích thước | Hoàn chỉnh light + dark | ✅ Đạt (+2 token accent violet/pink, `--pc-dur-loop`) |
+| Component `pc-*` | 9 nhóm + skeleton + theme Swal | ✅ Đạt (M2, M3) |
+| Token hóa màn hình | Mức A lý tưởng | ~60% mức A, ~35% mức B |
+| Shell | Token hóa không đổi DOM | ✅ Đạt cả desktop + mobile, font thống nhất Be Vietnam Pro (M1) |
+| Pattern hành vi | pc-empty/pc-skeleton/Swal-token | ✅ Đạt — skeleton + Swal theme đã triển khai, pc-empty phổ cập 4 trang, flash mobile về Swal (M3, M4); hex bdhvs-layout đã map hết (M5) |
 | Accessibility | Focus ring + reduced motion | ✅ Đạt nền tảng |
-| Kiểm thử | Contract marker test | ✅ Đạt, 265 tests |
+| Kiểm thử | Contract marker test | ✅ Đạt, 274 tests |
 
-**Lộ trình gợi ý cho nợ còn lại (không ràng buộc):** (1) shell mobile token + font thống nhất; (2) triển khai `pc-skeleton` + theme Swal theo token; (3) phổ cập `pc-empty` + chuyển flash mobile về Swal; (4) map hex trong `bdhvs-layout.css` sang token; (5) dọn template mồ côi.
+**Giai đoạn 2 (subproject M1–M6, 2026-08-28):** đã triển khai xong toàn bộ lộ trình nợ
+còn lại — shell mobile token + font, `pc-skeleton`, theme Swal theo token, phổ cập
+`pc-empty` + flash mobile về Swal, map hex `bdhvs-layout.css`, dọn 2 template mồ côi
+(`update.html`, `categories.html`). Việc còn lại: smoke thủ công light/dark trên trình
+duyệt thật (M5) và migrate dần các trang mức B khi có lô sửa chạm đến.
