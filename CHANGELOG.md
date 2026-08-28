@@ -1,5 +1,25 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-29 (Giao diện — Subproject M10: Khớp lỗi phản hồi 5 điểm + định nghĩa pc06-panel-head)
+Theo ảnh chụp production + yêu cầu "rà toàn bộ giao diện":
+(1) Bỏ mô tả dài dưới tiêu đề trang **Đơn vị** và **Ủy quyền**; nút Tạo ủy quyền/Thêm đơn
+vị về cỡ chuẩn — `.pc06-page-summary-bar` đổi `align-items: stretch → center` (nút không
+còn cao bằng cả khung tiêu đề).
+(2) Toolbar section-menu (Nhật ký, DB tool, Cập nhật bản vá, Module categories) về **1
+hàng**: `.pc06-section-menu-shell.with-actions` trả lại grid 2 cột `1fr auto` + nút canh
+phải (tab đã có nowrap nên không vỡ chữ như trước M8).
+(3) Card vai trò: nút thẳng trái thống nhất (`.pc06-toolbar-actions` + flex-start),
+lưới card rộng hơn (minmax 280px) — hết cảnh nút lệch cao độ giữa các card.
+(4) **Danh bạ**: thanh tìm kiếm ngắn (~360px), đếm liên hệ + Chọn tất cả + Xóa đã chọn
++ trạng thái chọn **cùng hàng** với tìm kiếm (board-tools grid → flex, bulk ms-auto).
+(5) **QR và liên kết**: phát hiện `.pc06-panel-head` chưa từng có CSS (orphan) — nút
+"Tạo liên kết" không thẳng hàng tiêu đề; định nghĩa flex space-between dùng chung 8
+trang. Bảng liên kết: cân lại độ rộng 7 cột, cắt chữ tên/ghi chú bằng ellipsis, nút
+"Tải QR" → nút nhỏ "QR" trong cột 13% — hết cảnh chữ đè chữ, QR đè ngày tạo.
+Đã verify trực quan trên local (roles/logs/delegations/contacts/links + tạo link thử).
+Bump không đổi (CSS đã bump 2.2.2 ở M8; panel-head đi kèm bdhvs-layout.css — bump
+`?v=2.2.3`). Suite 281 tests — chỉ còn 3 lỗi có sẵn.
+
 ## 2026-08-28 (Giao diện — Subproject M9: Tách bạch Vai trò / Tài khoản + bỏ pill title modal cũ)
 Theo phản hồi "vai trò và tài khoản đang lẫn lộn" — tái cấu trúc `roles.html` từ 3 tab
 thành **2 tab tách bạch** (verify trực quan light+dark trên local):

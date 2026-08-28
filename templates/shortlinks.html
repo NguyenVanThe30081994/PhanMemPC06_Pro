@@ -71,9 +71,9 @@
                         </td>
                         <td class="text-center fw-bold text-success">{{ link.clicks }}</td>
                         <td class="text-center">
-                            <a href="{{ url_for('shortlink_bp.get_qr', code=link.short_code) }}" class="pc-btn pc-btn-secondary">
-                                <i class="fa-solid fa-download"></i>
-                                Tải QR
+                            <a href="{{ url_for('shortlink_bp.get_qr', code=link.short_code) }}" class="pc-btn pc-btn-secondary pc-btn-sm">
+                                <i class="fa-solid fa-qrcode"></i>
+                                QR
                             </a>
                         </td>
                         <td class="text-center text-muted small">{{ link.created_at.strftime('%d/%m/%Y') }}</td>
@@ -189,37 +189,43 @@
 
     .shortlink-table-wrap .table th:nth-child(1),
     .shortlink-table-wrap .table td:nth-child(1) {
-        width: 22%;
+        width: 20%;
     }
 
     .shortlink-table-wrap .table th:nth-child(2),
     .shortlink-table-wrap .table td:nth-child(2) {
-        width: 24%;
+        width: 22%;
     }
 
     .shortlink-table-wrap .table th:nth-child(3),
     .shortlink-table-wrap .table td:nth-child(3) {
-        width: 28%;
+        width: 23%;
     }
 
     .shortlink-table-wrap .table th:nth-child(4),
     .shortlink-table-wrap .table td:nth-child(4) {
-        width: 8%;
+        width: 7%;
     }
 
     .shortlink-table-wrap .table th:nth-child(5),
     .shortlink-table-wrap .table td:nth-child(5) {
-        width: 8%;
+        width: 13%;
     }
 
     .shortlink-table-wrap .table th:nth-child(6),
     .shortlink-table-wrap .table td:nth-child(6) {
-        width: 10%;
+        width: 8%;
     }
 
     .shortlink-table-wrap .table th:nth-child(7),
     .shortlink-table-wrap .table td:nth-child(7) {
-        width: 10%;
+        width: 7%;
+    }
+
+    .shortlink-table-wrap .table td:nth-child(1) > div {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .shortlink-table-wrap .table td:nth-child(2) > div,

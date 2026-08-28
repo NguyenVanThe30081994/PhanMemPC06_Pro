@@ -35,8 +35,15 @@
     }
 
     .pc06-contacts-board-tools {
-        display: grid;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
         gap: 16px;
+    }
+
+    .pc06-contacts-board-tools .pc06-search-control {
+        min-width: min(100%, 360px);
+        flex: 1 1 300px;
     }
 
     .pc06-contacts-bulk-bar {
@@ -97,7 +104,7 @@
                     <input type="text" id="contactSearch" placeholder="Tìm tên, số điện thoại hoặc đơn vị..." onkeyup="filterContactsInTable()">
                 </label>
 
-                <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+                <div class="d-flex align-items-center gap-3 flex-wrap ms-auto">
                     <span class="pc06-toolbar-count" id="contactVisibleCount">{{ contacts|length }} liên hệ</span>
                     {% if can_module('contact', 'process') %}
                     <div class="pc06-contacts-bulk-bar">
