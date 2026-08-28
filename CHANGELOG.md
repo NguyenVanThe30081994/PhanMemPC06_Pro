@@ -1,5 +1,21 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-29 (Giao diện — Subproject M13: Override toàn cục droplist + bỏ bulk tab Tài khoản)
+Theo phản hồi "droplist chưa đồng bộ với button / vì sao các droplist chưa sửa":
+- **Fix hệ thống**: override toàn cục `.form-select` + `.form-control` trong
+`pc06-premium.css` (Bootstrap overrides) — MỌI droplist/input trong app (kể cả nơi chưa
+gắn class `pc-select`) tự có: nền card, viền `--pc-border-strong`, cao tối thiểu 44px,
+chữ đậm cho select, radius 12px, focus ring chuẩn; biến thể `-sm` giữ 32px. `pc-select`
+nâng cùng chuẩn nên không còn chênh với `pc-btn`.
+- **Tab Tài khoản**: bỏ hàng nút "Reset mật khẩu toàn bộ" + "Xóa đã chọn" + text trạng
+thái — chỉ giữ cơ chế ô tích chọn tất cả (theo yêu cầu). JS bulk + form ẩn giữ nguyên
+để tái kích hoạt khi cần.
+- Tổng rà: sửa 3 modal-footer còn `bg-light` (Thêm/Sửa đơn vị, Tạo ủy quyền) — thêm nút
+Hủy, nút submit chữ thường; các trang còn dùng form-select (logs filter, wizard giao
+việc, module_categories…) tự đồng bộ nhờ override.
+Bump `pc06-premium.css ?v=1.3.3`. Đã verify trực quan: tab Tài khoản, popup Đơn vị,
+filter Nhật ký (dark). Suite 281 tests — chỉ còn 3 lỗi có sẵn.
+
 ## 2026-08-29 (Giao diện — Subproject M12: Card vai trò — 3 nút icon ngang hàng)
 Theo yêu cầu: "Xem tài khoản" và "Phân quyền" trên card vai trò chuyển thành nút icon —
 3 icon (Xem tài khoản / Phân quyền / Xóa) ngang hàng nhau dùng `pc-btn-icon` 44px

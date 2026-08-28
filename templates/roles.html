@@ -56,19 +56,6 @@
                         {% endif %}
                     </div>
                 </div>
-                {% if can_manage_roles %}
-                <div class="d-flex align-items-center gap-3 flex-wrap mb-3 px-1">
-                    <button type="button" class="pc-btn pc-btn-secondary text-warning" onclick="submitBulkPasswordReset()">
-                        <i class="fa-solid fa-rotate-left"></i>
-                        Reset mật khẩu toàn bộ
-                    </button>
-                    <button type="button" class="pc-btn pc-btn-secondary text-danger" id="bulkUserDeleteBtn" onclick="submitBulkUserDelete()" disabled>
-                        <i class="fa-solid fa-trash-can"></i>
-                        Xóa đã chọn
-                    </button>
-                    <span class="small text-muted" id="bulkUserSelectionText">Chưa chọn tài khoản nào</span>
-                </div>
-                {% endif %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="pill-thead" scope="col">

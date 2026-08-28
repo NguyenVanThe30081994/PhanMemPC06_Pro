@@ -244,6 +244,21 @@ a:hover { color: var(--pc-primary-strong); }
 .form-check-input:checked { background-color: var(--pc-primary); border-color: var(--pc-primary); }
 .form-check-input:focus { border-color: var(--pc-primary); box-shadow: var(--pc-focus-ring); }
 
+/* Đồng bộ toàn cục select/input Bootstrap với design system (mọi droplist trong app) */
+.form-select, .form-control {
+    border: 1px solid var(--pc-border-strong);
+    border-radius: var(--pc-radius-md);
+    padding: .65rem .875rem;
+    min-height: 44px;
+    font-size: var(--pc-text-body);
+    font-family: inherit;
+    color: var(--pc-text);
+    background-color: var(--pc-bg-card);
+}
+.form-select { font-weight: 600; }
+.form-select[multiple] { min-height: 9.5rem; font-weight: 400; }
+.form-select-sm, .form-control-sm { min-height: 32px; padding: .3rem .6rem; font-size: var(--pc-text-sm); }
+
 /* ---------- Motion & a11y ---------- */
 :focus-visible { outline: none; box-shadow: var(--pc-focus-ring); }
 
@@ -327,6 +342,13 @@ a:hover { color: var(--pc-primary-strong); }
     transition: border-color var(--pc-dur-fast) var(--pc-ease),
                 box-shadow var(--pc-dur-fast) var(--pc-ease),
                 background-color var(--pc-dur-fast) var(--pc-ease);
+}
+.pc-select {
+    min-height: 44px;
+    background-color: var(--pc-bg-card);
+    border-color: var(--pc-border-strong);
+    font-weight: 600;
+    padding-right: 2.4rem;
 }
 .pc-input::placeholder { color: var(--pc-text-subtle); }
 .pc-input:focus, .pc-select:focus {
