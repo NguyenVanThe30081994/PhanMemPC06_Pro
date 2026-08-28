@@ -37,7 +37,7 @@
 
     <div class="row g-4 mb-4">
         <div class="col-xl-8">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm pc-card h-100">
                 <div class="card-body p-4">
                     <h2 class="h5 mb-3">Thông tin nguồn</h2>
                     <div class="row g-3">
@@ -86,7 +86,7 @@
             </div>
         </div>
         <div class="col-xl-4">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm pc-card h-100">
                 <div class="card-body p-4">
                     <h2 class="h5 mb-3">Tiến độ nháp</h2>
                     <div class="small text-muted mb-2">Tạo lúc {{ draft.created_at.strftime('%d/%m/%Y %H:%M') if draft.created_at else '' }}</div>
@@ -99,7 +99,7 @@
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm mb-4">
+    <div class="card border-0 shadow-sm pc-card mb-4">
         <div class="card-body p-4">
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
                 <div>
@@ -132,7 +132,7 @@
 
     <form action="{{ url_for('tasks_bp.save_task_import_draft', draft_id=draft.id) }}" method="POST" id="taskImportDraftEditForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="card border-0 shadow-sm mb-4">
+        <div class="card border-0 shadow-sm pc-card mb-4">
             <div class="card-body p-4">
                 <h2 class="h5 mb-3">Bước 2: Duyệt và chỉnh cấu hình</h2>
                 <div class="row g-3">
@@ -189,7 +189,7 @@
         </div>
 
         {% if config.collection_mode == 'outline' %}
-        <div class="card border-0 shadow-sm mb-4">
+        <div class="card border-0 shadow-sm pc-card mb-4">
             <div class="card-body p-4">
                 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
                     <div>
@@ -321,7 +321,7 @@
             </div>
         </div>
         {% elif config.collection_mode == 'form' %}
-        <div class="card border-0 shadow-sm mb-4">
+        <div class="card border-0 shadow-sm pc-card mb-4">
             <div class="card-body p-4">
                 <h2 class="h5 mb-3">Phân công toàn nhiệm vụ</h2>
                 <div class="row g-3">
@@ -361,7 +361,7 @@
             </div>
         </div>
 
-        <div class="card border-0 shadow-sm mb-4">
+        <div class="card border-0 shadow-sm pc-card mb-4">
             <div class="card-body p-4">
                 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
                     <div>
@@ -451,7 +451,7 @@
             </div>
         </div>
         {% else %}
-        <div class="card border-0 shadow-sm mb-4">
+        <div class="card border-0 shadow-sm pc-card mb-4">
             <div class="card-body p-4">
                 <h2 class="h5 mb-3">Phân công toàn nhiệm vụ</h2>
                 <div class="row g-3">
@@ -491,7 +491,7 @@
             </div>
         </div>
 
-        <div class="card border-0 shadow-sm mb-4">
+        <div class="card border-0 shadow-sm pc-card mb-4">
             <div class="card-body p-4">
                 <h2 class="h5 mb-3">Schema báo cáo tổng hợp</h2>
                 <div class="row g-3 mb-4">
@@ -668,7 +668,7 @@
         </div>
         {% endif %}
 
-        <div class="card border-0 shadow-sm mb-4">
+        <div class="card border-0 shadow-sm pc-card mb-4">
             <div class="card-body p-4">
                 <h2 class="h5 mb-3">Phạm vi xử lý và theo dõi</h2>
                 <div class="row g-4">
@@ -722,12 +722,12 @@
 
         <div class="d-flex flex-wrap gap-2 justify-content-end mb-5">
             {% if not is_locked %}
-            <button class="btn btn-primary" type="submit">Lưu nháp</button>
+            <button class="btn btn-primary pc-btn" type="submit">Lưu nháp</button>
             {% endif %}
         </div>
     </form>
 
-    <div class="card border-0 shadow-sm mb-4">
+    <div class="card border-0 shadow-sm pc-card mb-4">
         <div class="card-body p-4">
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
                 <div>
@@ -1351,7 +1351,7 @@
         if (outlineItems.length) {
             assignmentHtml = `
                 <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
+                    <table class="table table-sm pc-table align-middle mb-0">
                         <thead scope="col">
                             <tr>
                                 <th scope="col">Đầu mục</th>
@@ -1412,7 +1412,7 @@
                     <div class="small text-muted">${escapeHtml(assignmentStrategy.summary || 'Chưa có tóm tắt chiến lược.')}</div>
                 </div>
                 <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
+                    <table class="table table-sm pc-table align-middle mb-0">
                         <thead scope="col">
                             <tr>
                                 <th scope="col">Field biểu mẫu</th>
@@ -1478,7 +1478,7 @@
                     <div class="small text-muted">${escapeHtml(assignmentStrategy.summary || 'Chưa có tóm tắt chiến lược.')}</div>
                 </div>
                 <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
+                    <table class="table table-sm pc-table align-middle mb-0">
                         <thead scope="col">
                             <tr>
                                 <th scope="col">Chỉ tiêu</th>
@@ -1609,7 +1609,7 @@
                         <div class="border rounded-3 p-3 bg-white h-100">
                             <div class="fw-semibold mb-2">Danh sách người nhận</div>
                             <div class="table-responsive">
-                                <table class="table table-sm align-middle mb-0">
+                                <table class="table table-sm pc-table align-middle mb-0">
                                     <thead scope="col">
                                         <tr>
                                             <th scope="col">Người nhận</th>

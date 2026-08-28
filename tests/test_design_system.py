@@ -461,3 +461,18 @@ class TaskCoreContractTests(unittest.TestCase):
         src = _read(os.path.join(APP_ROOT, "templates", "task_detail_rebuild.html"))
         for marker in ("pc-btn", "pc-table"):
             self.assertIn(marker, src)
+
+
+class ImportDraftContractTests(unittest.TestCase):
+    """Contract test trang import draft detail migrate lên premium tokens (subproject 4d).
+
+    Token hóa khung ngoài sang pc-*; giữ nguyên CSS nội bộ + JS nghiệp vụ.
+    """
+
+    def setUp(self):
+        self.client = app.test_client()
+
+    def test_import_draft_detail_source_uses_premium_components(self):
+        src = _read(os.path.join(APP_ROOT, "templates", "task_import_draft_detail.html"))
+        for marker in ("pc-card", "pc-btn", "pc-table"):
+            self.assertIn(marker, src)

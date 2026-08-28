@@ -1,5 +1,12 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject 4d: Import draft detail)
+Token hóa khung ngoài của `task_import_draft_detail` (~2.149 dòng, 26 hàm JS) sang
+`pc-card`/`pc-btn`/`pc-table`; giữ nguyên CSS nội bộ và toàn bộ JS nghiệp vụ
+(AI analyze, apply to items, publish flow). Test mới: `ImportDraftContractTests`
+(1 source test; suite 252 — chỉ còn 3 lỗi có sẵn). Ghi nhận: hoàn tất phân hệ task
+(4a+4b+4c+4d).
+
 ## 2026-08-28 (Giao diện — Subproject 4c: Task core rebuild)
 Token hóa khung ngoài của `tasks_rebuild` + `task_detail_rebuild` (~6.000 dòng,
 124 hàm JS) sang `pc-card`/`pc-btn`/`pc-table`; giữ nguyên CSS nội bộ và toàn bộ
