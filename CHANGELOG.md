@@ -1,5 +1,19 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject 1: Nền tảng thiết kế premium)
+Khởi động lộ trình 6 subproject làm mới toàn bộ giao diện
+(spec: docs/superpowers/specs/2026-08-28-nen-tang-thiet-ke-premium-design.md,
+plan: docs/superpowers/plans/2026-08-28-nen-tang-thiet-ke-premium.md):
+- `static/css/pc06-premium.css`: design tokens light/dark (tiền tố `--pc-`),
+  bridge biến legacy, overrides Bootstrap, thư viện component `pc-*`,
+  token hóa app shell trên class hiện có.
+- `base.html`/`base_mobile.html`: nạp premium CSS cuối `<head>`.
+- Pilot đăng nhập: `login.html` + `login_mobile.html` theo hệ `pc-*`,
+  giữ nguyên 100% endpoint/field/JS.
+- `/admin/styleguide` (guard `sys.view`) + `styleguide.html`: tra cứu
+  design system nội bộ.
+- Test mới: `tests/test_design_system.py`; toàn bộ suite cũ giữ nguyên.
+
 ## 2026-08-22 (Bảo mật — Đợt C: 2FA TOTP, giám sát sự kiện bảo mật, CSP, bảo trì phụ thuộc)
 Thực hiện Đợt C trong `docs/nghien-cuu-bao-mat-trien-khai-cpanel-2026.md`,
 222 test OK (216 cũ + 6 mới):
