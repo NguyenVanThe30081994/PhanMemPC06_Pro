@@ -1,5 +1,22 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-29 (Giao diện — Subproject M11: Chuẩn hóa dropdown/input trong popup + đồng nhất độ dài nút)
+Theo phản hồi "droplist sâu không thống nhất, độ dài nút chưa thống nhất":
+- Toàn bộ modal của trang Tài khoản và vai trò chuyển sang design system: input
+`form-control bg-light rounded-3 shadow-sm` → `pc-input`, select `form-select bg-light`
+→ `pc-select` (Thêm/Edit tài khoản, Thêm vai trò, Nhập Excel — cả file input).
+- Nút "HIỆN" mật khẩu: từ outline Bootstrap trong input-group → `pc-btn pc-btn-secondary`
+cùng hàng input.
+- Multiselect "Vai trò phụ": viền + chiều cao giới hạn 9.5rem qua `select[multiple].pc-select`.
+- Cảnh báo "Cần khai báo danh mục Đơn vị" 3 dòng chữ đỏ trần → `pc-alert-danger` gọn.
+- Footer modal: bỏ `bg-light` (lệch nền dark), thêm nút **Hủy**, nút submit chữ thường
+("Xác nhận tạo / Cập nhật / Bắt đầu nhập") thay ALL-CAPS pill cũ (btn-dark/btn-success
+rounded-pill → pc-btn-primary).
+- **Đồng nhất độ dài nút toolbar**: `pc06-panel-head / section-menu-actions /
+contacts-bulk-bar` min-width 148px; `pc06-toolbar-actions` min-width 136px; nút icon
+trash trong card vai trò dùng class mới `pc-btn-icon` (44px, `pc06-premium.css`).
+Bump `bdhvs-layout.css ?v=2.2.4`, `pc06-premium.css ?v=1.3.2`. Suite 281 — chỉ còn 3 lỗi có sẵn.
+
 ## 2026-08-29 (Giao diện — Subproject M10: Khớp lỗi phản hồi 5 điểm + định nghĩa pc06-panel-head)
 Theo ảnh chụp production + yêu cầu "rà toàn bộ giao diện":
 (1) Bỏ mô tả dài dưới tiêu đề trang **Đơn vị** và **Ủy quyền**; nút Tạo ủy quyền/Thêm đơn

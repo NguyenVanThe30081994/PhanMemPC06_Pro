@@ -992,6 +992,24 @@ a.pc06-chip {
     justify-content: flex-start;
 }
 
+/* Đồng nhất độ dài nút trên các hàng toolbar */
+.pc06-panel-head .pc-btn,
+.pc06-section-menu-actions .pc-btn,
+.pc06-contacts-bulk-bar .pc-btn {
+    min-width: 148px;
+    justify-content: center;
+}
+
+.pc06-toolbar-actions .pc-btn {
+    min-width: 136px;
+    justify-content: center;
+}
+
+.pc06-toolbar-actions .pc-btn-icon {
+    min-width: 44px;
+    padding-inline: .7rem;
+}
+
 .pc06-stat-strip.stat-grid-2x2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-content: start;

@@ -300,6 +300,7 @@ a:hover { color: var(--pc-primary-strong); }
 
 .pc-btn-sm { padding: .45rem .875rem; font-size: var(--pc-text-sm); border-radius: var(--pc-radius-sm); }
 .pc-btn-lg { padding: .9rem 1.5rem; font-size: var(--pc-text-h3); border-radius: var(--pc-radius-lg); }
+.pc-btn-icon { min-width: 44px; padding-inline: .7rem; }
 .pc-btn-loading { pointer-events: none; opacity: .75; }
 
 /* Forms */

@@ -190,7 +190,7 @@
                             <form method="POST" class="d-inline m-0" onsubmit="return pc06ConfirmSubmit(event, 'Xóa vai trò này?')">
                                 <input type="hidden" name="action" value="delete_role">
                                 <input type="hidden" name="role_id" value="{{ r.id }}">
-                                <button type="submit" class="pc-btn pc-btn-secondary text-danger" title="Xóa vai trò">
+                                <button type="submit" class="pc-btn pc-btn-secondary pc-btn-icon text-danger" title="Xóa vai trò" aria-label="Xóa vai trò">
                                     <i class="fa-solid fa-trash-can"></i>
                                 </button>
                             </form>
@@ -230,7 +230,7 @@
                 <div class="modal-body p-4">
                     <div class="mb-4">
                         <label class="form-label fw-bold text-dark small">TÊN VAI TRÒ</label>
-                        <input type="text" name="name" class="form-control py-2 shadow-sm border-light" placeholder="VD: Quản trị tài liệu..." required data-role-name-input>
+                        <input type="text" name="name" class="pc-input" placeholder="VD: Quản trị tài liệu..." required data-role-name-input>
                         <div class="form-text mt-2">Mặc định: `Lãnh đạo`, `Chỉ huy PC06` chọn quyền xem; `Cán bộ PC06` chọn quyền xử lý; các vai trò khác chọn quyền thực hiện.</div>
                     </div>
                     <div class="table-responsive">
@@ -263,8 +263,9 @@
                         <code>Tiến độ báo cáo</code>: xem tiến độ, trạng thái và mức độ hoàn thành của các đơn vị.
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-0">
-                    <button type="submit" class="pc-btn pc-btn-primary pc-btn-lg">XÁC NHẬN TẠO</button>
+                <div class="modal-footer">
+                    <button type="button" class="pc-btn pc-btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="pc-btn pc-btn-primary">Xác nhận tạo</button>
                 </div>
             </form>
         </div>
@@ -311,8 +312,9 @@
                         <code>Tiến độ báo cáo</code>: xem tiến độ, trạng thái và mức độ hoàn thành của các đơn vị.
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-0">
-                    <button type="submit" class="btn btn-dark px-5 rounded-pill fw-bold shadow">CẬP NHẬT QUYỀN</button>
+                <div class="modal-footer">
+                    <button type="button" class="pc-btn pc-btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="pc-btn pc-btn-primary">Cập nhật quyền</button>
                 </div>
             </form>
         </div>
@@ -333,38 +335,38 @@
                     <div class="row g-3 mb-3">
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">TÀI KHOẢN</label>
-                            <input type="text" name="username" class="form-control" placeholder="ID đăng nhập" required>
+                            <input type="text" name="username" class="pc-input" placeholder="ID đăng nhập" required>
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">MẬT KHẨU</label>
-                            <div class="input-group shadow-sm">
-                                <input type="password" name="password" class="form-control" value="123" required>
-                                <button class="btn btn-outline-secondary toggle-password fw-bold tiny" type="button">HIỆN</button>
+                            <div class="d-flex gap-2">
+                                <input type="password" name="password" class="pc-input" value="123" required>
+                                <button class="pc-btn pc-btn-secondary toggle-password flex-shrink-0" type="button">HIỆN</button>
                             </div>
                         </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark small">HỌ VÀ TÊN</label>
-                        <input type="text" name="fullname" class="form-control" required>
+                        <input type="text" name="fullname" class="pc-input" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark small">EMAIL GOOGLE <span class="text-muted fw-normal">(để đăng nhập Google, không bắt buộc)</span></label>
-                        <input type="email" name="email" class="form-control" placeholder="canbo@example.com">
+                        <input type="email" name="email" class="pc-input" placeholder="canbo@example.com">
                     </div>
                     <div class="row g-3">
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">ĐƠN VỊ</label>
                             <div data-category-picker data-group-name="Đơn vị" data-value-mode="stable" data-placeholder="Chọn đơn vị" data-storage-key="modal.roles.unit_add">
-                                <select name="unit" class="form-select border-0 bg-light py-2 rounded-3 shadow-sm" required data-category-target>
+                                <select name="unit" class="pc-select" required data-category-target>
                                     <option value="" disabled selected>Chọn đơn vị</option>
                                     {% for u in unit_cats %}<option value="{{ u.value }}">{{ u.name }}</option>{% endfor %}
                                 </select>
                             </div>
-                            {% if not unit_cats %}<div class="tiny text-danger mt-1 fw-bold italic">* Cần khai báo danh mục Đơn vị trước khi tạo tài khoản.</div>{% endif %}
+                            {% if not unit_cats %}<div class="pc-alert pc-alert-danger mt-2 pc06-modal-alert"><i class="fa-solid fa-triangle-exclamation"></i> Cần khai báo danh mục Đơn vị trước khi tạo tài khoản.</div>{% endif %}
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">VAI TRÒ</label>
-                            <select name="role_id" class="form-select border-0 bg-light py-2 rounded-3 shadow-sm" required>
+                            <select name="role_id" class="pc-select" required>
                                 <option value="" disabled selected>Chọn vai trò</option>
                                 {% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}
                             </select>
@@ -372,13 +374,14 @@
                     </div>
                     <div class="mt-3">
                         <label class="form-label fw-bold text-dark small">VAI TRÒ PHỤ <span class="text-muted fw-normal">(tùy chọn — quyền = hợp của vai trò chính + phụ)</span></label>
-                        <select name="extra_roles" class="form-select border-0 bg-light py-2 rounded-3 shadow-sm" multiple size="4">
+                        <select name="extra_roles" class="pc-select" multiple size="4">
                             {% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}
                         </select>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-0">
-                    <button type="submit" class="pc-btn pc-btn-primary pc-btn-lg">XÁC NHẬN TẠO</button>
+                <div class="modal-footer">
+                    <button type="button" class="pc-btn pc-btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="pc-btn pc-btn-primary">Xác nhận tạo</button>
                 </div>
             </form>
         </div>
@@ -400,33 +403,33 @@
                     <div class="row g-3 mb-3">
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">TÀI KHOẢN</label>
-                            <input type="text" name="username" id="edit_username" class="form-control" required>
+                            <input type="text" name="username" id="edit_username" class="pc-input" required>
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">MẬT KHẨU MỚI</label>
-                            <input type="password" name="password" class="form-control" placeholder="Để trống nếu giữ nguyên" value="******">
+                            <input type="password" name="password" class="pc-input" placeholder="Để trống nếu giữ nguyên" value="******">
                         </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark small">HỌ VÀ TÊN</label>
-                        <input type="text" name="fullname" id="edit_fullname" class="form-control" required>
+                        <input type="text" name="fullname" id="edit_fullname" class="pc-input" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold text-dark small">EMAIL GOOGLE <span class="text-muted fw-normal">(để đăng nhập Google, không bắt buộc)</span></label>
-                        <input type="email" name="email" id="edit_email" class="form-control" placeholder="canbo@example.com">
+                        <input type="email" name="email" id="edit_email" class="pc-input" placeholder="canbo@example.com">
                     </div>
                     <div class="row g-3">
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">ĐƠN VỊ</label>
                             <div data-category-picker data-group-name="Đơn vị" data-value-mode="stable" data-placeholder="Chọn đơn vị" data-storage-key="modal.roles.unit_edit">
-                                <select name="unit" id="edit_unit" class="form-select border-0 bg-light py-2 rounded-3 shadow-sm" required data-category-target>
+                                <select name="unit" id="edit_unit" class="pc-select" required data-category-target>
                                     {% for u in unit_cats %}<option value="{{ u.value }}">{{ u.name }}</option>{% endfor %}
                                 </select>
                             </div>
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">VAI TRÒ</label>
-                            <select name="role_id" id="edit_role_select" class="form-select border-0 bg-light py-2 rounded-3 shadow-sm" required>
+                            <select name="role_id" id="edit_role_select" class="pc-select" required>
                                 <option value="" disabled selected>Chọn vai trò</option>
                                 {% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}
                             </select>
@@ -434,13 +437,14 @@
                     </div>
                     <div class="mt-3">
                         <label class="form-label fw-bold text-dark small">VAI TRÒ PHỤ <span class="text-muted fw-normal">(quyền = hợp của vai trò chính + phụ)</span></label>
-                        <select name="extra_roles" id="edit_extra_roles" class="form-select border-0 bg-light py-2 rounded-3 shadow-sm" multiple size="4">
+                        <select name="extra_roles" id="edit_extra_roles" class="pc-select" multiple size="4">
                             {% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}
                         </select>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-0">
-                    <button type="submit" class="btn btn-dark px-5 rounded-pill fw-bold shadow">CẬP NHẬT</button>
+                <div class="modal-footer">
+                    <button type="button" class="pc-btn pc-btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="pc-btn pc-btn-primary">Cập nhật</button>
                 </div>
             </form>
         </div>
@@ -457,7 +461,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <div class="alert alert-success border-0 rounded-3 small mb-4">
+                    <div class="pc-alert pc-alert-info mb-4">
                         <i class="fa-solid fa-circle-info me-2"></i>
                         Hệ thống tự sinh mã tài khoản và mật khẩu mặc định `123456`.
                         Hỗ trợ 2 định dạng: `1 cột đơn vị` hoặc `2 cột Họ tên + Chức vụ` để tạo tài khoản chỉ huy đội dạng `pc06.hotenkhongdau.dt/pdt`.
@@ -465,13 +469,13 @@
                     </div>
                     <div class="mb-4">
                         <label class="form-label fw-bold text-dark small">CHỌN VAI TRÒ CHUNG</label>
-                        <select name="role_id" class="form-select py-2 shadow-sm border-light" required>
+                        <select name="role_id" class="pc-select" required>
                             {% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}
                         </select>
                     </div>
                     <div class="mb-0">
                         <label class="form-label fw-bold text-dark small">CHỌN FILE EXCEL (.xlsx, .xls)</label>
-                        <input type="file" name="import_excel" class="form-control py-2 shadow-sm border-light" accept=".xlsx, .xls" required>
+                        <input type="file" name="import_excel" class="pc-input" accept=".xlsx, .xls" required>
                     </div>
                     <div class="form-check mt-3">
                         <input class="form-check-input" type="checkbox" name="has_header" value="1" id="userImportHasHeader" checked>
@@ -480,8 +484,9 @@
                         </label>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-0">
-                    <button type="submit" class="btn btn-success px-5 rounded-pill fw-bold shadow">BẮT ĐẦU NHẬP</button>
+                <div class="modal-footer">
+                    <button type="button" class="pc-btn pc-btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="pc-btn pc-btn-primary">Bắt đầu nhập</button>
                 </div>
             </form>
         </div>
@@ -660,6 +665,13 @@ document.querySelectorAll('form').forEach((form) => {
         color: var(--pc-text-muted);
         border: 1px dashed var(--pc-border-strong);
         white-space: normal;
+    }
+    select[multiple].pc-select {
+        height: 9.5rem;
+    }
+    .pc06-modal-alert {
+        font-size: var(--pc-text-xs);
+        padding: .5rem .75rem;
     }
     .pc06-chip-count {
         min-width: 38px;
