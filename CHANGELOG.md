@@ -1,5 +1,12 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-29 (Giao diện — Subproject M12: Card vai trò — 3 nút icon ngang hàng)
+Theo yêu cầu: "Xem tài khoản" và "Phân quyền" trên card vai trò chuyển thành nút icon —
+3 icon (Xem tài khoản / Phân quyền / Xóa) ngang hàng nhau dùng `pc-btn-icon` 44px
+(secondary / primary / secondary-danger), giữ nguyên title + aria-label và toàn bộ
+hành vi (link lọc tài khoản, modal phân quyền, confirm xóa). Đã verify trực quan trên
+local. Suite 281 tests — chỉ còn 3 lỗi có sẵn.
+
 ## 2026-08-29 (Giao diện — Subproject M11: Chuẩn hóa dropdown/input trong popup + đồng nhất độ dài nút)
 Theo phản hồi "droplist sâu không thống nhất, độ dài nút chưa thống nhất":
 - Toàn bộ modal của trang Tài khoản và vai trò chuyển sang design system: input

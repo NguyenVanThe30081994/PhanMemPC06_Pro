@@ -177,14 +177,12 @@
                             {% endfor %}
                         </div>
                         <div class="pc06-toolbar-actions">
-                            <a href="{{ url_for('admin_bp.roles', role_id=r.id) }}" class="pc-btn pc-btn-secondary">
+                            <a href="{{ url_for('admin_bp.roles', role_id=r.id) }}" class="pc-btn pc-btn-secondary pc-btn-icon" title="Xem tài khoản" aria-label="Xem tài khoản">
                                 <i class="fa-solid fa-users"></i>
-                                Xem tài khoản
                             </a>
                             {% if can_manage_roles %}
-                            <button class="pc-btn pc-btn-primary" onclick='openEditPerms({{ r.id }}, {{ r.name|tojson }}, {{ r.form_perms_json|safe }})'>
+                            <button class="pc-btn pc-btn-primary pc-btn-icon" title="Phân quyền" aria-label="Phân quyền" onclick='openEditPerms({{ r.id }}, {{ r.name|tojson }}, {{ r.form_perms_json|safe }})'>
                                 <i class="fa-solid fa-user-gear"></i>
-                                Phân quyền
                             </button>
                             {% if r.name not in ['Quản trị hệ thống', 'admin_system'] %}
                             <form method="POST" class="d-inline m-0" onsubmit="return pc06ConfirmSubmit(event, 'Xóa vai trò này?')">
