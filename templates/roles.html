@@ -147,7 +147,12 @@
                             {% endfor %}
                             {% else %}
                             <tr>
-                                <td colspan="{{ 6 if can_manage_roles else 5 }}" class="py-5 text-center text-muted">Không có tài khoản trong vai trò đang chọn.</td>
+                                <td colspan="{{ 6 if can_manage_roles else 5 }}" class="p-0">
+                                    <div class="pc-empty">
+                                        <div class="pc-empty-icon"><i class="fa-solid fa-user-slash"></i></div>
+                                        <div class="pc-empty-title">Không có tài khoản trong vai trò đang chọn.</div>
+                                    </div>
+                                </td>
                             </tr>
                             {% endif %}
                         </tbody>

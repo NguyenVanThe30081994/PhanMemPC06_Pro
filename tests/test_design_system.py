@@ -627,3 +627,18 @@ class SwalThemeTests(unittest.TestCase):
             self.assertIn("pc-swal-popup", src)
             self.assertNotIn("btn btn-primary px-4", src)
             self.assertNotIn("btn btn-danger px-4 me-2", src)
+
+
+class EmptyStateContractTests(unittest.TestCase):
+    """Subproject M4: empty state dùng chuẩn pc-empty + flash mobile về Swal
+    (chuẩn mực Mục 4.1 + 4.3 — docs/THIET_KE_TONG_GIAO_DIEN_2026.md)."""
+
+    def test_core_pages_use_pc_empty(self):
+        for name in ("thong_bao.html", "contacts.html", "roles.html", "tasks_rebuild.html"):
+            src = _read(os.path.join(APP_ROOT, "templates", name))
+            self.assertIn("pc-empty", src)
+
+    def test_mobile_flash_uses_swal_not_bootstrap_alert(self):
+        src = _read(os.path.join(APP_ROOT, "templates", "base_mobile.html"))
+        self.assertNotIn("alert-dismissible", src)
+        self.assertIn("Toast.fire", src)

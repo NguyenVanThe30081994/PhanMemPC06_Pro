@@ -1,5 +1,13 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject M4: Phổ cập pc-empty + flash mobile về Swal)
+Empty state chuẩn hóa theo `pc-empty` (chuẩn mực Mục 4.1): `thong_bao.html` (2 khối,
+xóa CSS nội bộ gradient hex), `contacts.html`, `roles.html` (dòng trống bảng),
+`tasks_rebuild.html` (3 khối, xóa rule `.task-empty-state` nội bộ). Flash message mobile
+(`base_mobile.html`) chuyển từ Bootstrap `alert-dismissible` sang Swal mixin Toast
+(success) / modal theo token (các loại khác) — đồng bộ desktop. Test mới:
+`EmptyStateContractTests` (2 tests); suite 273 — chỉ còn 3 lỗi có sẵn.
+
 ## 2026-08-28 (Giao diện — Subproject M3: Theme SweetAlert2 theo token pc-*)
 Chuẩn hóa dialog hệ thống theo chuẩn mực Mục 4.3: thêm theme `.pc-swal-popup/-title/-html`
 (và slot nút `.pc-swal-confirm/-cancel`) vào `pc06-premium.css` — nền card, radius-xl,

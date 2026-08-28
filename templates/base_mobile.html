@@ -509,12 +509,33 @@
     <main class="main-content" id="main-content">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show rounded-4 mb-4 border-0 shadow-sm" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                {% endfor %}
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    const Toast = Swal.mixin({
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3000,
+                        timerProgressBar: true
+                    });
+                    {% for category, message in messages %}
+                    {% if category == 'success' %}
+                    Toast.fire({ icon: 'success', title: '{{ message }}' });
+                    {% else %}
+                    Swal.fire({
+                        icon: '{{ "error" if category == "danger" else category }}',
+                        text: '{{ message }}',
+                        confirmButtonColor: 'var(--bs-primary)',
+                        customClass: {
+                            popup: 'pc-swal-popup',
+                            title: 'pc-swal-title',
+                            htmlContainer: 'pc-swal-html'
+                        }
+                    });
+                    {% endif %}
+                    {% endfor %}
+                });
+            </script>
             {% endif %}
         {% endwith %}
 

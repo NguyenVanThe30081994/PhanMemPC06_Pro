@@ -138,9 +138,9 @@
                 {% endfor %}
             </div>
             {% else %}
-            <div class="task-empty-state">
-                <i class="fa-solid fa-check-circle text-success mb-3" style="font-size: 3rem;"></i>
-                <p>Không có công việc cần xử lý ngay.</p>
+            <div class="pc-empty">
+                <div class="pc-empty-icon"><i class="fa-solid fa-check-circle"></i></div>
+                <div class="pc-empty-title">Không có công việc cần xử lý ngay.</div>
             </div>
             {% endif %}
         </div>
@@ -155,9 +155,9 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="task-empty-state">
-                    <i class="fa-solid fa-inbox text-muted mb-3" style="font-size: 3rem;"></i>
-                    <p>Hiện chưa có việc nào được giao trực tiếp cho bạn.</p>
+                <div class="pc-empty">
+                    <div class="pc-empty-icon"><i class="fa-solid fa-inbox"></i></div>
+                    <div class="pc-empty-title">Hiện chưa có việc nào được giao trực tiếp cho bạn.</div>
                 </div>
                 {% endif %}
             </div>
@@ -171,9 +171,9 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="task-empty-state">
-                    <i class="fa-solid fa-folder-open text-muted mb-3" style="font-size: 3rem;"></i>
-                    <p>Chưa có công việc nào thuộc nhóm bạn điều phối hoặc theo dõi.</p>
+                <div class="pc-empty">
+                    <div class="pc-empty-icon"><i class="fa-solid fa-folder-open"></i></div>
+                    <div class="pc-empty-title">Chưa có công việc nào thuộc nhóm bạn điều phối hoặc theo dõi.</div>
                 </div>
                 {% endif %}
             </div>
@@ -513,16 +513,6 @@
         height: 100%;
         border-radius: inherit;
         background: linear-gradient(90deg, #0066ff, #38bdf8);
-    }
-
-    .task-empty-state {
-        padding: 28px 18px;
-        border-radius: 20px;
-        border: 1px dashed rgba(148, 163, 184, 0.3);
-        background: rgba(248, 250, 252, 0.8);
-        color: var(--text-muted);
-        font-weight: 700;
-        text-align: center;
     }
 
     .task-mode-item {
@@ -1115,7 +1105,6 @@
         color: #f87171;
     }
 
-    [data-theme="dark"] .task-empty-state,
     [data-theme="dark"] .task-mode-item {
         background: rgba(30, 41, 59, 0.82);
     }
