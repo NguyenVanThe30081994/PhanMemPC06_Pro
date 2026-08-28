@@ -81,3 +81,11 @@ class DesignSystemContractTests(unittest.TestCase):
             ".pc-login-divider", ".pc-login-google",
         ):
             self.assertIn(cls, css, f"Thiếu component {cls} trong pc06-premium.css")
+
+    def test_premium_css_restyles_app_shell(self):
+        css = _read(PREMIUM_CSS)
+        for selector in (
+            ".desktop-sidebar", ".desktop-brand-badge", ".sidebar-nav-link",
+            ".nav-link-top", ".mobile-header", ".mobile-bottom-nav",
+        ):
+            self.assertIn(selector, css, f"Thiếu shell selector {selector}")

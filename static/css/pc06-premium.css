@@ -543,3 +543,46 @@ a:hover { color: var(--pc-primary-strong); }
     color: var(--pc-text);
 }
 .pc-login-google:hover { border-color: var(--pc-primary); background: var(--pc-bg-subtle); color: var(--pc-text); box-shadow: var(--pc-shadow-xs); }
+
+/* ---------- 5. App shell — token hóa class hiện có, KHÔNG đổi DOM ---------- */
+.desktop-sidebar {
+    background: var(--pc-bg-card);
+    border-right: 1px solid var(--pc-border);
+}
+.desktop-brand-badge {
+    background: var(--pc-primary);
+    color: #fff;
+    border-radius: var(--pc-radius-md);
+    box-shadow: var(--pc-shadow-sm);
+}
+.sidebar-nav-link {
+    color: var(--pc-text-muted);
+    border-radius: var(--pc-radius-md);
+    transition: background-color var(--pc-dur-fast) var(--pc-ease),
+                color var(--pc-dur-fast) var(--pc-ease);
+}
+.sidebar-nav-link:hover { background: var(--pc-primary-soft); color: var(--pc-primary); }
+.sidebar-nav-link.active { background: var(--pc-primary); color: #fff; box-shadow: var(--pc-shadow-sm); }
+
+.nav-link-top {
+    border-radius: var(--pc-radius-pill);
+    color: var(--pc-text-muted);
+    font-weight: 600;
+    transition: background-color var(--pc-dur-fast) var(--pc-ease),
+                color var(--pc-dur-fast) var(--pc-ease);
+}
+.nav-link-top:hover { background: var(--pc-primary-soft); color: var(--pc-primary); }
+.nav-link-top.active { background: var(--pc-primary); color: #fff; box-shadow: var(--pc-shadow-sm); }
+
+.mobile-header {
+    background: var(--pc-bg-card);
+    border-bottom: 1px solid var(--pc-border);
+    box-shadow: var(--pc-shadow-xs);
+}
+.mobile-bottom-nav {
+    background: var(--pc-bg-card);
+    border-top: 1px solid var(--pc-border);
+    box-shadow: 0 -2px 10px rgba(2, 6, 23, .06);
+}
+.mobile-bottom-nav .nav-item { color: var(--pc-text-muted); }
+.mobile-bottom-nav .nav-item.active { color: var(--pc-primary); }
