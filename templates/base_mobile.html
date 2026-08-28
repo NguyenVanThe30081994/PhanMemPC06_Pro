@@ -7,7 +7,7 @@
     <title>{% block title %}PC06 Mobile{% endblock %}</title>
     
     <!-- Fonts & Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Bootstrap 5 CSS (Minimal for grid) -->
@@ -15,28 +15,23 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/category-picker.css') }}">
     
     <style>
+        /* Biến mobile-only; mọi màu trỏ về token --pc-* (bridge ở design system premium) */
         :root {
-            --primary: #0066ff;
-            --primary-dark: #0052cc;
-            --primary-light: #dbeafe;
-            --bg-body: #f8fafc;
-            --bg-surface: #ffffff;
+            --primary: var(--pc-primary);
+            --primary-dark: var(--pc-primary-strong);
+            --primary-light: var(--pc-primary-soft);
+            --bg-body: var(--pc-bg);
+            --bg-surface: var(--pc-bg-card);
             --bg-surface-rgb: 255, 255, 255;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
+            --text-main: var(--pc-text);
+            --text-muted: var(--pc-text-muted);
+            --border: var(--pc-border);
             --nav-height: 65px;
             --safe-bottom: env(safe-area-inset-bottom, 0px);
         }
 
         [data-theme="dark"] {
-            --bg-body: #0f172a;
-            --bg-surface: #1e293b;
-            --bg-surface-rgb: 30, 41, 59;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: #334155;
-            --primary-light: rgba(0, 102, 255, 0.2);
+            --bg-surface-rgb: 17, 27, 46;
         }
 
         /* Dark Mode Global Dynamic Overrides */
@@ -59,7 +54,7 @@
         }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--pc-font-sans, sans-serif);
             background-color: var(--bg-body);
             color: var(--text-main);
             margin: 0;

@@ -1,5 +1,13 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject M1: Shell mobile token hóa + font thống nhất)
+Theo tài liệu tổng thiết kế `docs/THIET_KE_TONG_GIAO_DIEN_2026.md`: `base_mobile.html` bỏ
+khối biến hex inline, trỏ `--primary/--bg-*/--text-*/--border` về token `--pc-*` qua bridge
+(giữ lại mobile-only: `--nav-height`, `--safe-bottom`, `--bg-surface-rgb`). Thống nhất font
+toàn hệ thống sang Be Vietnam Pro — bỏ Inter khỏi `base.html` + `base_mobile.html` (giữ
+nguyên chuỗi Inter trong CSS sinh tài liệu in/export của `thong_bao.html`). Test mới:
+`ShellMobileTokenTests` (3 tests; suite 268 — chỉ còn 3 lỗi có sẵn).
+
 ## 2026-08-28 (Giao diện — Subproject SG: Remove duplicate buttons + Stat pill border)
 Xóa 2 nút duplicate "Tạo công việc" + "Nhập tài liệu" ở hàng giữa `tasks_rebuild.html` (trùng với hàng unified button row bên dưới). Tăng border stat pills hàng 1 từ `rgba(148,163,184,0.14)` lên `var(--pc-border)` 1.5px để viền rõ hơn. Suite 265 tests — chỉ còn 3 lỗi có sẵn.
 

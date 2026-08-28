@@ -563,3 +563,31 @@ class SidebarMenuContractTests(unittest.TestCase):
     def test_base_mobile_html_system_submenu_uses_premium_nav(self):
         src = _read(os.path.join(APP_ROOT, "templates", "base_mobile.html"))
         self.assertIn("pc-nav-item", src)
+
+
+class ShellMobileTokenTests(unittest.TestCase):
+    """Subproject M1: shell mobile dùng token pc-* + font thống nhất Be Vietnam Pro
+    (chuẩn mực Mục 5.4 + 7.5 — docs/THIET_KE_TONG_GIAO_DIEN_2026.md)."""
+
+    def test_base_mobile_no_inter_font(self):
+        src = _read(os.path.join(APP_ROOT, "templates", "base_mobile.html"))
+        self.assertNotIn("family=Inter", src)
+        self.assertNotIn("'Inter'", src)
+
+    def test_base_mobile_inline_vars_use_pc_tokens(self):
+        src = _read(os.path.join(APP_ROOT, "templates", "base_mobile.html"))
+        for token_ref in (
+            "--primary: var(--pc-primary)",
+            "--bg-body: var(--pc-bg)",
+            "--bg-surface: var(--pc-bg-card)",
+            "--text-main: var(--pc-text)",
+            "--text-muted: var(--pc-text-muted)",
+            "--border: var(--pc-border)",
+        ):
+            self.assertIn(token_ref, src)
+        self.assertNotIn("--primary: #0066ff", src)
+
+    def test_base_font_url_unified(self):
+        src = _read(os.path.join(APP_ROOT, "templates", "base.html"))
+        self.assertIn("Be+Vietnam+Pro", src)
+        self.assertNotIn("family=Inter", src)
