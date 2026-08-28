@@ -55,3 +55,17 @@ class DesignSystemContractTests(unittest.TestCase):
             self.assertNotEqual(idx_flat, -1, f"{name} mất flat-theme.css?")
             self.assertNotEqual(idx_premium, -1, f"{name} chưa nạp pc06-premium.css")
             self.assertGreater(idx_premium, idx_flat, f"{name}: premium phải nạp SAU flat-theme")
+
+    def test_premium_css_defines_components_part1(self):
+        css = _read(PREMIUM_CSS)
+        for cls in (
+            ".pc-btn", ".pc-btn-primary", ".pc-btn-secondary", ".pc-btn-ghost",
+            ".pc-btn-danger", ".pc-btn-sm", ".pc-btn-lg", ".pc-btn-loading",
+            ".pc-form-group", ".pc-label", ".pc-input", ".pc-select", ".pc-help",
+            ".pc-error", ".pc-invalid",
+            ".pc-card", ".pc-card-header", ".pc-card-body", ".pc-card-footer",
+            ".pc-alert", ".pc-alert-success", ".pc-alert-warning",
+            ".pc-alert-danger", ".pc-alert-info",
+            ".pc-badge", ".pc-badge-primary", ".pc-badge-neutral",
+        ):
+            self.assertIn(cls, css, f"Thiếu component {cls} trong pc06-premium.css")
