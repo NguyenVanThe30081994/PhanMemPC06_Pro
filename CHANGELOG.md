@@ -1,5 +1,10 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject SB: Dashboard giao việc layout/buttons)
+Tối ưu spacing/padding của metric card + chart panel trên `admin_dashboard.html` sang
+`var(--pc-space-*)` tokens; giữ nguyên grid layout, chart JS, responsive breakpoints.
+Suite 265 tests — chỉ còn 3 lỗi có sẵn. Ghi nhận: hoàn tất Lô B (dashboard nút/bố cục).
+
 ## 2026-08-28 (Giao diện — Subproject SA: Sidebar menu HỆ THỐNG)
 Token hóa nav link trong dropdown HỆ THỐNG của `base.html` + `base_mobile.html` sang
 `pc-nav-item`; giữ nguyên JS/layout. Test mới: `SidebarMenuContractTests` (2 tests;

@@ -55,14 +55,14 @@
     .overview-metric-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 14px;
+        gap: var(--pc-space-4);
     }
 
     .overview-metric-card {
         display: grid;
-        gap: 8px;
+        gap: var(--pc-space-2);
         min-height: 152px;
-        padding: 18px 20px 16px;
+        padding: var(--pc-space-5) var(--pc-space-6) var(--pc-space-4);
         text-decoration: none;
         color: var(--text-main);
         transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -108,18 +108,18 @@
     .overview-chart-grid {
         display: grid;
         grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.8fr);
-        gap: 16px;
+        gap: var(--pc-space-4);
     }
 
     .overview-panel {
-        padding: 18px 20px 20px;
+        padding: var(--pc-space-5) var(--pc-space-6) var(--pc-space-5);
     }
 
     .overview-panel-head {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 12px;
+        margin-bottom: var(--pc-space-3);
     }
 
     .overview-panel-head h2 {
