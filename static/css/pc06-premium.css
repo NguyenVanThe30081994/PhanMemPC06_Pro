@@ -41,6 +41,10 @@
     --pc-info-border: #bae6fd;
     --pc-info-text: #075985;
 
+    /* Accent phụ trợ (icon màu) — dùng hạn chế, không làm màu chức năng */
+    --pc-accent-violet: #8b5cf6;
+    --pc-accent-pink: #ec4899;
+
     /* Neutral (slate) */
     --pc-neutral-0: #ffffff;
     --pc-neutral-50: #f8fafc;

@@ -642,3 +642,24 @@ class EmptyStateContractTests(unittest.TestCase):
         src = _read(os.path.join(APP_ROOT, "templates", "base_mobile.html"))
         self.assertNotIn("alert-dismissible", src)
         self.assertIn("Toast.fire", src)
+
+
+class BdhvsLayoutTokenTests(unittest.TestCase):
+    """Subproject M5: bdhvs-layout.css hết hardcode brand/semantic hex
+    (chuẩn mực Mục 7.3.1 — docs/THIET_KE_TONG_GIAO_DIEN_2026.md)."""
+
+    def test_bdhvs_layout_no_hardcoded_hex(self):
+        css = _read(os.path.join(APP_ROOT, "static", "css", "bdhvs-layout.css"))
+        for banned in (
+            "#0066ff", "#0052cc", "#dbeafe", "#bfdbfe", "#eff6ff", "#e0f2fe",
+            "#bae6fd", "#1e3a8a", "#082f49", "#f59e0b", "#92400e", "#fef3c7",
+            "#fee2e2", "#b91c1c", "#10b981", "#166534", "#dcfce7", "#d1fae5",
+            "#f0fdf4", "#8b5cf6", "#ec4899", "#0f172a", "#64748b", "#e2e8f0",
+            "#f8fafc", "#f1f5f9", "#475569", "#334155", "#1e293b",
+        ):
+            self.assertNotIn(banned, css)
+
+    def test_premium_css_defines_accent_tokens(self):
+        css = _read(PREMIUM_CSS)
+        for token in ("--pc-accent-violet:", "--pc-accent-pink:"):
+            self.assertIn(token, css)

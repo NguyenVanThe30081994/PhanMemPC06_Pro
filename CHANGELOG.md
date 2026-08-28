@@ -1,5 +1,14 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject M5: bdhvs-layout.css hết hardcode hex)
+Map 83 vị trí hex (29 giá trị) trong `bdhvs-layout.css` sang token `--pc-*` theo bảng
+chuẩn mực Mục 7.3.1: brand `#0066ff/#0052cc` → `--pc-primary/-strong` (chuyển sang navy
+premium), semantic amber/emerald/red → token warning/success/danger, neutral 1:1 (bất biến
+theo theme), thêm 2 token accent `--pc-accent-violet/--pc-accent-pink`. Chỉ còn `#fff`
+(chữ trắng trên nền màu — đúng cả 2 theme). Bump `bdhvs-layout.css ?v=2.2.0`,
+`pc06-premium.css ?v=1.3.0`. Test mới: `BdhvsLayoutTokenTests` (2 tests); suite 275 —
+chỉ còn 3 lỗi có sẵn. Cần smoke thủ công light/dark trên trình duyệt thật.
+
 ## 2026-08-28 (Giao diện — Subproject M4: Phổ cập pc-empty + flash mobile về Swal)
 Empty state chuẩn hóa theo `pc-empty` (chuẩn mực Mục 4.1): `thong_bao.html` (2 khối,
 xóa CSS nội bộ gradient hex), `contacts.html`, `roles.html` (dòng trống bảng),
