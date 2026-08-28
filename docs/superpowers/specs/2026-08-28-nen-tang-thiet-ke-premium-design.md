@@ -36,15 +36,18 @@ kế** — làm cơ sở cho 5 subproject sau.
 
 Thứ tự load thực tế hiện nay (đã kiểm chứng trong template):
 
-- `base.html`: head nạp bootstrap CDN → font-awesome CDN → fonts →
-  `style.css` → `bdhvs-layout.css` → `category-picker.css`; **cuối body** nạp
-  `mobile-responsive.css` → `flat-theme.css`.
-- `base_mobile.html`: head nạp fonts → font-awesome CDN → bootstrap CDN →
-  `category-picker.css`; **cuối body** nạp `mobile-responsive.css` →
-  `flat-theme.css`.
+- `base.html`: đầu head nạp bootstrap CDN → font-awesome CDN → fonts →
+  `style.css` → `bdhvs-layout.css` → `category-picker.css`; một khối
+  `<style>` lớn; **cuối head** nạp `mobile-responsive.css` →
+  `flat-theme.css` → `{% block extra_head %}` → `</head>`.
+- `base_mobile.html`: đầu head nạp fonts → font-awesome CDN → bootstrap CDN
+  → `category-picker.css`; khối `<style>`; **cuối head** nạp
+  `mobile-responsive.css` → `flat-theme.css` → `</head>`.
 
-Quy tắc: `pc06-premium.css` được nạp **sau `flat-theme.css` tại cùng vị trí
-cuối body** ở cả hai template (kèm `?v=<bump>`), đảm bảo thắng cascade.
+Quy tắc: `pc06-premium.css` được nạp **cuối `<head>`** — trong `base.html`
+đặt ngay sau `{% block extra_head %}` (trước `</head>`), trong
+`base_mobile.html` đặt ngay sau link `flat-theme.css` — kèm `?v=<bump>`,
+đảm bảo thắng cascade.
 
 Cấu trúc bên trong file, theo đúng thứ tự:
 
@@ -133,9 +136,11 @@ Mọi component phải render đúng ở cả 2 theme light/dark và breakpoint 
   theme, meta CSRF, nhận diện thiết bị, khối Việt hóa thông báo trình duyệt,
   khối chặn DevTools, hệ thống thông báo (notification), các script CDN
   (SweetAlert2, Chart.js).
-- Chuyển các khối `<style>` inline trong `base.html` vào
-  `pc06-premium.css` nơi có thể; chỗ phụ thuộc trạng thái động thì giữ lại
-  nhưng dọn về chọn lọc theo token.
+- Các khối `<style>` inline trong `base.html` **giữ nguyên tại chỗ trong
+  subproject 1** (tránh đụng DOM/JS); `pc06-premium.css` nạp sau nên thắng
+  cascade ở các selector trùng. Việc chuyển inline style vào file CSS (nếu
+  còn cần) thuộc các subproject 2–6, làm theo từng trang khi trang đó được
+  chạm vào.
 
 ## 7. Pilot: trang login (desktop + mobile)
 
