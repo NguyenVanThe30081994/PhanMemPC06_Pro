@@ -22,19 +22,19 @@
             </div>
             {% if can_manage_roles %}
             <div class="pc06-section-menu-actions">
-                <a class="btn btn-bdhvs light" href="{{ url_for('admin_bp.export_users', role_id=selected_role_id, unit=selected_unit, q=search_query) }}">
+                <a class="pc-btn pc-btn-secondary" href="{{ url_for('admin_bp.export_users', role_id=selected_role_id, unit=selected_unit, q=search_query) }}">
                     <i class="fa-solid fa-file-arrow-down"></i>
                     {{ 'Xuất ' ~ selected_role.name if selected_role else 'Xuất danh sách' }}
                 </a>
-                <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importUserModal">
+                <button class="pc-btn pc-btn-secondary" data-bs-toggle="modal" data-bs-target="#importUserModal">
                     <i class="fa-solid fa-file-excel"></i>
                     Nhập Excel
                 </button>
-                <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#addRoleModal">
+                <button class="pc-btn pc-btn-secondary" data-bs-toggle="modal" data-bs-target="#addRoleModal">
                     <i class="fa-solid fa-user-tag"></i>
                     Thêm vai trò
                 </button>
-                <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                <button class="pc-btn pc-btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
                     <i class="fa-solid fa-user-plus"></i>
                     Thêm tài khoản
                 </button>
@@ -72,11 +72,11 @@
                     </div>
                     {% if can_manage_roles %}
                     <div class="d-flex align-items-center gap-3 flex-wrap">
-                        <button type="button" class="btn btn-bdhvs light text-warning" onclick="submitBulkPasswordReset()">
+                        <button type="button" class="pc-btn pc-btn-secondary text-warning" onclick="submitBulkPasswordReset()">
                             <i class="fa-solid fa-rotate-left"></i>
                             Reset mật khẩu toàn bộ
                         </button>
-                        <button type="button" class="btn btn-bdhvs light text-danger" id="bulkUserDeleteBtn" onclick="submitBulkUserDelete()" disabled>
+                        <button type="button" class="pc-btn pc-btn-secondary text-danger" id="bulkUserDeleteBtn" onclick="submitBulkUserDelete()" disabled>
                             <i class="fa-solid fa-trash-can"></i>
                             Xóa đã chọn
                         </button>
@@ -174,12 +174,12 @@
                             <span class="pc06-chip-count">{{ role_user_counts.get(r.id, 0) }}</span>
                         </div>
                         <div class="pc06-toolbar-actions">
-                            <a href="{{ url_for('admin_bp.roles', role_id=r.id) }}" class="btn btn-bdhvs light">
+                            <a href="{{ url_for('admin_bp.roles', role_id=r.id) }}" class="pc-btn pc-btn-secondary">
                                 <i class="fa-solid fa-users"></i>
                                 Xem tài khoản
                             </a>
                             {% if can_manage_roles %}
-                            <button class="btn btn-bdhvs primary" onclick='openEditPerms({{ r.id }}, {{ r.name|tojson }}, {{ r.form_perms_json|safe }})'>
+                            <button class="pc-btn pc-btn-primary" onclick='openEditPerms({{ r.id }}, {{ r.name|tojson }}, {{ r.form_perms_json|safe }})'>
                                 <i class="fa-solid fa-user-gear"></i>
                                 Phân quyền
                             </button>
@@ -187,7 +187,7 @@
                             <form method="POST" class="d-inline m-0" onsubmit="return pc06ConfirmSubmit(event, 'Xóa vai trò này?')">
                                 <input type="hidden" name="action" value="delete_role">
                                 <input type="hidden" name="role_id" value="{{ r.id }}">
-                                <button type="submit" class="btn btn-bdhvs light text-danger" title="Xóa vai trò">
+                                <button type="submit" class="pc-btn pc-btn-secondary text-danger" title="Xóa vai trò">
                                     <i class="fa-solid fa-trash-can"></i>
                                 </button>
                             </form>
@@ -261,7 +261,7 @@
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-0">
-                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">XÁC NHẬN TẠO</button>
+                    <button type="submit" class="pc-btn pc-btn-primary pc-btn-lg">XÁC NHẬN TẠO</button>
                 </div>
             </form>
         </div>
@@ -375,7 +375,7 @@
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-0">
-                    <button type="submit" class="btn btn-primary px-5 rounded-pill fw-bold shadow">XÁC NHẬN TẠO</button>
+                    <button type="submit" class="pc-btn pc-btn-primary pc-btn-lg">XÁC NHẬN TẠO</button>
                 </div>
             </form>
         </div>

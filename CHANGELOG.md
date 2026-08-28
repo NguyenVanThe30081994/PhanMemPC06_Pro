@@ -1,5 +1,13 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject SD: Button layout + Popup + Mobile audit)
+Chuẩn hóa nút toàn hệ thống: migrate `btn-bdhvs` → `pc-btn` (primary/secondary/warning/danger),
+fix inline-style primary buttons trong modal form sang `pc-btn-lg`. Audit modal/popup —
+dùng Bootstrap standard đã được `pc-modal` override từ subproject 1. Audit 9 mobile template
+(0 marker `pc-*`) — xác nhận dùng custom class cover bởi bridge legacy; khuyến nghị test
+manual trên device thật. Suite 265 tests — chỉ còn 3 lỗi có sẵn.
+**HOÀN TẤT AUDIT + FIX UI ĐỒNG NHẤT TOÀN BỘ GIAO DIỆN PC06 THEO YÊU CẦU SUPERPOWERS.**
+
 ## 2026-08-28 (Giao diện — Subproject SC: Audit template 0 marker)
 Kiểm tra 23 template còn 0 `pc-*` markers — xác nhận dùng class custom
 (`btn-bdhvs`, `pc06-page-summary-card`) đã được bridge legacy map sang token.

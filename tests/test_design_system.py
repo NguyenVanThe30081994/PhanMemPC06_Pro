@@ -535,15 +535,15 @@ class AdminPagesContractTests(unittest.TestCase):
         src = _read(os.path.join(APP_ROOT, "templates", "system_update.html"))
         self.assertIn("pc06-page-summary-card", src)
 
-    def test_roles_uses_custom_buttons(self):
-        """roles.html dùng btn-bdhvs/pc06-section-menu-tab — không cover bởi bridge legacy."""
+    def test_roles_uses_premium_buttons(self):
+        """roles.html đã migrate btn-bdhvs sang pc-btn trong subproject SD."""
         src = _read(os.path.join(APP_ROOT, "templates", "roles.html"))
-        self.assertIn("btn-bdhvs", src)
+        self.assertIn("pc-btn", src)
 
-    def test_contacts_uses_custom_buttons(self):
-        """contacts.html dùng btn-bdhvs — không cover bởi bridge legacy."""
+    def test_contacts_uses_premium_buttons(self):
+        """contacts.html đã migrate btn-bdhvs sang pc-btn trong subproject SD."""
         src = _read(os.path.join(APP_ROOT, "templates", "contacts.html"))
-        self.assertIn("btn-bdhvs", src)
+        self.assertIn("pc-btn", src)
 
 
 class SidebarMenuContractTests(unittest.TestCase):

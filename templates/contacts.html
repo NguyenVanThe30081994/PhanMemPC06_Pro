@@ -75,15 +75,15 @@
                 <h2>{{ current_group_display or 'Tất cả nhóm' }}</h2>
                 {% if can_manage_with_system('contact') %}
                 <div class="pc06-page-actions">
-                    <a href="{{ url_for('portal_bp.contact_template') }}" class="btn btn-bdhvs light">
+                    <a href="{{ url_for('portal_bp.contact_template') }}" class="pc-btn pc-btn-secondary">
                         <i class="fa-solid fa-download"></i>
                         Tải biểu mẫu
                     </a>
-                    <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#importContactModal">
+                    <button class="pc-btn pc-btn-secondary" data-bs-toggle="modal" data-bs-target="#importContactModal">
                         <i class="fa-solid fa-file-excel"></i>
                         Nhập Excel
                     </button>
-                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
+                    <button class="pc-btn pc-btn-primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
                         <i class="fa-solid fa-plus"></i>
                         Thêm liên hệ
                     </button>
@@ -101,11 +101,11 @@
                     <span class="pc06-toolbar-count" id="contactVisibleCount">{{ contacts|length }} liên hệ</span>
                     {% if can_module('contact', 'process') %}
                     <div class="pc06-contacts-bulk-bar">
-                        <button type="button" class="btn btn-bdhvs light" onclick="toggleAllContacts()">
+                        <button type="button" class="pc-btn pc-btn-secondary" onclick="toggleAllContacts()">
                             <i class="fa-solid fa-check-double"></i>
                             Chọn tất cả
                         </button>
-                        <button type="button" class="btn btn-bdhvs light text-danger" id="bulkDeleteBtn" onclick="submitBulkDelete()" disabled>
+                        <button type="button" class="pc-btn pc-btn-secondary text-danger" id="bulkDeleteBtn" onclick="submitBulkDelete()" disabled>
                             <i class="fa-solid fa-trash-can"></i>
                             Xóa đã chọn
                         </button>
@@ -246,8 +246,8 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-bdhvs primary"><i class="fa-solid fa-floppy-disk"></i>Lưu liên hệ</button>
+                    <button type="button" class="pc-btn pc-btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="pc-btn pc-btn-primary"><i class="fa-solid fa-floppy-disk"></i>Lưu liên hệ</button>
                 </div>
             </form>
         </div>
@@ -348,9 +348,9 @@
                     <div id="previewError" class="alert alert-danger small mt-3 d-none"></div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Đóng</button>
-                    <button type="button" class="btn btn-bdhvs light" onclick="previewExcel()"><i class="fa-solid fa-eye"></i>Xem trước</button>
-                    <button type="submit" class="btn btn-bdhvs primary"><i class="fa-solid fa-upload"></i>Nhập danh bạ</button>
+                    <button type="button" class="pc-btn pc-btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" class="pc-btn pc-btn-secondary" onclick="previewExcel()"><i class="fa-solid fa-eye"></i>Xem trước</button>
+                    <button type="submit" class="pc-btn pc-btn-primary"><i class="fa-solid fa-upload"></i>Nhập danh bạ</button>
                 </div>
             </form>
         </div>

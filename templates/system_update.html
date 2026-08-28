@@ -42,7 +42,7 @@
                         <label class="form-label fw-bold">Gói cập nhật</label>
                         <input type="file" name="update_pkg" class="form-control" accept=".zip">
                     </div>
-                    <button type="submit" class="btn btn-bdhvs primary">
+                    <button type="submit" class="pc-btn pc-btn-primary">
                         <i class="fa-solid fa-upload"></i>
                         Tải lên và áp dụng
                     </button>
@@ -65,7 +65,7 @@
                             <input type="text" class="form-control" id="remoteUrlInput" placeholder="https://github.com/username/repo.git" value="{{ git_info.remote_url|default('') }}">
                             <button class="btn btn-outline-secondary" type="button" onclick="loadRemote()"><i class="fa-solid fa-rotate"></i></button>
                         </div>
-                        <button class="btn btn-bdhvs light mt-3" type="button" onclick="setRemote()">
+                        <button class="pc-btn pc-btn-secondary mt-3" type="button" onclick="setRemote()">
                             <i class="fa-solid fa-save"></i>
                             Lưu remote
                         </button>

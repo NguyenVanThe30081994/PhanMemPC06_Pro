@@ -52,7 +52,7 @@
                 <h2 id="notifySelectedCategory">{{ current_category_display }}</h2>
                 {% if can_manage_notify %}
                 <div class="pc06-page-actions">
-                    <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addNotifyModal">
+                    <button class="pc-btn pc-btn-primary" data-bs-toggle="modal" data-bs-target="#addNotifyModal">
                         <i class="fa-solid fa-plus"></i>
                         Đăng thông báo
                     </button>
@@ -124,11 +124,11 @@
                         {% endif %}
                         <div class="pc06-notify-actions">
                             {% if kind == 'video' and n.video_url %}
-                            <a class="btn btn-bdhvs primary btn-sm" href="{{ n.video_url }}" target="_blank" rel="noopener">
+                            <a class="pc-btn pc-btn-primary btn-sm" href="{{ n.video_url }}" target="_blank" rel="noopener">
                                 <i class="fa-solid fa-play"></i> Xem video
                             </a>
                             {% else %}
-                            <button class="btn btn-bdhvs primary btn-sm pc06-notify-view-btn"
+                            <button class="pc-btn pc-btn-primary btn-sm pc06-notify-view-btn"
                                 data-filename="{{ n.filename|default('', true) }}"
                                 data-ext="{{ (n.file_ext or '')|lower }}"
                                 data-video-url="{{ n.video_url|default('', true) }}"
@@ -137,14 +137,14 @@
                             </button>
                             {% endif %}
                             {% if can_manage_notify %}
-                            <button type="button" class="btn btn-bdhvs light btn-sm" data-bs-toggle="modal" data-bs-target="#editNotifyModal"
+                            <button type="button" class="pc-btn pc-btn-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#editNotifyModal"
                                 data-id="{{ n.id }}" data-title="{{ n.title }}" data-content="{{ n.content|default('', true) }}"
                                 data-kind="{{ kind }}" data-category="{{ n.category|default('', true) }}"
                                 data-filename="{{ n.filename|default('', true) }}" data-video-url="{{ n.video_url|default('', true) }}">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
                             <form method="POST" action="/thong-bao/delete/{{ n.id }}" onsubmit="return pc06ConfirmSubmit(event, 'Xóa thông báo này?')" style="display:inline;">
-                                <button type="submit" class="btn btn-bdhvs light btn-sm text-danger"><i class="fa-solid fa-trash"></i></button>
+                                <button type="submit" class="pc-btn pc-btn-secondary btn-sm text-danger"><i class="fa-solid fa-trash"></i></button>
                             </form>
                             {% endif %}
                         </div>
@@ -186,8 +186,8 @@
                 </div>
             </div>
             <div class="pc06-viewer-actions">
-                <a id="viewerDownload" href="#" class="btn btn-bdhvs primary btn-sm" download><i class="fa-solid fa-download"></i> Tải xuống</a>
-                <a id="viewerOpen" href="#" class="btn btn-bdhvs light btn-sm" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> Mở mới</a>
+                <a id="viewerDownload" href="#" class="pc-btn pc-btn-primary btn-sm" download><i class="fa-solid fa-download"></i> Tải xuống</a>
+                <a id="viewerOpen" href="#" class="pc-btn pc-btn-secondary btn-sm" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> Mở mới</a>
             </div>
         </div>
     </div>
@@ -241,8 +241,8 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-bdhvs primary"><i class="fa-solid fa-paper-plane"></i>Đăng</button>
+                    <button type="button" class="pc-btn pc-btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="pc-btn pc-btn-primary"><i class="fa-solid fa-paper-plane"></i>Đăng</button>
                 </div>
             </form>
         </div>
@@ -297,8 +297,8 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-bdhvs primary"><i class="fa-solid fa-floppy-disk"></i>Lưu thay đổi</button>
+                    <button type="button" class="pc-btn pc-btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="pc-btn pc-btn-primary"><i class="fa-solid fa-floppy-disk"></i>Lưu thay đổi</button>
                 </div>
             </form>
         </div>

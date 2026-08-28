@@ -25,7 +25,7 @@
                 <h2>Danh sách liên kết</h2>
             </div>
             <div class="pc06-page-actions">
-                <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addLinkModal">
+                <button class="pc-btn pc-btn-primary" data-bs-toggle="modal" data-bs-target="#addLinkModal">
                     <i class="fa-solid fa-plus"></i>
                     Tạo liên kết
                 </button>
@@ -71,7 +71,7 @@
                         </td>
                         <td class="text-center fw-bold text-success">{{ link.clicks }}</td>
                         <td class="text-center">
-                            <a href="{{ url_for('shortlink_bp.get_qr', code=link.short_code) }}" class="btn btn-bdhvs light">
+                            <a href="{{ url_for('shortlink_bp.get_qr', code=link.short_code) }}" class="pc-btn pc-btn-secondary">
                                 <i class="fa-solid fa-download"></i>
                                 Tải QR
                             </a>
@@ -156,8 +156,8 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-bdhvs light" data-bs-dismiss="modal">Đóng</button>
-                    <button type="submit" class="btn btn-bdhvs primary">
+                    <button type="button" class="pc-btn pc-btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="pc-btn pc-btn-primary">
                         <i class="fa-solid fa-bolt"></i>
                         Tạo liên kết
                     </button>
