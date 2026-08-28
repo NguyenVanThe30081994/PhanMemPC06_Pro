@@ -6,6 +6,7 @@ CSS đúng vị trí, trang login giữ nguyên contract chức năng.
 """
 import os
 import unittest
+import uuid
 from datetime import datetime
 
 from app import app
@@ -116,3 +117,75 @@ class LoginPilotTests(unittest.TestCase):
         self.assertIn("pc-login", body)
         self.assertIn('name="username"', body)
         self.assertIn('name="password"', body)
+
+
+class StyleguideAccessTests(unittest.TestCase):
+    def setUp(self):
+        self.client = app.test_client()
+        self.created_user_ids = []
+
+    def tearDown(self):
+        with app.app_context():
+            for uid in self.created_user_ids:
+                User.query.filter_by(id=uid).delete()
+            db.session.commit()
+
+    def _admin(self):
+        with app.app_context():
+            return (
+                User.query.filter_by(username="admin").first()
+                or User.query.filter_by(is_active=True).order_by(User.id.asc()).first()
+            )
+
+    def _create_plain_user(self):
+        with app.app_context():
+            user = User(
+                username=f"sg_{uuid.uuid4().hex[:8]}",
+                fullname="Styleguide Test",
+                unit_area="",
+                unit_key="",
+                is_active=True,
+            )
+            user.set_password("123456")
+            db.session.add(user)
+            db.session.commit()
+            self.created_user_ids.append(user.id)
+            return user.id
+
+    def _login(self, user_id, is_admin):
+        with app.app_context():
+            user = db.session.get(User, user_id)
+            with self.client.session_transaction() as sess:
+                sess["uid"] = user.id
+                sess["username"] = user.username
+                sess["fullname"] = user.fullname
+                sess["unit"] = user.unit_area or ""
+                sess["unit_area"] = user.unit_area or ""
+                sess["unit_area_ref"] = user.unit_area or ""
+                sess["unit_key"] = user.unit_key or ""
+                sess["role_id"] = user.role_id
+                sess["must_change"] = False
+                sess["is_admin"] = is_admin
+                sess["session_version"] = int(user.session_version or 0)
+                sess["csrf_token"] = "sg-test-csrf"
+                sess["last_active"] = datetime.now().timestamp()
+                sess["login_nonce"] = "sg-test"
+
+    def test_styleguide_requires_login(self):
+        res = self.client.get("/admin/styleguide")
+        self.assertEqual(res.status_code, 302)
+
+    def test_styleguide_denies_non_admin(self):
+        uid = self._create_plain_user()
+        self._login(uid, is_admin=False)
+        res = self.client.get("/admin/styleguide")
+        self.assertEqual(res.status_code, 302)
+
+    def test_styleguide_renders_for_admin(self):
+        admin = self._admin()
+        self._login(admin.id, is_admin=True)
+        res = self.client.get("/admin/styleguide")
+        self.assertEqual(res.status_code, 200)
+        body = res.get_data(as_text=True)
+        for marker in ("pc-btn", "pc-card", "pc-table", "pc-badge", "--pc-primary"):
+            self.assertIn(marker, body)

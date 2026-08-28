@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4 px-3 px-lg-4">
+    <div class="pc-page-header">
+        <div>
+            <h1 class="pc-page-title">PC06 Design System</h1>
+            <p class="mb-0" style="color: var(--pc-text-muted);">
+                Subproject 1 — tokens <code>--pc-*</code>, component <code>pc-*</code>, light/dark.
+                Chuyển theme bằng nút trên thanh công cụ để kiểm tra cả hai chế độ.
+            </p>
+        </div>
+        <div class="pc-page-actions">
+            <span class="pc-badge pc-badge-primary">v1.0.0</span>
+        </div>
+    </div>
+
+    <!-- Tokens: bảng màu -->
+    <div class="pc-card mb-4">
+        <div class="pc-card-header"><h2 class="h5 mb-0">Color tokens</h2></div>
+        <div class="pc-card-body">
+            <div class="row g-3">
+                {% for name in ['--pc-primary', '--pc-primary-strong', '--pc-success', '--pc-warning', '--pc-danger', '--pc-info'] %}
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div style="height:64px; border-radius:var(--pc-radius-md); border:1px solid var(--pc-border); background: var({{ name }});"></div>
+                    <code class="small">{{ name }}</code>
+                </div>
+                {% endfor %}
+                {% for name in ['--pc-bg', '--pc-bg-subtle', '--pc-bg-card', '--pc-border', '--pc-text', '--pc-text-muted'] %}
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div style="height:64px; border-radius:var(--pc-radius-md); border:1px solid var(--pc-border); background: var({{ name }});"></div>
+                    <code class="small">{{ name }}</code>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Typography -->
+    <div class="pc-card mb-4">
+        <div class="pc-card-header"><h2 class="h5 mb-0">Typography — Be Vietnam Pro</h2></div>
+        <div class="pc-card-body">
+            <p style="font-size:var(--pc-text-display); font-weight:800; margin-bottom:var(--pc-space-2);">Display 32px</p>
+            <p style="font-size:var(--pc-text-h1); font-weight:700; margin-bottom:var(--pc-space-2);">Heading 1 — 28px</p>
+            <p style="font-size:var(--pc-text-h2); font-weight:700; margin-bottom:var(--pc-space-2);">Heading 2 — 22px</p>
+            <p style="font-size:var(--pc-text-h3); font-weight:600; margin-bottom:var(--pc-space-2);">Heading 3 — 18px</p>
+            <p style="margin-bottom:var(--pc-space-2);">Body — 15px, dòng chuẩn cho nội dung nghiệp vụ.</p>
+            <p style="font-size:var(--pc-text-sm); color:var(--pc-text-muted); margin-bottom:0;">Small — 13px cho chú thích.</p>
+        </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="pc-card mb-4">
+        <div class="pc-card-header"><h2 class="h5 mb-0">Buttons</h2></div>
+        <div class="pc-card-body d-flex flex-wrap gap-2 align-items-center">
+            <button class="pc-btn pc-btn-primary">Primary</button>
+            <button class="pc-btn pc-btn-secondary">Secondary</button>
+            <button class="pc-btn pc-btn-ghost">Ghost</button>
+            <button class="pc-btn pc-btn-danger">Danger</button>
+            <button class="pc-btn pc-btn-primary pc-btn-sm">Small</button>
+            <button class="pc-btn pc-btn-primary pc-btn-lg">Large</button>
+            <button class="pc-btn pc-btn-primary" disabled>Disabled</button>
+            <button class="pc-btn pc-btn-primary pc-btn-loading">Loading…</button>
+        </div>
+    </div>
+
+    <!-- Forms -->
+    <div class="pc-card mb-4">
+        <div class="pc-card-header"><h2 class="h5 mb-0">Forms</h2></div>
+        <div class="pc-card-body">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="pc-form-group">
+                        <label class="pc-label">Ô nhập chuẩn</label>
+                        <input class="pc-input" placeholder="Nhập nội dung...">
+                        <div class="pc-help">Văn bản hỗ trợ dưới ô nhập.</div>
+                    </div>
+                    <div class="pc-form-group">
+                        <label class="pc-label">Trạng thái lỗi</label>
+                        <input class="pc-input pc-invalid" value="Giá trị sai">
+                        <div class="pc-error"><i class="fa-solid fa-circle-exclamation"></i> Dữ liệu không hợp lệ.</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="pc-form-group">
+                        <label class="pc-label">Select</label>
+                        <select class="pc-select"><option>Tùy chọn một</option><option>Tùy chọn hai</option></select>
+                    </div>
+                    <div class="pc-form-group">
+                        <label class="pc-label">Disabled</label>
+                        <input class="pc-input" disabled value="Không chỉnh sửa được">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerts & badges -->
+    <div class="pc-card mb-4">
+        <div class="pc-card-header"><h2 class="h5 mb-0">Alerts &amp; badges</h2></div>
+        <div class="pc-card-body">
+            <div class="pc-alert pc-alert-success mb-2"><i class="fa-solid fa-circle-check mt-1"></i><div>Thao tác thành công.</div></div>
+            <div class="pc-alert pc-alert-warning mb-2"><i class="fa-solid fa-triangle-exclamation mt-1"></i><div>Sắp đến hạn nộp báo cáo.</div></div>
+            <div class="pc-alert pc-alert-danger mb-2"><i class="fa-solid fa-circle-exclamation mt-1"></i><div>Có lỗi xảy ra, vui lòng thử lại.</div></div>
+            <div class="pc-alert pc-alert-info mb-3"><i class="fa-solid fa-circle-info mt-1"></i><div>Hệ thống sẽ bảo trì lúc 22:00.</div></div>
+            <div class="d-flex flex-wrap gap-2">
+                <span class="pc-badge pc-badge-primary">OUTLINE</span>
+                <span class="pc-badge pc-badge-info">FILE</span>
+                <span class="pc-badge pc-badge-success">Đã nộp</span>
+                <span class="pc-badge pc-badge-warning">Chờ bổ sung</span>
+                <span class="pc-badge pc-badge-danger">Quá hạn</span>
+                <span class="pc-badge pc-badge-neutral">Nháp</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="pc-card mb-4">
+        <div class="pc-card-header"><h2 class="h5 mb-0">Table</h2></div>
+        <div class="pc-card-body p-0">
+            <table class="pc-table pc-table-hover">
+                <thead><tr><th>Đơn vị</th><th>Đầu mục</th><th>Trạng thái</th><th>Hạn nộp</th></tr></thead>
+                <tbody>
+                    <tr><td>Đội 1</td><td>Báo cáo tuần 34</td><td><span class="pc-badge pc-badge-success">Đã nộp</span></td><td>28/08/2026</td></tr>
+                    <tr><td>Đội 2</td><td>Báo cáo tuần 34</td><td><span class="pc-badge pc-badge-warning">Chờ bổ sung</span></td><td>29/08/2026</td></tr>
+                    <tr><td>Đội 3</td><td>Báo cáo tuần 34</td><td><span class="pc-badge pc-badge-danger">Quá hạn</span></td><td>25/08/2026</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Empty state + pagination -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="pc-card h-100">
+                <div class="pc-card-header"><h2 class="h5 mb-0">Empty state</h2></div>
+                <div class="pc-empty">
+                    <div class="pc-empty-icon"><i class="fa-regular fa-folder-open"></i></div>
+                    <div class="pc-empty-title">Chưa có dữ liệu</div>
+                    <div>Thử thay đổi bộ lọc hoặc tạo mới bản ghi.</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="pc-card h-100">
+                <div class="pc-card-header"><h2 class="h5 mb-0">Pagination &amp; modal</h2></div>
+                <div class="pc-card-body">
+                    <nav><ul class="pagination pc-pagination mb-4">
+                        <li class="page-item disabled"><a class="page-link" href="#">«</a></li>
+                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                        <li class="page-item"><a class="page-link" href="#">2</a></li>
+                        <li class="page-item"><a class="page-link" href="#">3</a></li>
+                        <li class="page-item"><a class="page-link" href="#">»</a></li>
+                    </ul></nav>
+                    <button class="pc-btn pc-btn-secondary" data-bs-toggle="modal" data-bs-target="#sgDemoModal">Mở modal mẫu</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="sgDemoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content pc-modal">
+            <div class="modal-header">
+                <h5 class="modal-title">Modal mẫu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">Modal đã nhận nền, viền và radius theo token.</div>
+            <div class="modal-footer">
+                <button type="button" class="pc-btn pc-btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="pc-btn pc-btn-primary" data-bs-dismiss="modal">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -791,6 +791,14 @@ def category_admin():
     return render_template('category_admin.html', categories=categories)
 
 
+@admin_bp.route('/admin/styleguide')
+def styleguide():
+    """Style guide nội bộ của design system premium (chỉ admin/sys.view)."""
+    from permissions import can_module
+    if not can_module('sys', 'view'): return redirect(url_for('auth_bp.login'))
+    return render_template('styleguide.html', title='Style Guide – PC06 Design System')
+
+
 @admin_bp.route('/admin/db-manage', methods=['POST'])
 def db_manage():
     from permissions import can_module
