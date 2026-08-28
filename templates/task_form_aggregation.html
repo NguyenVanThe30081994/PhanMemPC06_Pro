@@ -2,16 +2,16 @@
 {% block title %}Dữ liệu biểu mẫu — {{ task.title }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-            <a href="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" class="btn btn-light btn-sm">&larr; Quay lại</a>
-            <span class="ms-2 fw-semibold">Dữ liệu biểu mẫu: {{ task.title }}</span>
+<div class="container-fluid py-4 px-3 px-lg-4">
+    <div class="pc-page-header flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" class="pc-btn pc-btn-secondary pc-btn-sm">&larr; Quay lại</a>
+            <h1 class="pc-page-title mb-0" style="font-size: var(--pc-text-h2);">Dữ liệu biểu mẫu: {{ task.title }}</h1>
         </div>
         {% if available_cycles %}
         <form method="GET" class="d-flex align-items-center gap-2">
-            <label for="cycle_key" class="form-label mb-0 small">Chu kỳ:</label>
-            <select name="cycle_key" id="cycle_key" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+            <label for="cycle_key" class="pc-label mb-0">Chu kỳ:</label>
+            <select name="cycle_key" id="cycle_key" class="pc-select" style="width:auto;" onchange="this.form.submit()">
                 {% for c in available_cycles %}
                 <option value="{{ c.key }}" {% if c.key == cycle_key %}selected{% endif %}>{{ c.label }}</option>
                 {% endfor %}
@@ -22,8 +22,8 @@
 
     {% if rows %}
     <div class="table-responsive">
-        <table class="table table-bordered table-hover table-sm">
-            <thead class="table-light" scope="col">
+        <table class="pc-table">
+            <thead>
                 <tr>
                     <th scope="col">Đơn vị</th>
                     <th scope="col">Người nhận</th>
@@ -37,14 +37,14 @@
             <tbody>
                 {% for row in rows %}
                 {% set user = row.assignment.user if row.assignment else None %}
-                <tr class="{{ 'table-info' if row.is_current_user }}">
+                <tr {% if row.is_current_user %}style="background: var(--pc-bg-subtle);" {% endif %}>
                     <td>{{ _task_assignee_unit_name(user) if user else '' }}</td>
                     <td>{{ user.fullname if user else (user.username if user else '') }}</td>
                     <td>
                         {% if row.submission %}
-                        <span class="badge bg-success">Đã nộp</span>
+                        <span class="pc-badge pc-badge-success">Đã nộp</span>
                         {% else %}
-                        <span class="badge bg-secondary">Chưa nộp</span>
+                        <span class="pc-badge pc-badge-neutral">Chưa nộp</span>
                         {% endif %}
                     </td>
                     <td>
@@ -61,7 +61,10 @@
         </table>
     </div>
     {% else %}
-    <div class="alert alert-info">Chưa có dữ liệu biểu mẫu nào.</div>
+    <div class="pc-alert pc-alert-info">
+        <i class="fa-solid fa-circle-info mt-1"></i>
+        <div>Chưa có dữ liệu biểu mẫu nào.</div>
+    </div>
     {% endif %}
 </div>
 {% endblock %}

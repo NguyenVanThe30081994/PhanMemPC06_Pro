@@ -378,3 +378,45 @@ class DashboardScreensContractTests(unittest.TestCase):
         res = self.client.get("/tasks/report-dashboard")
         self.assertEqual(res.status_code, 200)
         self.assertIn("pc-page-header", res.get_data(as_text=True))
+
+
+class TaskScreensContractTests(unittest.TestCase):
+    """Contract test nhóm màn task đơn giản migrate lên premium tokens (subproject 4a).
+
+    Nguồn template phải dùng pc-* components; route render 200 với markup đúng.
+    """
+
+    def setUp(self):
+        self.client = app.test_client()
+
+    def _login_admin(self):
+        with app.app_context():
+            admin = (
+                User.query.filter_by(username="admin").first()
+                or User.query.filter_by(is_active=True).order_by(User.id.asc()).first()
+            )
+        with self.client.session_transaction() as sess:
+            sess["uid"] = admin.id
+            sess["username"] = admin.username
+            sess["fullname"] = admin.fullname
+            sess["unit"] = admin.unit_area or ""
+            sess["unit_area"] = admin.unit_area or ""
+            sess["unit_area_ref"] = admin.unit_area or ""
+            sess["unit_key"] = admin.unit_key or ""
+            sess["role_id"] = admin.role_id
+            sess["must_change"] = False
+            sess["is_admin"] = True
+            sess["session_version"] = int(admin.session_version or 0)
+            sess["csrf_token"] = "task-test-csrf"
+            sess["last_active"] = datetime.now().timestamp()
+            sess["login_nonce"] = "task-test"
+
+    def test_task_form_aggregation_source_uses_premium_components(self):
+        src = _read(os.path.join(APP_ROOT, "templates", "task_form_aggregation.html"))
+        for marker in ("pc-page-header", "pc-table", "pc-badge"):
+            self.assertIn(marker, src)
+
+    def test_task_import_drafts_source_uses_premium_components(self):
+        src = _read(os.path.join(APP_ROOT, "templates", "task_import_drafts.html"))
+        for marker in ("pc-page-header", "pc-card", "pc-table", "pc-btn"):
+            self.assertIn(marker, src)

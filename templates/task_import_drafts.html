@@ -3,29 +3,29 @@
 {% block title %}Nháp Import Công Việc{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+<div class="container-fluid py-4 px-3 px-lg-4">
+    <div class="pc-page-header flex-wrap gap-2">
         <div>
-            <h1 class="h3 mb-1">Nháp import điều hành</h1>
-            <p class="text-muted mb-0">Nạp nguồn tham chiếu, đọc hiểu thành dữ liệu thao tác được, rồi phát hành thành nhiệm vụ cho đơn vị thực hiện.</p>
+            <h1 class="pc-page-title">Nháp import điều hành</h1>
+            <p style="color: var(--pc-text-muted); margin: 0;">Nạp nguồn tham chiếu, đọc hiểu thành dữ liệu thao tác được, rồi phát hành thành nhiệm vụ cho đơn vị thực hiện.</p>
         </div>
-        <a class="btn btn-outline-secondary" href="{{ url_for('tasks_bp.tasks') }}">Quay lại công việc</a>
+        <a class="pc-btn pc-btn-secondary" href="{{ url_for('tasks_bp.tasks') }}">Quay lại công việc</a>
     </div>
 
     <div class="row g-4">
         <div class="col-xl-5">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body p-4">
+            <div class="pc-card">
+                <div class="pc-card-body p-4">
                     <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
                         <div>
-                            <h2 class="h5 mb-1">Tạo nháp mới</h2>
-                            <div class="text-muted small">Chọn nguồn import để hệ thống đọc hiểu và tạo nháp duyệt trước khi phát hành.</div>
+                            <h2 style="font-size: var(--pc-text-h3); font-weight: 700; color: var(--pc-text); margin-bottom: 4px;">Tạo nháp mới</h2>
+                            <div style="color: var(--pc-text-muted); font-size: var(--pc-text-sm);">Chọn nguồn import để hệ thống đọc hiểu và tạo nháp duyệt trước khi phát hành.</div>
                         </div>
                     </div>
                     <form action="{{ url_for('tasks_bp.create_task_import_draft') }}" method="POST" enctype="multipart/form-data" id="taskImportDraftCreateForm">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Nguồn import</label>
-                            <select class="form-select" name="source_type" id="draftSourceTypeSelect">
+                        <div class="pc-form-group">
+                            <label class="pc-label" for="draftSourceTypeSelect">Nguồn import</label>
+                            <select class="pc-select" name="source_type" id="draftSourceTypeSelect">
                                 <option value="docx_outline">Word/TXT -> đề cương công tác</option>
                                 <option value="docx_report_outline">Word/TXT -> đề cương báo cáo theo mục</option>
                                 <option value="xlsx_form">Excel (.xlsx) -> biểu mẫu số liệu</option>
@@ -34,54 +34,54 @@
                             </select>
                         </div>
 
-                        <div class="mb-3" data-source-box="file">
-                            <label class="form-label fw-bold">Tài liệu tham chiếu</label>
-                            <input class="form-control" type="file" name="source_file" id="draftSourceFileInput" accept=".docx,.txt,.xlsx">
-                            <div class="form-text">Hỗ trợ `.docx`, `.txt`, `.xlsx`. File `.doc` chưa hỗ trợ, cần đổi sang `.docx` trước khi nạp.</div>
+                        <div class="pc-form-group" data-source-box="file">
+                            <label class="pc-label" for="draftSourceFileInput">Tài liệu tham chiếu</label>
+                            <input class="pc-input" type="file" name="source_file" id="draftSourceFileInput" accept=".docx,.txt,.xlsx">
+                            <div class="pc-help">Hỗ trợ `.docx`, `.txt`, `.xlsx`. File `.doc` chưa hỗ trợ, cần đổi sang `.docx` trước khi nạp.</div>
                         </div>
 
-                        <div class="mb-3 d-none" data-source-box="google">
-                            <label class="form-label fw-bold">Google Form URL hoặc form ID</label>
-                            <input class="form-control" type="text" name="blueprint_form_reference" id="draftGoogleFormReference" placeholder="https://docs.google.com/forms/d/... hoặc formId">
+                        <div class="pc-form-group d-none" data-source-box="google">
+                            <label class="pc-label" for="draftGoogleFormReference">Google Form URL hoặc form ID</label>
+                            <input class="pc-input" type="text" name="blueprint_form_reference" id="draftGoogleFormReference" placeholder="https://docs.google.com/forms/d/... hoặc formId">
                         </div>
 
-                        <div class="mb-3 d-none" data-source-box="json">
+                        <div class="pc-form-group d-none" data-source-box="json">
                             <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
-                                <label class="form-label fw-bold mb-0">Blueprint JSON</label>
+                                <label class="pc-label mb-0">Blueprint JSON</label>
                                 <div class="d-flex gap-2">
-                                    <select class="form-select form-select-sm" id="draftBlueprintExampleSelect">
+                                    <select class="pc-select" style="padding: .4rem .6rem; font-size: var(--pc-text-sm);" id="draftBlueprintExampleSelect">
                                         <option value="">Nạp mẫu có sẵn</option>
                                         {% for example in workflow_blueprint_examples %}
                                         <option value="{{ example.key }}">{{ example.label }}</option>
                                         {% endfor %}
                                     </select>
-                                    <button class="btn btn-outline-secondary btn-sm" type="button" id="loadDraftBlueprintExampleBtn">Nạp mẫu</button>
+                                    <button class="pc-btn pc-btn-secondary pc-btn-sm" type="button" id="loadDraftBlueprintExampleBtn">Nạp mẫu</button>
                                 </div>
                             </div>
-                            <textarea class="form-control font-monospace" name="workflow_blueprint_json" id="draftBlueprintJsonInput" rows="12" placeholder='{"title":"Công tác tuần","source_kind":"directive","items":[{"title":"Đầu mục 1"}]}'></textarea>
+                            <textarea class="pc-input font-monospace" name="workflow_blueprint_json" id="draftBlueprintJsonInput" rows="12" placeholder='{"title":"Công tác tuần","source_kind":"directive","items":[{"title":"Đầu mục 1"}]}'></textarea>
                         </div>
 
-                        <button class="btn btn-primary w-100" type="submit">Tạo nháp import</button>
+                        <button class="pc-btn pc-btn-primary w-100" type="submit">Tạo nháp import</button>
                     </form>
                 </div>
             </div>
         </div>
 
         <div class="col-xl-7">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body p-4">
+            <div class="pc-card">
+                <div class="pc-card-body p-4">
                     <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
                         <div>
-                            <h2 class="h5 mb-1">Danh sách nháp import</h2>
-                            <div class="text-muted small">Theo dõi các nháp đang soạn, lỗi phát hành hoặc đã phát hành.</div>
+                            <h2 style="font-size: var(--pc-text-h3); font-weight: 700; color: var(--pc-text); margin-bottom: 4px;">Danh sách nháp import</h2>
+                            <div style="color: var(--pc-text-muted); font-size: var(--pc-text-sm);">Theo dõi các nháp đang soạn, lỗi phát hành hoặc đã phát hành.</div>
                         </div>
-                        <span class="badge bg-light text-dark">{{ draft_rows|length }} nháp</span>
+                        <span class="pc-badge pc-badge-neutral">{{ draft_rows|length }} nháp</span>
                     </div>
 
                     {% if draft_rows %}
                     <div class="table-responsive">
-                        <table class="table align-middle">
-                            <thead scope="col">
+                        <table class="pc-table">
+                            <thead>
                                 <tr>
                                     <th scope="col">Nguồn</th>
                                     <th scope="col">Tên nháp</th>
@@ -95,31 +95,31 @@
                                 <tr>
                                     <td>
                                         <div class="fw-semibold">{{ row.source_label }}</div>
-                                        <div class="small text-muted">{{ row.draft.source_name or row.draft.source_ref or 'Không có tên nguồn' }}</div>
+                                        <div class="small" style="color: var(--pc-text-muted);">{{ row.draft.source_name or row.draft.source_ref or 'Không có tên nguồn' }}</div>
                                     </td>
                                     <td>
                                         <div class="fw-semibold">{{ row.config.title or row.draft.source_name or 'Chưa đặt tiêu đề' }}</div>
-                                        <div class="small text-muted">{{ row.config.summary or 'Chưa có tóm tắt.' }}</div>
+                                        <div class="small" style="color: var(--pc-text-muted);">{{ row.config.summary or 'Chưa có tóm tắt.' }}</div>
                                     </td>
                                     <td>
-                                        <span class="badge {% if row.draft.status == 'published' %}bg-success-subtle text-success{% elif row.draft.status == 'failed' %}bg-danger-subtle text-danger{% else %}bg-warning-subtle text-warning{% endif %}">
+                                        <span class="pc-badge {% if row.draft.status == 'published' %}pc-badge-success{% elif row.draft.status == 'failed' %}pc-badge-danger{% else %}pc-badge-warning{% endif %}">
                                             {{ row.status_label }}
                                         </span>
                                     </td>
                                     <td>
                                         {% if row.stats.mode == 'outline' %}
                                         <div class="small">Đầu mục: <strong>{{ row.stats.item_count }}</strong></div>
-                                        <div class="small text-muted">Chưa gán: {{ row.stats.unassigned_count }}</div>
+                                        <div class="small" style="color: var(--pc-text-muted);">Chưa gán: {{ row.stats.unassigned_count }}</div>
                                         {% elif row.stats.mode == 'form' %}
                                         <div class="small">Trường biểu mẫu: <strong>{{ row.stats.field_count }}</strong></div>
-                                        <div class="small text-muted">Gán toàn task: {{ 'Đủ' if row.stats.unassigned_count == 0 else 'Thiếu' }}</div>
+                                        <div class="small" style="color: var(--pc-text-muted);">Gán toàn task: {{ 'Đủ' if row.stats.unassigned_count == 0 else 'Thiếu' }}</div>
                                         {% else %}
                                         <div class="small">Trường báo cáo: <strong>{{ row.stats.report_field_count }}</strong></div>
-                                        <div class="small text-muted">Gán toàn task: {{ 'Đủ' if row.stats.unassigned_count == 0 else 'Thiếu' }}</div>
+                                        <div class="small" style="color: var(--pc-text-muted);">Gán toàn task: {{ 'Đủ' if row.stats.unassigned_count == 0 else 'Thiếu' }}</div>
                                         {% endif %}
                                     </td>
                                     <td class="text-end">
-                                        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('tasks_bp.task_import_draft_detail', draft_id=row.draft.id) }}">Mở nháp</a>
+                                        <a class="pc-btn pc-btn-primary pc-btn-sm" href="{{ url_for('tasks_bp.task_import_draft_detail', draft_id=row.draft.id) }}">Mở nháp</a>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -127,7 +127,7 @@
                         </table>
                     </div>
                     {% else %}
-                    <div class="text-muted">Chưa có nháp import nào.</div>
+                    <div style="color: var(--pc-text-muted);">Chưa có nháp import nào.</div>
                     {% endif %}
                 </div>
             </div>

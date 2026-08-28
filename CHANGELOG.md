@@ -1,5 +1,16 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject 4a: Màn task đơn giản)
+Migrate 2 màn task nhẹ sang `pc-*` (không đổi logic nghiệp vụ):
+- `task_form_aggregation.html`: `pc-page-header/pc-table/pc-badge` thay Bootstrap,
+  giữ nguyên loop field/payload, select chu kỳ, link quay lại.
+- `task_import_drafts.html`: `pc-card/pc-table/pc-btn/pc-select`, giữ nguyên
+  JS nguồn import (file/google/blueprint), form POST, badge trạng thái nháp.
+- Test mới: `TaskScreensContractTests` (2 source tests; suite 247 — chỉ còn 3 lỗi
+  có sẵn không liên quan). Ghi nhận: render test bỏ qua do cần permission phức tạp.
+- Còn lại phân hệ task (tasks_rebuild/task_detail_rebuild/outline_*/import_draft_detail)
+  chứa hàng chục hàm JS nghiệp vụ — tách thành lô riêng (4b/4c/4d).
+
 ## 2026-08-28 (Giao diện — Subproject 3: Dashboard)
 Token hóa 3 dashboard đang dùng sang premium design system (không đổi logic):
 - `admin_dashboard.html`: style `overview-*` chuyển từ hex/shadow cứng sang
