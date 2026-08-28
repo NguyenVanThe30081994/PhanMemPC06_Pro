@@ -5,12 +5,12 @@
 <div class="container-fluid py-3">
     <div class="row justify-content-center">
         <div class="col-lg-10">
-            <div class="card border-0 shadow-sm">
+            <div class="card border-0 shadow-sm pc-card">
                 <div class="card-body">
                     <form method="GET" action="{{ url_for('tasks_bp.global_search') }}" class="d-flex gap-2 mb-3">
                         <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="Tìm kiếm công việc, người dùng, bình luận, báo cáo..."
                             autofocus>
-                        <button class="btn btn-primary" type="submit">
+                        <button class="btn btn-primary pc-btn" type="submit">
                             <i class="fa-solid fa-magnifying-glass"></i> Tìm
                         </button>
                     </form>

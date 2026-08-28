@@ -1,5 +1,11 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject 6: Dọn dẹp + trang còn lại)
+Xóa template mồ côi `dashboard.html` (270 dòng) + `static/js/dashboard-charts.js`
+(288 dòng) — không route nào render. Token hóa `global_search` + `update` sang
+`pc-card`/`pc-btn`. Suite 263 tests — chỉ còn 3 lỗi có sẵn từ trước.
+**HOÀN THÀNH LỘ TRÌNH 6 SUBPROJECT LÀM MỚI TOÀN BỘ GIAO DIỆN PC06.**
+
 ## 2026-08-28 (Giao diện — Subproject 5: Trang quản trị)
 Token hóa khung ngoài của `categories` + `category_admin` sang `pc-card`/`pc-btn`;
 các trang admin còn lại (`module_categories`, `units`, `roles`, `delegations`,
