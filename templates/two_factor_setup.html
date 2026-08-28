@@ -3,83 +3,96 @@
 {% block title %}Xác thực hai lớp{% endblock %}
 
 {% block content %}
-<div class="pc06-page-shell">
-    <div class="pc06-page-summary">
-        <div class="pc06-page-summary-card"><span>Trạng thái</span><strong>{{ 'Đang BẬT' if enabled else 'Đang TẮT' }}</strong></div>
-        <div class="pc06-page-summary-card"><span>Loại</span><strong>TOTP (RFC 6238)</strong></div>
-        <div class="pc06-page-summary-card"><span>Khu vực</span><strong>Xác minh lại bắt buộc</strong></div>
+<div class="container-fluid py-4 px-3 px-lg-4">
+    <div class="pc-page-header">
+        <div>
+            <h1 class="pc-page-title">Xác thực hai lớp (2FA)</h1>
+            <p class="mb-0" style="color: var(--pc-text-muted);">Bảo vệ tài khoản bằng lớp mã xác minh thứ hai khi đăng nhập, sinh từ ứng dụng authenticator trên điện thoại.</p>
+        </div>
+        <div class="pc-page-actions">
+            <span class="pc-badge {{ 'pc-badge-success' if enabled else 'pc-badge-neutral' }}">{{ 'Đã kích hoạt' if enabled else 'Chưa kích hoạt' }}</span>
+        </div>
     </div>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% for category, message in messages %}
-        <div class="alert alert-{{ category }} py-2">{{ message }}</div>
-        {% endfor %}
-    {% endwith %}
-
-    <section class="pc06-panel mb-3">
-        <div class="pc06-panel-head">
-            <div>
-                <h2>Xác thực hai lớp (2FA)</h2>
-                <p>Bảo vệ tài khoản bằng lớp mã xác minh thứ hai khi đăng nhập, sinh từ ứng dụng authenticator trên điện thoại.</p>
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="pc-card h-100">
+                <div class="pc-card-body">
+                    <div class="d-flex justify-content-between mb-3"><span style="color: var(--pc-text-muted);">Trạng thái</span><strong style="color: var(--pc-text);">{{ 'Đang BẬT' if enabled else 'Đang TẮT' }}</strong></div>
+                    <div class="d-flex justify-content-between mb-3"><span style="color: var(--pc-text-muted);">Loại</span><strong style="color: var(--pc-text);">TOTP (RFC 6238)</strong></div>
+                    <div class="d-flex justify-content-between"><span style="color: var(--pc-text-muted);">Khu vực</span><strong style="color: var(--pc-text);">Xác minh lại bắt buộc</strong></div>
+                </div>
             </div>
-            <span class="pc06-status-badge {{ 'done' if enabled else 'neutral' }}">{{ 'Đã kích hoạt' if enabled else 'Chưa kích hoạt' }}</span>
         </div>
-
-        {% if not enabled %}
-            <p class="small text-muted mb-3">Bước 1 — bấm "Tạo khóa mới". Bước 2 — quét mã QR bằng Google Authenticator/Authy. Bước 3 — nhập mã 6 số hiện trên điện thoại để kích hoạt.</p>
-
-            <form method="POST" action="/security/two-factor" class="mb-3">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
-                <input type="hidden" name="action" value="begin">
-                <button type="submit" class="btn btn-bdhvs primary">
-                    <i class="fa-solid fa-key me-1"></i> {{ 'Tạo khóa mới' if not has_pending_secret else 'Tạo lại khóa' }}
-                </button>
-            </form>
-        {% endif %}
-
-        {% if qr_data_uri and not enabled %}
-            <div class="row g-4 align-items-center">
-                <div class="col-md-5 text-center">
-                    <img src="{{ qr_data_uri }}" alt="Mã QR thiết lập authenticator"
-                         class="border rounded-4 p-2 bg-white" style="max-width: 220px;">
-                    <p class="small text-muted mt-2 mb-0">Quét bằng ứng dụng authenticator.</p>
-                </div>
-                <div class="col-md-7">
-                    <details class="mb-3">
-                        <summary class="small text-muted">Không quét được QR? Xem khóa dạng chữ</summary>
-                        <code class="d-block text-break small mt-2 user-select-all">{{ otpauth_url }}</code>
-                    </details>
-                    <form method="POST" action="/security/two-factor">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
-                        <input type="hidden" name="action" value="enable">
-                        <label class="form-label fw-bold">Nhập mã 6 số để kích hoạt</label>
-                        <div class="d-flex gap-2">
-                            <input type="text" name="code" class="form-control text-center fw-bold"
-                                   inputmode="numeric" pattern="[0-9 ]{6,8}" maxlength="8" required
-                                   placeholder="000000" autocomplete="one-time-code">
-                            <button type="submit" class="btn btn-success fw-bold">Kích hoạt</button>
+        <div class="col-lg-8">
+            <div class="pc-card">
+                <div class="pc-card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% for category, message in messages %}
+                        <div class="pc-alert pc-alert-{{ category }} mb-3">
+                            <i class="fa-solid fa-circle-info mt-1"></i>
+                            <div>{{ message }}</div>
                         </div>
-                    </form>
+                        {% endfor %}
+                    {% endwith %}
+
+                    {% if not enabled %}
+                        <p style="color: var(--pc-text-muted);">Bước 1 — bấm "Tạo khóa mới". Bước 2 — quét mã QR bằng Google Authenticator/Authy. Bước 3 — nhập mã 6 số hiện trên điện thoại để kích hoạt.</p>
+                        <form method="POST" action="/security/two-factor" class="mb-4">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                            <input type="hidden" name="action" value="begin">
+                            <button type="submit" class="pc-btn pc-btn-primary">
+                                <i class="fa-solid fa-key me-1"></i> {{ 'Tạo khóa mới' if not has_pending_secret else 'Tạo lại khóa' }}
+                            </button>
+                        </form>
+                    {% endif %}
+
+                    {% if qr_data_uri and not enabled %}
+                        <div class="row g-4 align-items-center">
+                            <div class="col-md-5 text-center">
+                                <img src="{{ qr_data_uri }}" alt="Mã QR thiết lập authenticator"
+                                     class="p-2" style="max-width: 220px; background: #fff; border: 1px solid var(--pc-border); border-radius: var(--pc-radius-md);">
+                                <p class="mt-2 mb-0" style="color: var(--pc-text-muted); font-size: var(--pc-text-sm);">Quét bằng ứng dụng authenticator.</p>
+                            </div>
+                            <div class="col-md-7">
+                                <details class="mb-3">
+                                    <summary style="color: var(--pc-text-muted); font-size: var(--pc-text-sm);">Không quét được QR? Xem khóa dạng chữ</summary>
+                                    <code class="d-block text-break mt-2 user-select-all" style="font-size: var(--pc-text-sm); color: var(--pc-text);">{{ otpauth_url }}</code>
+                                </details>
+                                <form method="POST" action="/security/two-factor">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                                    <input type="hidden" name="action" value="enable">
+                                    <label class="pc-label" for="tfa_enable_code">Nhập mã 6 số để kích hoạt</label>
+                                    <div class="d-flex gap-2">
+                                        <input type="text" name="code" id="tfa_enable_code" class="pc-input text-center fw-bold"
+                                               inputmode="numeric" pattern="[0-9 ]{6,8}" maxlength="8" required
+                                               placeholder="000000" autocomplete="one-time-code">
+                                        <button type="submit" class="pc-btn pc-btn-primary">Kích hoạt</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    {% elif not enabled and not has_pending_secret %}
+                        <p class="mb-0" style="color: var(--pc-text-muted); font-size: var(--pc-text-sm);">Chưa có khóa nào. Bấm "Tạo khóa mới" để bắt đầu.</p>
+                    {% endif %}
+
+                    {% if enabled %}
+                        <p style="color: var(--pc-text-muted);">Mỗi lần đăng nhập, sau bước mật khẩu hệ thống sẽ yêu cầu thêm mã 6 số từ ứng dụng authenticator. Hãy giữ điện thoại chứa ứng dụng an toàn.</p>
+                        <form method="POST" action="/security/two-factor" class="row g-2 align-items-end">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+                            <input type="hidden" name="action" value="disable">
+                            <div class="col-md-7">
+                                <label class="pc-label" for="tfa_disable_password">Muốn tắt 2FA? Nhập mật khẩu hiện tại để xác nhận</label>
+                                <input type="password" name="password" id="tfa_disable_password" class="pc-input" autocomplete="current-password" required>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="submit" class="pc-btn pc-btn-danger w-100">Tắt 2FA</button>
+                            </div>
+                        </form>
+                    {% endif %}
                 </div>
             </div>
-        {% elif not enabled and not has_pending_secret %}
-            <p class="text-muted small mb-0">Chưa có khóa nào. Bấm "Tạo khóa mới" để bắt đầu.</p>
-        {% endif %}
-
-        {% if enabled %}
-            <p class="small text-muted mb-3">Mỗi lần đăng nhập, sau bước mật khẩu hệ thống sẽ yêu cầu thêm mã 6 số từ ứng dụng authenticator. Hãy giữ điện thoại chứa ứng dụng an toàn.</p>
-            <form method="POST" action="/security/two-factor" class="row g-2 align-items-end">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
-                <input type="hidden" name="action" value="disable">
-                <div class="col-md-6">
-                    <label class="form-label fw-bold">Muốn tắt 2FA? Nhập mật khẩu hiện tại để xác nhận</label>
-                    <input type="password" name="password" class="form-control" autocomplete="current-password" required>
-                </div>
-                <div class="col-md-3">
-                    <button type="submit" class="btn btn-outline-danger w-100 fw-bold">Tắt 2FA</button>
-                </div>
-            </form>
-        {% endif %}
-    </section>
+        </div>
+    </div>
 </div>
 {% endblock %}

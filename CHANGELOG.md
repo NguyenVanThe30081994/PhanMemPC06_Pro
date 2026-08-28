@@ -1,5 +1,19 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject 2: Màn hình auth & bảo mật)
+Migrate 6 template auth/bảo mật sang design system `pc-*` (nền tảng
+subproject 1), giữ nguyên 100% contract chức năng:
+- `two_factor_login.html`: standalone premium (nền overlay + `pc-card`),
+  giữ form `/login/two-factor`, input `code` (one-time-code/pattern/autofocus).
+- `two_factor_setup.html`: `pc-page-header/pc-card/pc-badge` thay class cũ,
+  giữ 3 form begin/enable/disable, QR + otpauth, các nhánh trạng thái.
+- `password.html` + `password_mobile.html`, `reauth.html` +
+  `reauth_mobile.html`: `pc-form-group/pc-label/pc-input/pc-btn`; giữ
+  pattern mật khẩu mạnh, hidden `next`/`csrf_token`, script
+  `.toggle-password` nguyên trạng.
+- Test mới: `AuthScreensContractTests` (5 test; suite 239 — chỉ còn 3 lỗi
+  có sẵn không liên quan).
+
 ## 2026-08-28 (Giao diện — Subproject 1: Nền tảng thiết kế premium)
 Khởi động lộ trình 6 subproject làm mới toàn bộ giao diện
 (spec: docs/superpowers/specs/2026-08-28-nen-tang-thiet-ke-premium-design.md,

@@ -189,3 +189,120 @@ class StyleguideAccessTests(unittest.TestCase):
         body = res.get_data(as_text=True)
         for marker in ("pc-btn", "pc-card", "pc-table", "pc-badge", "--pc-primary"):
             self.assertIn(marker, body)
+
+
+class AuthScreensContractTests(unittest.TestCase):
+    """Contract test các màn hình auth/bảo mật migrate sang pc-* (subproject 2).
+
+    Giữ nguyên contract chức năng: form action, tên input, hidden fields,
+    QR/otpauth, script toggle-password; markup chuyển sang class pc-*.
+    """
+
+    def setUp(self):
+        self.client = app.test_client()
+        self.created_user_ids = []
+
+    def tearDown(self):
+        with app.app_context():
+            for uid in self.created_user_ids:
+                User.query.filter_by(id=uid).delete()
+            db.session.commit()
+
+    def _create_user(self):
+        with app.app_context():
+            user = User(
+                username=f"auth_{uuid.uuid4().hex[:8]}",
+                fullname="Auth Screen Test",
+                unit_area="",
+                unit_key="",
+                is_active=True,
+            )
+            user.set_password("123456")
+            db.session.add(user)
+            db.session.commit()
+            self.created_user_ids.append(user.id)
+            return user.id
+
+    def _login(self, user_id):
+        import time
+
+        with app.app_context():
+            user = db.session.get(User, user_id)
+            with self.client.session_transaction() as sess:
+                sess["uid"] = user.id
+                sess["username"] = user.username
+                sess["fullname"] = user.fullname
+                sess["unit"] = user.unit_area or ""
+                sess["unit_area"] = user.unit_area or ""
+                sess["unit_area_ref"] = user.unit_area or ""
+                sess["unit_key"] = user.unit_key or ""
+                sess["role_id"] = user.role_id
+                sess["must_change"] = False
+                sess["is_admin"] = False
+                sess["session_version"] = int(user.session_version or 0)
+                sess["csrf_token"] = "auth-test-csrf"
+                sess["last_active"] = datetime.now().timestamp()
+                sess["login_nonce"] = "auth-test"
+                sess["reauth_at"] = time.time()
+
+    def test_two_factor_login_redirects_without_pending(self):
+        res = self.client.get("/login/two-factor")
+        self.assertEqual(res.status_code, 302)
+
+    def test_two_factor_login_template_contract(self):
+        from flask import render_template as flask_render_template
+
+        with app.test_request_context():
+            body = flask_render_template("two_factor_login.html")
+        for marker in (
+            "pc06-premium.css",
+            'action="/login/two-factor"',
+            'name="code"',
+            'autocomplete="one-time-code"',
+            'name="csrf_token"',
+            'href="/login"',
+            "pc-card",
+        ):
+            self.assertIn(marker, body)
+
+    def test_two_factor_setup_contract(self):
+        uid = self._create_user()
+        self._login(uid)
+        res = self.client.get("/security/two-factor")
+        body = res.get_data(as_text=True)
+        self.assertEqual(res.status_code, 200)
+        for marker in (
+            "pc-card",
+            'action="/security/two-factor"',
+            'name="action"',
+            'value="begin"',
+            "pc06-premium.css",
+        ):
+            self.assertIn(marker, body)
+
+    def test_password_screens_contract(self):
+        uid = self._create_user()
+        self._login(uid)
+        for ua in (None, MOBILE_UA):
+            headers = {"User-Agent": ua} if ua else {}
+            res = self.client.get("/password", headers=headers)
+            body = res.get_data(as_text=True)
+            self.assertEqual(res.status_code, 200)
+            for marker in (
+                'name="old_password"',
+                'name="new_password"',
+                "toggle-password",
+                "pc-input",
+            ):
+                self.assertIn(marker, body)
+
+    def test_reauth_screens_contract(self):
+        uid = self._create_user()
+        self._login(uid)
+        for ua in (None, MOBILE_UA):
+            headers = {"User-Agent": ua} if ua else {}
+            res = self.client.get("/reauth?next=/admin", headers=headers)
+            body = res.get_data(as_text=True)
+            self.assertEqual(res.status_code, 200)
+            for marker in ('name="password"', 'name="next"', "toggle-password", "pc-input"):
+                self.assertIn(marker, body)

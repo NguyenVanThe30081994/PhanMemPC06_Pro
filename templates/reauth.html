@@ -4,45 +4,37 @@
 <div class="container-fluid px-4 py-4">
     <div class="row justify-content-center">
         <div class="col-xl-5 col-lg-6 col-md-8">
-            <div class="card shadow-lg border-0" style="border-radius: 24px;">
-                <div class="card-body p-4 p-md-5">
+            <div class="pc-card pc-login">
+                <div class="pc-card-body p-4 p-md-5">
                     <div class="text-center mb-4">
-                        <div class="d-inline-flex align-items-center justify-content-center mb-3" 
-                             style="width: 64px; height: 64px; border-radius: 20px; background: var(--primary-gradient);">
-                            <i class="fa-solid fa-user-shield text-white fs-3"></i>
+                        <div class="d-inline-flex align-items-center justify-content-center mb-3"
+                             style="width: 64px; height: 64px; border-radius: var(--pc-radius-lg); background: var(--pc-warning-bg); color: var(--pc-warning);">
+                            <i class="fa-solid fa-user-shield fs-3"></i>
                         </div>
-                        <h2 class="fw-bold mb-2">Xác minh lại danh tính</h2>
-                        <p class="text-muted mb-3">Bắt buộc trước khi truy cập khu vực quản trị nhạy cảm.</p>
-                        <div class="badge bg-warning bg-opacity-10 text-warning rounded-pill px-3 py-2 fw-bold small">
-                            STEP-UP AUTH
-                        </div>
+                        <h1 style="font-size: var(--pc-text-h2); font-weight: 800; letter-spacing: -.02em; color: var(--pc-text); margin-bottom: var(--pc-space-2);">Xác minh lại danh tính</h1>
+                        <p style="color: var(--pc-text-muted); margin-bottom: var(--pc-space-3);">Bắt buộc trước khi truy cập khu vực quản trị nhạy cảm.</p>
+                        <span class="pc-badge pc-badge-warning">STEP-UP AUTH</span>
                     </div>
 
                     <form method="POST" class="mt-4">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
                         <input type="hidden" name="next" value="{{ next_url }}">
-                        
-                        <div class="mb-4">
-                            <label class="form-label fw-bold text-muted small text-uppercase">Mật khẩu hiện tại</label>
-                            <div class="input-group">
-                                <input type="password" name="password" class="form-control form-control-lg" 
-                                       placeholder="••••••••" autocomplete="current-password" required 
-                                       style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
-                                <button class="btn btn-outline-secondary toggle-password" type="button" 
-                                        style="border-top-right-radius: 12px; border-bottom-right-radius: 12px;">
+
+                        <div class="pc-form-group">
+                            <label class="pc-label" for="reauth_pw">Mật khẩu hiện tại</label>
+                            <div class="d-flex">
+                                <input type="password" name="password" id="reauth_pw" class="pc-input" placeholder="••••••••" autocomplete="current-password" required style="height: 48px; border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                                <button class="pc-btn pc-btn-secondary toggle-password" type="button" aria-label="Hiện hoặc ẩn mật khẩu" style="border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 0;">
                                     <i class="fa-solid fa-eye-slash"></i>
                                 </button>
                             </div>
                         </div>
 
                         <div class="d-grid gap-2 mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg fw-bold shadow-sm" style="border-radius: 12px;">
+                            <button type="submit" class="pc-btn pc-btn-primary pc-btn-lg w-100">
                                 <i class="fa-solid fa-shield-check me-2"></i>Xác minh và tiếp tục
                             </button>
-                            <a href="{{ next_url or url_for('admin_bp.index') }}" 
-                               class="btn btn-link text-muted text-decoration-none text-center fw-bold">
-                                Quay lại
-                            </a>
+                            <a href="{{ next_url or url_for('admin_bp.index') }}" class="pc-btn pc-btn-ghost w-100">Quay lại</a>
                         </div>
                     </form>
                 </div>

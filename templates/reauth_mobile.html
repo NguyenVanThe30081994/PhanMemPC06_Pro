@@ -3,37 +3,38 @@
 {% block title %}Xác minh lại - PC06 Mobile{% endblock %}
 
 {% block content %}
-<div>
-    <div class="mb-4 text-center">
-        <div class="d-inline-flex p-3 rounded-circle bg-warning bg-opacity-10 mb-3">
-            <i class="fa-solid fa-user-shield text-warning fs-3"></i>
+<div class="pc-login-mobile" style="max-width: 480px; margin: 0 auto; padding: var(--pc-space-6) var(--pc-space-5);">
+    <div class="text-center mb-4">
+        <div class="d-inline-flex p-3 mb-3" style="border-radius: var(--pc-radius-pill); background: var(--pc-warning-bg); color: var(--pc-warning);">
+            <i class="fa-solid fa-user-shield fs-3"></i>
         </div>
-        <h4 class="fw-bold text-dark">Xác minh lại danh tính</h4>
-        <p class="text-muted small">Khu vực này yêu cầu nhập lại mật khẩu hiện tại.</p>
+        <h1 style="font-size: 24px; font-weight: 800; letter-spacing: -.02em; color: var(--pc-text);">Xác minh lại danh tính</h1>
+        <p style="color: var(--pc-text-muted); font-size: var(--pc-text-sm); margin: 0;">Khu vực này yêu cầu nhập lại mật khẩu hiện tại.</p>
     </div>
 
-    <div class="mobile-card">
-        <div class="badge bg-warning bg-opacity-10 text-warning rounded-pill mb-4 px-3 fw-bold tiny letter-spacing-1 uppercase">STEP-UP AUTH</div>
-        <form method="POST">
-            <input type="hidden" name="next" value="{{ next_url }}">
-            <div class="mb-4">
-                <label class="form-label fw-bold text-muted small text-uppercase mb-2">Mật khẩu hiện tại</label>
-                <div class="input-group">
-                    <span class="input-group-text bg-light border-end-0" style="border-radius: 12px 0 0 12px;"><i class="fa-solid fa-lock text-muted opacity-50"></i></span>
-                    <input type="password" name="password" class="form-control border-start-0" placeholder="••••••••" required autocomplete="current-password" style="height: 50px;">
-                    <button class="btn btn-light border toggle-password" type="button" style="border-radius: 0 12px 12px 0;">
-                        <i class="fa-solid fa-eye-slash text-muted"></i>
-                    </button>
+    <div class="pc-card pc-login">
+        <div class="pc-card-body">
+            <span class="pc-badge pc-badge-warning mb-4">STEP-UP AUTH</span>
+            <form method="POST">
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <div class="pc-form-group">
+                    <label class="pc-label" for="reauth_pw_m">Mật khẩu hiện tại</label>
+                    <div class="d-flex">
+                        <input type="password" name="password" id="reauth_pw_m" class="pc-input" placeholder="••••••••" autocomplete="current-password" required style="height: 50px; border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                        <button class="pc-btn pc-btn-secondary toggle-password" type="button" aria-label="Hiện hoặc ẩn mật khẩu" style="border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 0;">
+                            <i class="fa-solid fa-eye-slash"></i>
+                        </button>
+                    </div>
                 </div>
-            </div>
 
-            <div class="mt-5">
-                <button type="submit" class="btn-mobile btn-mobile-primary shadow" aria-label="Xác minh và tiếp tục" title="Xác minh và tiếp tục">
-                    <i class="fa-solid fa-shield-check"></i><span class="visually-hidden">Xác minh và tiếp tục</span>
-                </button>
-                <a href="{{ next_url or url_for('admin_bp.index') }}" class="btn btn-link w-100 mt-3 text-muted text-decoration-none small fw-bold" aria-label="Quay lại" title="Quay lại"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại</span></a>
-            </div>
-        </form>
+                <div class="mt-5">
+                    <button type="submit" class="pc-btn pc-btn-primary w-100" aria-label="Xác minh và tiếp tục" title="Xác minh và tiếp tục">
+                        <i class="fa-solid fa-shield-check"></i><span class="visually-hidden">Xác minh và tiếp tục</span>
+                    </button>
+                    <a href="{{ next_url or url_for('admin_bp.index') }}" class="pc-btn pc-btn-ghost w-100 mt-2" aria-label="Quay lại" title="Quay lại"><i class="fa-solid fa-arrow-left"></i><span class="visually-hidden">Quay lại</span></a>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
