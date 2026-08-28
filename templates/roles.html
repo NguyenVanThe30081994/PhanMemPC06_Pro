@@ -4,86 +4,71 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    <div class="pc06-section-workspace" data-section-menu-container data-default-pane="filters">
+    <div class="pc06-section-workspace" data-section-menu-container data-default-pane="{{ 'users' if selected_role_id else 'roles' }}">
         <div class="pc06-section-menu-shell{% if can_manage_roles %} with-actions{% endif %}">
             <div class="pc06-section-menu" role="tablist" aria-label="Các khu vực chức năng của tài khoản và vai trò">
-                <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="filters" role="tab" aria-selected="true">
+                <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="roles" role="tab" aria-selected="true">
                     <i class="fa-solid fa-user-tag"></i>
                     Vai trò
                 </button>
                 <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="users" role="tab" aria-selected="false">
                     <i class="fa-solid fa-users"></i>
-                    Danh sách tài khoản
-                </button>
-                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="permissions" role="tab" aria-selected="false">
-                    <i class="fa-solid fa-user-gear"></i>
-                    Quản trị vai trò
+                    Tài khoản
                 </button>
             </div>
-            {% if can_manage_roles %}
-            <div class="pc06-section-menu-actions">
-                <a class="pc-btn pc-btn-secondary" href="{{ url_for('admin_bp.export_users', role_id=selected_role_id, unit=selected_unit, q=search_query) }}">
-                    <i class="fa-solid fa-file-arrow-down"></i>
-                    {{ 'Xuất ' ~ selected_role.name if selected_role else 'Xuất danh sách' }}
-                </a>
-                <button class="pc-btn pc-btn-secondary" data-bs-toggle="modal" data-bs-target="#importUserModal">
-                    <i class="fa-solid fa-file-excel"></i>
-                    Nhập Excel
-                </button>
-                <button class="pc-btn pc-btn-secondary" data-bs-toggle="modal" data-bs-target="#addRoleModal">
-                    <i class="fa-solid fa-user-tag"></i>
-                    Thêm vai trò
-                </button>
-                <button class="pc-btn pc-btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
-                    <i class="fa-solid fa-user-plus"></i>
-                    Thêm tài khoản
-                </button>
-            </div>
-            {% endif %}
         </div>
 
         <div class="pc06-section-pane-shell">
-            <div class="pc06-section-pane is-active" data-section-pane="filters">
-                <section class="pc06-panel system-filter-panel">
-                <div class="system-filter-head">
-                    <h2>Vai trò</h2>
-                </div>
-                <div class="system-filter-list">
-                    <a href="{{ url_for('admin_bp.roles') }}" class="system-filter-chip {% if not selected_role_id %}active{% endif %}">
-                        <strong>Tất cả vai trò</strong>
-                        <span>{{ total_user_count }}</span>
-                    </a>
-                    {% for r in roles %}
-                    <a href="{{ url_for('admin_bp.roles', role_id=r.id, unit=selected_unit, q=search_query) }}" class="system-filter-chip {% if selected_role_id == r.id %}active{% endif %}">
-                        <strong>{{ r.name }}</strong>
-                        <span>{{ role_user_counts.get(r.id, 0) }}</span>
-                    </a>
-                    {% endfor %}
-                </div>
-            </section>
-            </div>
-
             <div class="pc06-section-pane" data-section-pane="users">
                 <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
-                        <h2>{{ selected_role.name if selected_role else 'Danh sách tài khoản' }}</h2>
+                        <h2>Tài khoản{% if selected_role %} — vai trò {{ selected_role.name }}{% endif %}</h2>
                         <p>{{ users|length }} tài khoản đang hiển thị.</p>
                     </div>
-                    {% if can_manage_roles %}
-                    <div class="d-flex align-items-center gap-3 flex-wrap">
-                        <button type="button" class="pc-btn pc-btn-secondary text-warning" onclick="submitBulkPasswordReset()">
-                            <i class="fa-solid fa-rotate-left"></i>
-                            Reset mật khẩu toàn bộ
+                    <div class="d-flex align-items-center gap-2 gap-lg-3 flex-wrap">
+                        <form method="GET" class="d-flex align-items-center">
+                            {% if selected_unit %}<input type="hidden" name="unit" value="{{ selected_unit }}">{% endif %}
+                            {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+                            <select name="role_id" class="pc-select" style="width: auto; min-width: 190px;" onchange="this.form.submit()" aria-label="Lọc tài khoản theo vai trò">
+                                <option value="">Tất cả vai trò</option>
+                                {% for r in roles %}
+                                <option value="{{ r.id }}" {% if selected_role_id == r.id %}selected{% endif %}>{{ r.name }} ({{ role_user_counts.get(r.id, 0) }})</option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                        {% if can_manage_roles %}
+                        <a class="pc-btn pc-btn-secondary" href="{{ url_for('admin_bp.export_users', role_id=selected_role_id, unit=selected_unit, q=search_query) }}">
+                            <i class="fa-solid fa-file-arrow-down"></i>
+                            <span class="d-none d-xl-inline">{{ 'Xuất ' ~ selected_role.name if selected_role else 'Xuất danh sách' }}</span>
+                            <span class="d-xl-none">Xuất</span>
+                        </a>
+                        <button class="pc-btn pc-btn-secondary" data-bs-toggle="modal" data-bs-target="#importUserModal">
+                            <i class="fa-solid fa-file-excel"></i>
+                            <span class="d-none d-xl-inline">Nhập Excel</span>
+                            <span class="d-xl-none">Nhập</span>
                         </button>
-                        <button type="button" class="pc-btn pc-btn-secondary text-danger" id="bulkUserDeleteBtn" onclick="submitBulkUserDelete()" disabled>
-                            <i class="fa-solid fa-trash-can"></i>
-                            Xóa đã chọn
+                        <button class="pc-btn pc-btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                            <i class="fa-solid fa-user-plus"></i>
+                            <span class="d-none d-xl-inline">Thêm tài khoản</span>
+                            <span class="d-xl-none">Thêm</span>
                         </button>
-                        <span class="small text-muted" id="bulkUserSelectionText">Chưa chọn tài khoản nào</span>
+                        {% endif %}
                     </div>
-                    {% endif %}
                 </div>
+                {% if can_manage_roles %}
+                <div class="d-flex align-items-center gap-3 flex-wrap mb-3 px-1">
+                    <button type="button" class="pc-btn pc-btn-secondary text-warning" onclick="submitBulkPasswordReset()">
+                        <i class="fa-solid fa-rotate-left"></i>
+                        Reset mật khẩu toàn bộ
+                    </button>
+                    <button type="button" class="pc-btn pc-btn-secondary text-danger" id="bulkUserDeleteBtn" onclick="submitBulkUserDelete()" disabled>
+                        <i class="fa-solid fa-trash-can"></i>
+                        Xóa đã chọn
+                    </button>
+                    <span class="small text-muted" id="bulkUserSelectionText">Chưa chọn tài khoản nào</span>
+                </div>
+                {% endif %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="pill-thead" scope="col">
@@ -161,12 +146,19 @@
             </section>
             </div>
 
-            <div class="pc06-section-pane" data-section-pane="permissions">
+            <div class="pc06-section-pane is-active" data-section-pane="roles">
                 <section class="pc06-panel">
                 <div class="pc06-panel-head">
                     <div>
-                        <h2>Quản trị vai trò</h2>
+                        <h2>Vai trò</h2>
+                        <p>{{ roles|length }} vai trò — bấm "Phân quyền" để gán quyền theo chức năng, "Xem tài khoản" để lọc danh sách tài khoản.</p>
                     </div>
+                    {% if can_manage_roles %}
+                    <button class="pc-btn pc-btn-primary" data-bs-toggle="modal" data-bs-target="#addRoleModal">
+                        <i class="fa-solid fa-plus"></i>
+                        Thêm vai trò
+                    </button>
+                    {% endif %}
                 </div>
                 <div class="pc06-compact-grid">
                     {% for r in roles %}
@@ -643,23 +635,6 @@ document.querySelectorAll('form').forEach((form) => {
         display: grid;
         gap: 18px;
     }
-    .system-filter-panel {
-        padding: 20px;
-    }
-    .system-filter-head {
-        margin-bottom: 16px;
-    }
-    .system-filter-head h2 {
-        margin: 0;
-        font-size: 1.08rem;
-        font-weight: 800;
-        color: var(--text-main, #0f172a);
-    }
-    .system-filter-list {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-        gap: 10px;
-    }
     .pc06-perm-tags {
         display: flex;
         flex-wrap: wrap;
@@ -686,33 +661,7 @@ document.querySelectorAll('form').forEach((form) => {
         border: 1px dashed var(--pc-border-strong);
         white-space: normal;
     }
-    .system-filter-chip {
-        width: 100%;
-        border: 1px solid var(--pc-border);
-        background: var(--pc-bg-card);
-        border-radius: 18px;
-        padding: 14px 16px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        text-align: left;
-        text-decoration: none;
-        color: var(--pc-text);
-        transition: all 0.2s ease;
-    }
-    [data-theme="dark"] .system-filter-chip {
-        background: var(--pc-bg-subtle);
-    }
-    .system-filter-chip strong {
-        display: block;
-        min-width: 0;
-        flex: 1 1 auto;
-        font-size: 0.94rem;
-        font-weight: 800;
-    }
-    .system-filter-chip span,
-    .pc06-compact-card .pc06-chip-count {
+    .pc06-chip-count {
         min-width: 38px;
         height: 38px;
         border-radius: 999px;
@@ -723,18 +672,6 @@ document.querySelectorAll('form').forEach((form) => {
         color: var(--pc-primary-strong);
         font-weight: 900;
         flex-shrink: 0;
-    }
-    .system-filter-chip.active {
-        border-color: var(--pc-primary);
-        background: var(--pc-primary);
-        box-shadow: var(--pc-shadow-md);
-    }
-    .system-filter-chip.active strong,
-    .system-filter-chip.active span {
-        color: #fff;
-    }
-    .system-filter-chip.active span {
-        background: rgba(255, 255, 255, 0.18);
     }
     @media (max-width: 1080px) {
         .system-module-workspace {

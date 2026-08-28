@@ -1,5 +1,23 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject M9: Tách bạch Vai trò / Tài khoản + bỏ pill title modal cũ)
+Theo phản hồi "vai trò và tài khoản đang lẫn lộn" — tái cấu trúc `roles.html` từ 3 tab
+thành **2 tab tách bạch** (verify trực quan light+dark trên local):
+- Tab **Vai trò**: card từng vai trò (badge quyền, số người, Phân quyền, Xóa, Xem tài
+  khoản) + nút Thêm vai trò — bỏ hẳn tab chip filter cũ (chip vừa ở tab vai trò vừa để
+  lọc tài khoản ở tab khác là nguồn lẫn lộn).
+- Tab **Tài khoản**: bảng người dùng + **bộ lọc vai trò (select tự submit)** + Xuất/Nhập
+  Excel/Thêm tài khoản + bulk reset/xóa. Vào `/roles?role_id=X` tự mở tab Tài khoản
+  (`data-default-pane` động).
+- Sửa lỗi lặp trên mọi modal: title "pill gradient xanh cũ" từ `style.css:1167`
+  (`!important` nền xanh + shadow) → override trong `pc06-premium.css` thành chữ
+  premium đơn giản. Bump `pc06-premium.css ?v=1.3.1`.
+- Dọn CSS chết `system-filter-*` khỏi roles.html (chỉ module_categories + logs còn dùng).
+Đã kiểm tra thực tế toàn bộ popup: Thêm tài khoản, Thêm đơn vị, Tạo ủy quyền, Thêm danh
+mục (checkbox rỗng do local chưa có phân hệ — không phải bug), wizard Tạo công việc,
+trang Thông báo — đều hoạt động. Test mới: `test_roles_page_separates_roles_and_users`,
+`test_modal_title_no_legacy_pill`; suite 281 — chỉ còn 3 lỗi có sẵn.
+
 ## 2026-08-28 (Giao diện — Subproject M8: Rà soát trực quan local nhóm HỆ THỐNG — layout toolbar/chip/card vai trò)
 Truy cập local bằng trình duyệt thật (light + dark), sửa 4 điểm bất hợp lý còn lại:
 (1) Toolbar trang vai trò: tab xếp dọc từng viên do grid 2 cột bị nén — đổi

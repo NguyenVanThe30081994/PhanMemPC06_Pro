@@ -447,6 +447,27 @@ a:hover { color: var(--pc-primary-strong); }
 .modal-body { padding: var(--pc-space-6); color: var(--pc-text); }
 .modal-footer { border-top: 1px solid var(--pc-border); padding: var(--pc-space-4) var(--pc-space-6); }
 
+/* Bỏ pill gradient cũ của theme trước (style.css dùng !important) — title premium là chữ đơn giản */
+.modal-header .modal-title, .offcanvas-header .offcanvas-title {
+    display: inline !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    background: none !important;
+    box-shadow: none !important;
+    color: var(--pc-text) !important;
+    font-size: var(--pc-text-h3) !important;
+    font-weight: 700 !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+}
+.modal-header.primary .modal-title, .modal-header.dark .modal-title,
+.modal-header.success .modal-title, .modal-header.danger .modal-title,
+.modal-header.warning .modal-title {
+    background: none !important;
+    box-shadow: none !important;
+    color: var(--pc-text) !important;
+}
+
 /* Nav */
 .pc-topbar {
     background: var(--pc-bg-card);

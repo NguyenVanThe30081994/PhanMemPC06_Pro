@@ -665,10 +665,20 @@ class SystemPagesDarkModeTests(unittest.TestCase):
     (báo cáo user 2026-08-28: dark mode chữ biến mất, button lệch cỡ)."""
 
     def test_filter_chips_use_tokens_with_dark_support(self):
-        for name in ("roles.html", "module_categories.html"):
-            src = _read(os.path.join(APP_ROOT, "templates", name))
-            self.assertNotIn("rgba(248, 250, 252", src)
-            self.assertIn('[data-theme="dark"] .system-filter-chip', src)
+        # roles.html đã tách tab Vai trò/Tài khoản (M8) — bỏ chip filter, chỉ còn module_categories dùng chip
+        src = _read(os.path.join(APP_ROOT, "templates", "module_categories.html"))
+        self.assertNotIn("rgba(248, 250, 252", src)
+        self.assertIn('[data-theme="dark"] .system-filter-chip', src)
+
+    def test_roles_page_separates_roles_and_users(self):
+        """M8: trang /roles tách bạch tab Vai trò (card + phân quyền) và Tài khoản (bảng + bộ lọc)."""
+        src = _read(os.path.join(APP_ROOT, "templates", "roles.html"))
+        self.assertIn('data-section-pane="roles"', src)
+        self.assertIn('data-section-pane="users"', src)
+        self.assertNotIn('data-section-pane="filters"', src)
+        self.assertNotIn('data-section-pane="permissions"', src)
+        self.assertIn('name="role_id"', src)  # bộ lọc vai trò trong tab Tài khoản
+        self.assertIn("data-default-pane=", src)  # role_id param mở sẵn tab Tài khoản
 
     def test_module_categories_cards_have_dark_support(self):
         src = _read(os.path.join(APP_ROOT, "templates", "module_categories.html"))
@@ -695,3 +705,12 @@ class SystemPagesDarkModeTests(unittest.TestCase):
         self.assertNotEqual(idx, -1)
         block = css[idx:idx + 500]
         self.assertIn("white-space: nowrap", block)
+
+    def test_modal_title_no_legacy_pill(self):
+        """M9: title modal là chữ premium, không còn pill gradient cũ của style.css."""
+        css = _read(PREMIUM_CSS)
+        idx = css.find(".modal-header .modal-title, .offcanvas-header .offcanvas-title")
+        self.assertNotEqual(idx, -1)
+        block = css[idx:idx + 400]
+        self.assertIn("background: none !important", block)
+        self.assertIn("color: var(--pc-text) !important", block)
