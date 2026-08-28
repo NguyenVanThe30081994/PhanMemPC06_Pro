@@ -570,6 +570,19 @@ a:hover { color: var(--pc-primary-strong); }
 .pc-skeleton-circle { border-radius: var(--pc-radius-pill); }
 .pc-skeleton-card { height: 5rem; }
 
+/* SweetAlert2 theme theo token — chuẩn mực Mục 4.3 */
+.pc-swal-popup {
+    background: var(--pc-bg-card) !important;
+    color: var(--pc-text) !important;
+    border: 1px solid var(--pc-border);
+    border-radius: var(--pc-radius-xl) !important;
+    box-shadow: var(--pc-shadow-overlay);
+    font-family: var(--pc-font-sans);
+}
+.pc-swal-title { color: var(--pc-text) !important; font-size: var(--pc-text-h3) !important; font-weight: 800; }
+.pc-swal-html { color: var(--pc-text-muted) !important; }
+.pc-swal-confirm, .pc-swal-cancel { box-shadow: none !important; }
+
 /* ---------- 5. App shell — token hóa class hiện có, KHÔNG đổi DOM ---------- */
 .desktop-sidebar {
     background: var(--pc-bg-card);

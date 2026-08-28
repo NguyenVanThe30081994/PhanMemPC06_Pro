@@ -277,14 +277,14 @@ class SwalThemeTests(unittest.TestCase):
             }).then(function (result) { return result.isConfirmed; });
 ```
 
-- [ ] **Step 5: Sửa khối flash desktop** (`base.html` ~883–898): giữ cấu trúc Toast/mixin, thêm customClass + escape `|tojson`:
+- [ ] **Step 5: Sửa khối flash desktop** (`base.html` ~883–898): giữ nguyên cấu trúc + quoting `'{{ message }}'` hiện có (KHÔNG dùng `|tojson` — ensure_ascii escape unicode làm vỡ các test chức năng assert flash text), chỉ thêm customClass:
 
 ```js
-                    Toast.fire({ icon: 'success', title: {{ message|tojson }} });
+                    Toast.fire({ icon: 'success', title: '{{ message }}' });
                     {% else %}
                     Swal.fire({
                         icon: '{{ "error" if category == "danger" else category }}',
-                        text: {{ message|tojson }},
+                        text: '{{ message }}',
                         confirmButtonColor: 'var(--bs-primary)',
                         customClass: {
                             popup: 'pc-swal-popup',
@@ -397,11 +397,11 @@ class EmptyStateContractTests(unittest.TestCase):
                     });
                     {% for category, message in messages %}
                     {% if category == 'success' %}
-                    Toast.fire({ icon: 'success', title: {{ message|tojson }} });
+                    Toast.fire({ icon: 'success', title: '{{ message }}' });
                     {% else %}
                     Swal.fire({
                         icon: '{{ "error" if category == "danger" else category }}',
-                        text: {{ message|tojson }},
+                        text: '{{ message }}',
                         confirmButtonColor: 'var(--bs-primary)',
                         customClass: {
                             popup: 'pc-swal-popup',

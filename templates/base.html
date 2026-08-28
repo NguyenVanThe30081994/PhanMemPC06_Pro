@@ -673,7 +673,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-responsive.css') }}?v=1.0.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/flat-theme.css') }}?v=1.0.0">
     {% block extra_head %}{% endblock %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/pc06-premium.css') }}?v=1.1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pc06-premium.css') }}?v=1.2.0">
 </head>
 
 <body class="pc06-bdhvs-body">
@@ -890,7 +890,12 @@
                     Swal.fire({
                         icon: '{{ "error" if category == "danger" else category }}',
                         text: '{{ message }}',
-                        confirmButtonColor: 'var(--bs-primary)'
+                        confirmButtonColor: 'var(--bs-primary)',
+                        customClass: {
+                            popup: 'pc-swal-popup',
+                            title: 'pc-swal-title',
+                            htmlContainer: 'pc-swal-html'
+                        }
                     });
                     {% endif %}
                     {% endfor %}
@@ -1082,7 +1087,12 @@
                 text: message,
                 confirmButtonText: 'Đã hiểu',
                 buttonsStyling: false,
-                customClass: { confirmButton: 'btn btn-primary px-4' }
+                customClass: {
+                    popup: 'pc-swal-popup',
+                    title: 'pc-swal-title',
+                    htmlContainer: 'pc-swal-html',
+                    confirmButton: 'pc-btn pc-btn-primary pc-swal-confirm'
+                }
             });
         };
 
@@ -1097,7 +1107,13 @@
                 cancelButtonText: 'Hủy',
                 reverseButtons: true,
                 buttonsStyling: false,
-                customClass: { confirmButton: 'btn btn-danger px-4 me-2', cancelButton: 'btn btn-outline-secondary px-4' }
+                customClass: {
+                    popup: 'pc-swal-popup',
+                    title: 'pc-swal-title',
+                    htmlContainer: 'pc-swal-html',
+                    confirmButton: 'pc-btn pc-btn-danger pc-swal-confirm me-2',
+                    cancelButton: 'pc-btn pc-btn-secondary pc-swal-cancel'
+                }
             }).then(function (result) { return result.isConfirmed; });
         };
 

@@ -607,3 +607,23 @@ class SkeletonComponentTests(unittest.TestCase):
             '[data-theme="dark"] .pc-skeleton::after',
         ):
             self.assertIn(cls, css)
+
+
+class SwalThemeTests(unittest.TestCase):
+    """Subproject M3: SweetAlert2 ăn token pc-* (chuẩn mực Mục 4.3 —
+    docs/THIET_KE_TONG_GIAO_DIEN_2026.md)."""
+
+    def test_premium_css_defines_swal_theme(self):
+        css = _read(PREMIUM_CSS)
+        for cls in (
+            ".pc-swal-popup", ".pc-swal-title", ".pc-swal-html",
+            ".pc-swal-confirm", ".pc-swal-cancel",
+        ):
+            self.assertIn(cls, css)
+
+    def test_pc_dialog_helpers_use_swal_theme(self):
+        for name in ("base.html", "base_mobile.html"):
+            src = _read(os.path.join(APP_ROOT, "templates", name))
+            self.assertIn("pc-swal-popup", src)
+            self.assertNotIn("btn btn-primary px-4", src)
+            self.assertNotIn("btn btn-danger px-4 me-2", src)

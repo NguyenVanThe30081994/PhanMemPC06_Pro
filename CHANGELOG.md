@@ -1,5 +1,13 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject M3: Theme SweetAlert2 theo token pc-*)
+Chuẩn hóa dialog hệ thống theo chuẩn mực Mục 4.3: thêm theme `.pc-swal-popup/-title/-html`
+(và slot nút `.pc-swal-confirm/-cancel`) vào `pc06-premium.css` — nền card, radius-xl,
+shadow-overlay, chữ theo token. Helper `pcAlert`/`pcConfirm` (cả desktop + mobile) chuyển
+nút từ `btn btn-*` Bootstrap sang `pc-btn pc-btn-*`; khối flash desktop thêm customClass
+cùng theme (giữ nguyên quoting flash text — `|tojson` escape unicode làm vỡ test chức năng).
+Bump `pc06-premium.css ?v=1.2.0`. Test mới: `SwalThemeTests` (2 tests); suite 271 — chỉ còn 3 lỗi có sẵn.
+
 ## 2026-08-28 (Giao diện — Subproject M2: Pattern pc-skeleton)
 Thêm pattern skeleton chuẩn (chuẩn mực Mục 4.2 của tài liệu tổng thiết kế): `.pc-skeleton`
 (+ `-line/-circle/-card`) với shimmer `@keyframes pc-skeleton-shimmer`, duration mới
