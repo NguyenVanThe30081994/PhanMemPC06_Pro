@@ -655,8 +655,8 @@ document.querySelectorAll('form').forEach((form) => {
     }
     .system-filter-chip {
         width: 100%;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        background: rgba(248, 250, 252, 0.92);
+        border: 1px solid var(--pc-border);
+        background: var(--pc-bg-card);
         border-radius: 18px;
         padding: 14px 16px;
         display: flex;
@@ -665,8 +665,11 @@ document.querySelectorAll('form').forEach((form) => {
         gap: 12px;
         text-align: left;
         text-decoration: none;
-        color: var(--text-main, #0f172a);
+        color: var(--pc-text);
         transition: all 0.2s ease;
+    }
+    [data-theme="dark"] .system-filter-chip {
+        background: var(--pc-bg-subtle);
     }
     .system-filter-chip strong {
         display: block;
@@ -683,15 +686,15 @@ document.querySelectorAll('form').forEach((form) => {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: rgba(0, 102, 255, 0.08);
-        color: #0052cc;
+        background: var(--pc-primary-soft);
+        color: var(--pc-primary-strong);
         font-weight: 900;
         flex-shrink: 0;
     }
     .system-filter-chip.active {
-        border-color: rgba(0, 102, 255, 0.32);
-        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(0, 102, 255, 0.92));
-        box-shadow: 0 18px 34px rgba(0, 102, 255, 0.14);
+        border-color: var(--pc-primary);
+        background: var(--pc-primary);
+        box-shadow: var(--pc-shadow-md);
     }
     .system-filter-chip.active strong,
     .system-filter-chip.active span {

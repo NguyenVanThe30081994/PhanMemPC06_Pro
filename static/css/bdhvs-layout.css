@@ -1407,11 +1407,12 @@ a.pc06-chip {
     gap: 8px;
     min-height: 44px;
     padding: 10px 14px;
-    border-radius: 16px;
+    border-radius: var(--pc-radius-md);
     border: 1px solid rgba(191, 219, 254, 0.84);
     background: rgba(239, 246, 255, 0.72);
     color: var(--pc-primary-900);
     font-weight: 700;
+    white-space: nowrap;
     transition: 0.2s ease;
 }
 
@@ -1461,7 +1462,8 @@ a.pc06-chip {
 }
 
 [data-theme="dark"] .pc06-section-menu-tab.is-active {
-    color: var(--pc-primary-50);
+    background: var(--pc-primary);
+    color: #fff;
 }
 
 .pc06-back-link {

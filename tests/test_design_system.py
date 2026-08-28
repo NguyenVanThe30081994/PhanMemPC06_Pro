@@ -658,3 +658,40 @@ class BdhvsLayoutTokenTests(unittest.TestCase):
         css = _read(PREMIUM_CSS)
         for token in ("--pc-accent-violet:", "--pc-accent-pink:"):
             self.assertIn(token, css)
+
+
+class SystemPagesDarkModeTests(unittest.TestCase):
+    """Subproject M7: sửa chữ chìm nền + toolbar không gọn ở nhóm trang HỆ THỐNG
+    (báo cáo user 2026-08-28: dark mode chữ biến mất, button lệch cỡ)."""
+
+    def test_filter_chips_use_tokens_with_dark_support(self):
+        for name in ("roles.html", "module_categories.html"):
+            src = _read(os.path.join(APP_ROOT, "templates", name))
+            self.assertNotIn("rgba(248, 250, 252", src)
+            self.assertIn('[data-theme="dark"] .system-filter-chip', src)
+
+    def test_module_categories_cards_have_dark_support(self):
+        src = _read(os.path.join(APP_ROOT, "templates", "module_categories.html"))
+        self.assertIn('[data-theme="dark"] .category-group-card', src)
+        self.assertIn('[data-theme="dark"] .binding-form-card', src)
+
+    def test_filter_chip_counter_uses_token(self):
+        for name in ("roles.html", "module_categories.html", "logs.html"):
+            src = _read(os.path.join(APP_ROOT, "templates", name))
+            self.assertNotIn("color: #0052cc", src)
+            self.assertIn("var(--pc-primary-strong)", src)
+
+    def test_dark_active_section_tab_readable(self):
+        css = _read(os.path.join(APP_ROOT, "static", "css", "bdhvs-layout.css"))
+        self.assertNotIn("color: var(--pc-primary-50)", css)
+        idx = css.find('[data-theme="dark"] .pc06-section-menu-tab.is-active')
+        block = css[idx:idx + 300]
+        self.assertIn("background: var(--pc-primary)", block)
+        self.assertIn("color: #fff", block)
+
+    def test_section_menu_tabs_no_wrap(self):
+        css = _read(os.path.join(APP_ROOT, "static", "css", "bdhvs-layout.css"))
+        idx = css.find(".pc06-section-menu-tab {")
+        self.assertNotEqual(idx, -1)
+        block = css[idx:idx + 500]
+        self.assertIn("white-space: nowrap", block)

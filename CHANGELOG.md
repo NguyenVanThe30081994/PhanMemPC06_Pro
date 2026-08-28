@@ -1,5 +1,22 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject M7: Hotfix dark mode nhóm trang HỆ THỐNG + toolbar đồng nhất)
+Theo báo cáo user (màn hình /roles light+dark):
+(1) **Chữ chìm ở dark** — khối CSS `system-filter-chip` copy-paste dùng nền sáng cứng
+`rgba(248,250,252,.92)` + chữ `var(--text-main)` (đảo sáng ở dark) → token hóa
+`var(--pc-bg-card)/var(--pc-text)` + thêm dark override ở `roles.html`,
+`module_categories.html`; counter `#0052cc` trên nền tối ở `logs.html` →
+`var(--pc-primary-soft)/-strong` (token tự đổi theo theme).
+(2) **Tab "Vai trò" active vô hình ở dark** — rule dark đặt
+`color: var(--pc-primary-50)` (alpha wash 0.14, không đọc được) → `background:
+var(--pc-primary)` + `color: #fff` theo đúng pattern `pc-nav-item.active`.
+(3) **Toolbar không gọn** — tab bẻ chữ thành card cao do cột menu bị nén: thêm
+`white-space: nowrap` (tab wrap nguyên pill, không cắt chữ), radius tab về
+`--pc-radius-md` khớp `pc-btn`; responsive nhỏ đã có sẵn stack 1 cột.
+Bump `bdhvs-layout.css ?v=2.2.1`. Test mới: `SystemPagesDarkModeTests` (5 tests);
+suite 279 — chỉ còn 3 lỗi có sẵn. Đã quét lại 7 trang Hệ thống — không còn
+pattern nền sáng không có dark override.
+
 ## 2026-08-28 (Giao diện — Subproject M6: Dọn template mồ côi)
 Xóa `templates/update.html` + `templates/categories.html` — xác nhận không route nào render
 (grep toàn bộ routes/services/app.py + builders). Xóa test đọc source mồ côi
