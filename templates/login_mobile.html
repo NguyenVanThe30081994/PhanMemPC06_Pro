@@ -4,55 +4,63 @@
 
 {% block head %}
 <style>
-    body { background: var(--bg-surface); }
+    body { background: var(--pc-bg); }
     .main-content { padding-top: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    .login-box { width: 100%; max-width: 400px; padding: 20px; text-align: center; }
-    .login-logo { width: 80px; height: 80px; margin-bottom: 24px; }
-    .login-title { font-size: 24px; font-weight: 800; color: var(--text-main); margin-bottom: 8px; letter-spacing: -1px; }
-    .login-subtitle { font-size: 14px; color: var(--text-muted); margin-bottom: 40px; }
-    .form-floating > .form-control:focus ~ label, .form-floating > .form-control:not(:placeholder-shown) ~ label { transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem); color: var(--primary); }
-    .form-control { border-radius: 12px; border: 1.5px solid var(--border); padding: 12px 16px; height: 58px; font-weight: 500; font-size: 16px; }
-    .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-light); }
-    .input-group-text { background: transparent; border: none; padding-right: 0; color: var(--text-muted); }
-    .btn-login { background: var(--primary); color: white; border: none; height: 56px; border-radius: 14px; font-size: 16px; font-weight: 700; width: 100%; margin-top: 20px; transition: all 0.2s; box-shadow: 0 8px 20px rgba(0, 102, 255, 0.2); }
-    .btn-login:active { transform: scale(0.98); opacity: 0.9; }
-    .footer-text { margin-top: 40px; font-size: 12px; color: var(--text-muted); }
+    .pc-login-mobile { width: 100%; max-width: 420px; padding: var(--pc-space-6) var(--pc-space-5); text-align: center; }
+    .pc-login-mobile .pc-login-logo {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto var(--pc-space-5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--pc-radius-lg);
+        background: var(--pc-primary);
+        color: #fff;
+        font-size: 32px;
+        box-shadow: var(--pc-shadow-md);
+    }
+    .pc-login-mobile .pc-login-title {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -.02em;
+        color: var(--pc-text);
+        margin-bottom: 6px;
+    }
+    .pc-login-mobile .pc-login-subtitle {
+        font-size: var(--pc-text-body);
+        color: var(--pc-text-muted);
+        margin-bottom: var(--pc-space-8);
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="login-box">
-    <div class="d-flex justify-content-center">
-        <div class="login-logo d-flex align-items-center justify-content-center bg-primary rounded-4 text-white shadow-lg mb-4">
-            <i class="fa-solid fa-shield-halved fs-1"></i>
-        </div>
-    </div>
-    <h1 class="login-title">PC06 TỔNG HỢP</h1>
-    <p class="login-subtitle">Chào mừng bạn quay trở lại hệ thống</p>
+<div class="pc-login-mobile pc-login">
+    <div class="pc-login-logo"><i class="fa-solid fa-shield-halved"></i></div>
+    <h1 class="pc-login-title">PC06 TỔNG HỢP</h1>
+    <p class="pc-login-subtitle">Chào mừng bạn quay trở lại hệ thống</p>
 
     <form method="POST">
         <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
-        <div class="form-floating mb-3 text-start">
-            <input type="text" name="username" class="form-control" id="uInput" placeholder="Tên đăng nhập" required autofocus>
-            <label for="uInput" class="fw-medium small"><i class="fa-solid fa-user me-2"></i>Tên đăng nhập</label>
-        </div>
-        
-        <div class="form-floating mb-4 text-start">
-            <input type="password" name="password" class="form-control" id="pInput" placeholder="Mật khẩu" required>
-            <label for="pInput" class="fw-medium small"><i class="fa-solid fa-lock me-2"></i>Mật khẩu</label>
+        <div class="pc-form-group text-start">
+            <label class="pc-label" for="uInput"><i class="fa-solid fa-user me-2"></i>Tên đăng nhập</label>
+            <input type="text" name="username" class="pc-input" id="uInput" placeholder="Tên đăng nhập" required autofocus autocomplete="username">
         </div>
 
-        <button type="submit" class="btn-login" aria-label="Đăng nhập" title="Đăng nhập"><i class="fa-solid fa-right-to-bracket"></i><span class="visually-hidden">Đăng nhập</span></button>
+        <div class="pc-form-group text-start">
+            <label class="pc-label" for="pInput"><i class="fa-solid fa-lock me-2"></i>Mật khẩu</label>
+            <input type="password" name="password" class="pc-input" id="pInput" placeholder="Mật khẩu" required autocomplete="current-password">
+        </div>
+
+        <button type="submit" class="pc-btn pc-btn-primary w-100 mt-2" aria-label="Đăng nhập">
+            <i class="fa-solid fa-right-to-bracket me-2"></i>ĐĂNG NHẬP
+        </button>
     </form>
 
     {% if config.get('GOOGLE_OAUTH_CLIENT_ID') and config.get('GOOGLE_OAUTH_CLIENT_SECRET') %}
-    <div class="d-flex align-items-center gap-3 my-4">
-        <div class="flex-grow-1" style="height:1px; background:var(--border);"></div>
-        <span class="small fw-semibold" style="color:var(--text-muted); font-size:12px;">HOẶC</span>
-        <div class="flex-grow-1" style="height:1px; background:var(--border);"></div>
-    </div>
-    <a href="/auth/google" class="d-flex align-items-center justify-content-center gap-2 w-100"
-       style="background:#fff; border:1px solid var(--border); border-radius:14px; height:56px; font-weight:600; color:var(--text-main);">
+    <div class="pc-login-divider">HOẶC</div>
+    <a href="/auth/google" class="pc-btn pc-login-google">
         <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
             <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.7-.4-3.9z"/>
             <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
@@ -63,8 +71,6 @@
     </a>
     {% endif %}
 
-    <div class="footer-text">
-        <p>&copy; 2026 PC06. Đã tối ưu cho thiết bị di động.</p>
-    </div>
+    <p class="mt-5 mb-0" style="font-size: var(--pc-text-xs); color: var(--pc-text-muted);">&copy; 2026 PC06. Đã tối ưu cho thiết bị di động.</p>
 </div>
 {% endblock %}

@@ -107,3 +107,12 @@ class LoginPilotTests(unittest.TestCase):
         self.assertIn('id="forgotModal"', body)
         self.assertIn("togglePasswordVisibility", body)
         self.assertIn("csrf_token", body)
+
+    def test_login_mobile_keeps_contract(self):
+        res = self.client.get("/login", headers={"User-Agent": MOBILE_UA})
+        self.assertEqual(res.status_code, 200)
+        body = res.get_data(as_text=True)
+        self.assertIn("pc06-premium.css", body)
+        self.assertIn("pc-login", body)
+        self.assertIn('name="username"', body)
+        self.assertIn('name="password"', body)
