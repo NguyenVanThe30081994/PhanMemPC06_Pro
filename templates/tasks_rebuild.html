@@ -70,11 +70,11 @@
             </div>
         </div>
         {% if is_lead or is_admin %}
-        <div class="task-actions-compact">
-            <button class="btn btn-primary pc-btn" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+        <div class="task-actions-compact d-flex align-items-center gap-3">
+            <button class="pc-btn pc-btn-primary pc-btn-lg" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
                 <i class="fa-solid fa-plus me-2"></i>Tạo công việc
             </button>
-            <a class="btn btn-outline-primary" href="{{ url_for('tasks_bp.task_import_drafts') }}">
+            <a class="pc-btn pc-btn-secondary pc-btn-lg" href="{{ url_for('tasks_bp.task_import_drafts') }}">
                 <i class="fa-solid fa-file-import me-2"></i>Nhập tài liệu
             </a>
         </div>

@@ -1,5 +1,8 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject SE: Button consistency + Header cleanup)
+Chuẩn hóa button group trong trang giao việc (`tasks_rebuild.html`): cả "Tạo công việc" + "Nhập tài liệu" dùng `pc-btn pc-btn-lg` cùng baseline/spacing. Xóa search form + clock/weather pills khỏi top navbar `base.html` theo yêu cầu user. Suite 265 tests — chỉ còn 3 lỗi có sẵn.
+
 ## 2026-08-28 (Giao diện — Subproject SD: Button layout + Popup + Mobile audit)
 Chuẩn hóa nút toàn hệ thống: migrate `btn-bdhvs` → `pc-btn` (primary/secondary/warning/danger),
 fix inline-style primary buttons trong modal form sang `pc-btn-lg`. Audit modal/popup —
