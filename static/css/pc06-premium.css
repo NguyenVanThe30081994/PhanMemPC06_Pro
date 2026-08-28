@@ -1,0 +1,252 @@
+/* ============================================================
+   PC06 PREMIUM DESIGN SYSTEM — Subproject 1
+   Nạp cuối <head>, sau flat-theme.css. Component dùng tiền tố pc-.
+   Spec: docs/superpowers/specs/2026-08-28-nen-tang-thiet-ke-premium-design.md
+   ============================================================ */
+
+/* ---------- 1. Tokens ---------- */
+:root {
+    /* Primary — navy premium */
+    --pc-primary-50: #f2f6fc;
+    --pc-primary-100: #e3ebf7;
+    --pc-primary-200: #c5d7ee;
+    --pc-primary-300: #98b7df;
+    --pc-primary-400: #6491cb;
+    --pc-primary-500: #3f6db3;
+    --pc-primary-600: #2b5396;
+    --pc-primary-700: #24437a;
+    --pc-primary-800: #203963;
+    --pc-primary-900: #1d3053;
+    --pc-primary-950: #121f38;
+    --pc-primary: var(--pc-primary-600);
+    --pc-primary-strong: var(--pc-primary-700);
+    --pc-primary-soft: var(--pc-primary-50);
+    --pc-primary-ring: rgba(43, 83, 150, 0.28);
+
+    /* Semantic */
+    --pc-success: #15803d;
+    --pc-success-bg: #ecfdf3;
+    --pc-success-border: #bbe7c9;
+    --pc-success-text: #14532d;
+    --pc-warning: #b45309;
+    --pc-warning-bg: #fffbeb;
+    --pc-warning-border: #fde5ae;
+    --pc-warning-text: #7c3d05;
+    --pc-danger: #dc2626;
+    --pc-danger-bg: #fef2f2;
+    --pc-danger-border: #fecaca;
+    --pc-danger-text: #7f1d1d;
+    --pc-info: #0369a1;
+    --pc-info-bg: #f0f9ff;
+    --pc-info-border: #bae6fd;
+    --pc-info-text: #075985;
+
+    /* Neutral (slate) */
+    --pc-neutral-0: #ffffff;
+    --pc-neutral-50: #f8fafc;
+    --pc-neutral-100: #f1f5f9;
+    --pc-neutral-200: #e2e8f0;
+    --pc-neutral-300: #cbd5e1;
+    --pc-neutral-400: #94a3b8;
+    --pc-neutral-500: #64748b;
+    --pc-neutral-600: #475569;
+    --pc-neutral-700: #334155;
+    --pc-neutral-800: #1e293b;
+    --pc-neutral-900: #0f172a;
+    --pc-neutral-950: #020617;
+
+    /* Surface & text */
+    --pc-bg: var(--pc-neutral-50);
+    --pc-bg-subtle: var(--pc-neutral-100);
+    --pc-bg-card: var(--pc-neutral-0);
+    --pc-border: var(--pc-neutral-200);
+    --pc-border-strong: var(--pc-neutral-300);
+    --pc-text: var(--pc-neutral-800);
+    --pc-text-muted: var(--pc-neutral-500);
+    --pc-text-subtle: var(--pc-neutral-400);
+
+    /* Typography */
+    --pc-font-sans: 'Be Vietnam Pro', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --pc-text-display: 2rem;
+    --pc-text-h1: 1.75rem;
+    --pc-text-h2: 1.375rem;
+    --pc-text-h3: 1.125rem;
+    --pc-text-body: .9375rem;
+    --pc-text-sm: .8125rem;
+    --pc-text-xs: .6875rem;
+    --pc-leading-tight: 1.25;
+    --pc-leading-body: 1.6;
+    --pc-tracking-wide: .06em;
+
+    /* Spacing — bước 4px */
+    --pc-space-1: .25rem;
+    --pc-space-2: .5rem;
+    --pc-space-3: .75rem;
+    --pc-space-4: 1rem;
+    --pc-space-5: 1.25rem;
+    --pc-space-6: 1.5rem;
+    --pc-space-7: 2rem;
+    --pc-space-8: 2.5rem;
+    --pc-space-9: 3rem;
+    --pc-space-10: 4rem;
+    --pc-space-11: 5rem;
+    --pc-space-12: 6rem;
+
+    /* Radius */
+    --pc-radius-sm: 8px;
+    --pc-radius-md: 12px;
+    --pc-radius-lg: 16px;
+    --pc-radius-xl: 22px;
+    --pc-radius-pill: 999px;
+
+    /* Shadow */
+    --pc-shadow-xs: 0 1px 2px rgba(15, 23, 42, .05);
+    --pc-shadow-sm: 0 1px 3px rgba(15, 23, 42, .07), 0 1px 2px rgba(15, 23, 42, .04);
+    --pc-shadow-md: 0 6px 16px -4px rgba(15, 23, 42, .10);
+    --pc-shadow-lg: 0 16px 40px -8px rgba(15, 23, 42, .16);
+    --pc-shadow-overlay: 0 24px 64px -12px rgba(15, 23, 42, .25);
+
+    /* Motion */
+    --pc-dur-fast: 120ms;
+    --pc-dur-base: 200ms;
+    --pc-dur-slow: 320ms;
+    --pc-ease: cubic-bezier(.2, 0, 0, 1);
+
+    /* Z-index */
+    --pc-z-dropdown: 1000;
+    --pc-z-sticky: 1020;
+    --pc-z-modal: 1055;
+    --pc-z-toast: 1080;
+
+    /* Focus */
+    --pc-focus-ring: 0 0 0 3px var(--pc-primary-ring);
+    --pc-focus-ring-danger: 0 0 0 3px rgba(220, 38, 38, .20);
+}
+
+[data-theme="dark"] {
+    --pc-primary-600: #4f7fd0;
+    --pc-primary-700: #6b95dd;
+    --pc-primary-300: #9db9e6;
+    --pc-primary-50: rgba(79, 127, 208, .14);
+    --pc-primary-ring: rgba(79, 127, 208, .35);
+
+    --pc-success: #4ade80;
+    --pc-success-bg: rgba(34, 197, 94, .12);
+    --pc-success-border: rgba(74, 222, 128, .30);
+    --pc-success-text: #86efac;
+    --pc-warning: #fbbf24;
+    --pc-warning-bg: rgba(245, 158, 11, .12);
+    --pc-warning-border: rgba(251, 191, 36, .30);
+    --pc-warning-text: #fcd34d;
+    --pc-danger: #f87171;
+    --pc-danger-bg: rgba(239, 68, 68, .12);
+    --pc-danger-border: rgba(248, 113, 113, .30);
+    --pc-danger-text: #fca5a5;
+    --pc-info: #38bdf8;
+    --pc-info-bg: rgba(14, 165, 233, .12);
+    --pc-info-border: rgba(56, 189, 248, .30);
+    --pc-info-text: #7dd3fc;
+
+    --pc-bg: #0b1220;
+    --pc-bg-subtle: #0e1627;
+    --pc-bg-card: #111b2e;
+    --pc-border: #22304a;
+    --pc-border-strong: #2e3f5e;
+    --pc-text: #e7edf7;
+    --pc-text-muted: #9fb0c8;
+    --pc-text-subtle: #64778f;
+
+    --pc-shadow-xs: 0 1px 2px rgba(2, 6, 23, .5);
+    --pc-shadow-sm: 0 1px 3px rgba(2, 6, 23, .6);
+    --pc-shadow-md: 0 6px 16px -4px rgba(2, 6, 23, .55);
+    --pc-shadow-lg: 0 16px 40px -8px rgba(2, 6, 23, .6);
+    --pc-shadow-overlay: 0 24px 64px -12px rgba(2, 6, 23, .7);
+}
+
+/* ---------- 2. Bridge: biến legacy → token (trang cũ hưởng palette mới) ---------- */
+:root {
+    --primary: var(--pc-primary);
+    --primary-light: var(--pc-primary-400);
+    --primary-soft: var(--pc-primary-soft);
+    --primary-rgb: 43, 83, 150;
+    --primary-gradient: linear-gradient(180deg, var(--pc-primary) 0%, var(--pc-primary) 100%);
+    --bg-body: var(--pc-bg);
+    --bg-surface: var(--pc-bg-card);
+    --bg-sidebar: var(--pc-bg-card);
+    --bg-subtle: var(--pc-bg-subtle);
+    --text-main: var(--pc-text);
+    --text-muted: var(--pc-text-muted);
+    --border: var(--pc-border);
+    --border-light: var(--pc-border);
+    --shadow-sm: var(--pc-shadow-xs);
+    --shadow-md: var(--pc-shadow-sm);
+    --shadow-lg: var(--pc-shadow-md);
+    --shadow-lvl1: var(--pc-shadow-xs);
+    --shadow-lvl2: var(--pc-shadow-sm);
+    --shadow-lvl3: var(--pc-shadow-md);
+    --shadow-primary: 0 8px 20px var(--pc-primary-ring);
+    --radius-sm: var(--pc-radius-sm);
+    --radius-md: var(--pc-radius-md);
+    --radius-lg: var(--pc-radius-lg);
+    --corner-card: var(--pc-radius-lg);
+    --transition: all var(--pc-dur-fast) var(--pc-ease);
+}
+
+[data-theme="dark"] {
+    --primary-light: var(--pc-primary-300);
+    --primary-rgb: 79, 127, 208;
+}
+
+/* ---------- 3. Bootstrap overrides + nền ---------- */
+:root {
+    --bs-primary: var(--pc-primary);
+    --bs-primary-rgb: 43, 83, 150;
+    --bs-body-bg: var(--pc-bg);
+    --bs-body-color: var(--pc-text);
+    --bs-border-color: var(--pc-border);
+    --bs-link-color: var(--pc-primary);
+    --bs-link-hover-color: var(--pc-primary-strong);
+    --bs-font-sans-serif: var(--pc-font-sans);
+}
+
+[data-theme="dark"] {
+    --bs-primary-rgb: 79, 127, 208;
+}
+
+body {
+    font-family: var(--pc-font-sans);
+    font-size: var(--pc-text-body);
+    background: var(--pc-bg);
+    color: var(--pc-text);
+}
+
+a { color: var(--pc-primary); }
+a:hover { color: var(--pc-primary-strong); }
+
+.btn-primary { background: var(--pc-primary); border-color: var(--pc-primary); }
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+    background: var(--pc-primary-strong);
+    border-color: var(--pc-primary-strong);
+}
+.btn-outline-primary { color: var(--pc-primary); border-color: var(--pc-primary); }
+.btn-outline-primary:hover { background: var(--pc-primary); border-color: var(--pc-primary); color: #fff; }
+.text-primary { color: var(--pc-primary) !important; }
+.bg-primary { background-color: var(--pc-primary) !important; }
+.form-control:focus, .form-select:focus {
+    border-color: var(--pc-primary);
+    box-shadow: 0 0 0 .25rem var(--pc-primary-soft);
+}
+.form-check-input:checked { background-color: var(--pc-primary); border-color: var(--pc-primary); }
+.form-check-input:focus { border-color: var(--pc-primary); box-shadow: var(--pc-focus-ring); }
+
+/* ---------- Motion & a11y ---------- */
+:focus-visible { outline: none; box-shadow: var(--pc-focus-ring); }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
