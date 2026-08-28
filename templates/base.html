@@ -714,7 +714,7 @@
                         {% if submenu_parent == 'tasks' and sidebar_submenu_items %}
                         <div class="desktop-nav-children">
                             {% for item in sidebar_submenu_items %}
-                            <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link {% if item.active %}active{% endif %}">
+                            <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link pc-nav-item {% if item.active %}active{% endif %}">
                                 <span>{{ item.label }}</span>
                                 {% if item.count is defined and item.count is not none %}
                                 <small>{{ item.count }}</small>
@@ -760,13 +760,13 @@
                         </a>
                         <div class="desktop-nav-children">
                             {% if can_module('user', 'view') %}
-                            <a href="/roles" class="desktop-nav-link desktop-subnav-link {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">
+                            <a href="/roles" class="desktop-nav-link desktop-subnav-link pc-nav-item {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">
                                 <span>Tài khoản và vai trò</span>
                             </a>
                             {% endif %}
                             {% if can_module('sys', 'view') %}
                             <div class="desktop-nav-group">
-                                <a href="/admin/module-categories" class="desktop-nav-link desktop-subnav-link {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %} {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}has-children{% endif %}">
+                                <a href="/admin/module-categories" class="desktop-nav-link desktop-subnav-link pc-nav-item {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %} {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}has-children{% endif %}">
                                     <span>Thiết lập danh mục</span>
                                     {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}
                                     <span class="desktop-nav-caret"><i class="fa-solid fa-chevron-down"></i></span>
@@ -775,26 +775,26 @@
                                 {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}
                                 <div class="desktop-nav-children desktop-nav-grandchildren">
                                     {% for item in sidebar_submenu_items %}
-                                    <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link desktop-subnav-link-nested {% if item.active %}active{% endif %}">
+                                    <a href="{{ item.href }}" class="desktop-nav-link desktop-subnav-link pc-nav-item desktop-subnav-link-nested {% if item.active %}active{% endif %}">
                                         <span>{{ item.label }}</span>
                                     </a>
                                     {% endfor %}
                                 </div>
                                 {% endif %}
                             </div>
-                            <a href="/admin/units" class="desktop-nav-link desktop-subnav-link {% if request.endpoint == 'admin_bp.units' %}active{% endif %}">
+                            <a href="/admin/units" class="desktop-nav-link desktop-subnav-link pc-nav-item {% if request.endpoint == 'admin_bp.units' %}active{% endif %}">
                                 <span>Đơn vị</span>
                             </a>
-                            <a href="/admin/delegations" class="desktop-nav-link desktop-subnav-link {% if request.endpoint == 'admin_bp.delegations' %}active{% endif %}">
+                            <a href="/admin/delegations" class="desktop-nav-link desktop-subnav-link pc-nav-item {% if request.endpoint == 'admin_bp.delegations' %}active{% endif %}">
                                 <span>Ủy quyền</span>
                             </a>
-                            <a href="/logs" class="desktop-nav-link desktop-subnav-link {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">
+                            <a href="/logs" class="desktop-nav-link desktop-subnav-link pc-nav-item {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">
                                 <span>Nhật ký hoạt động</span>
                             </a>
-                            <a href="/admin/system/update" class="desktop-nav-link desktop-subnav-link {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">
+                            <a href="/admin/system/update" class="desktop-nav-link desktop-subnav-link pc-nav-item {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">
                                 <span>Cập nhật bản vá</span>
                             </a>
-                            <a href="/admin/db-tool" class="desktop-nav-link desktop-subnav-link {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">
+                            <a href="/admin/db-tool" class="desktop-nav-link desktop-subnav-link pc-nav-item {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">
                                 <span>Công cụ Database</span>
                             </a>
                             {% endif %}

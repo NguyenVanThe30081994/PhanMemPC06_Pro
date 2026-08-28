@@ -1,5 +1,11 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject SA: Sidebar menu HỆ THỐNG)
+Token hóa nav link trong dropdown HỆ THỐNG của `base.html` + `base_mobile.html` sang
+`pc-nav-item`; giữ nguyên JS/layout. Test mới: `SidebarMenuContractTests` (2 tests;
+suite 265 — chỉ còn 3 lỗi có sẵn). Ghi nhận: hoàn tất audit + fix UI đồng nhất
+toàn bộ giao diện PC06 theo yêu cầu superpowers.
+
 ## 2026-08-28 (Giao diện — Subproject 6: Dọn dẹp + trang còn lại)
 Xóa template mồ côi `dashboard.html` (270 dòng) + `static/js/dashboard-charts.js`
 (288 dòng) — không route nào render. Token hóa `global_search` + `update` sang

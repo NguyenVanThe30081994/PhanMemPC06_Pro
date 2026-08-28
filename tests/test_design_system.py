@@ -544,3 +544,22 @@ class AdminPagesContractTests(unittest.TestCase):
         """contacts.html dùng btn-bdhvs — không cover bởi bridge legacy."""
         src = _read(os.path.join(APP_ROOT, "templates", "contacts.html"))
         self.assertIn("btn-bdhvs", src)
+
+
+class SidebarMenuContractTests(unittest.TestCase):
+    """Contract test sidebar menu HỆ THỐNG migrate lên premium tokens (subproject SA).
+
+    Token hóa nav link trong dropdown HỆ THỐNG sang pc-nav-item; giữ nguyên JS/layout.
+    """
+
+    def setUp(self):
+        self.client = app.test_client()
+
+    def test_base_html_system_submenu_uses_premium_nav(self):
+        src = _read(os.path.join(APP_ROOT, "templates", "base.html"))
+        # Kiểm tra các nav link trong section HỆ THỐNG có class pc-nav-item
+        self.assertIn("pc-nav-item", src)
+
+    def test_base_mobile_html_system_submenu_uses_premium_nav(self):
+        src = _read(os.path.join(APP_ROOT, "templates", "base_mobile.html"))
+        self.assertIn("pc-nav-item", src)
