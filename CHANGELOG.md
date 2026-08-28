@@ -1,5 +1,12 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject 4b: Outline editor + assign)
+Token hóa container/button của 2 trang outline standalone sang `pc-card`/`pc-btn`,
+giữ nguyên CSS palette đặc thù (`--navy/--seal/--gold`) và JS editor phức tạp
+(drag-drop, inline edit). Test mới: `OutlineScreensContractTests` (2 source tests;
+suite 249 — chỉ còn 3 lỗi có sẵn). Ghi nhận: không đổi layout hay JS để tránh
+vỡ UX editor.
+
 ## 2026-08-28 (Giao diện — Subproject 4a: Màn task đơn giản)
 Migrate 2 màn task nhẹ sang `pc-*` (không đổi logic nghiệp vụ):
 - `task_form_aggregation.html`: `pc-page-header/pc-table/pc-badge` thay Bootstrap,
