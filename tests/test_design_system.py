@@ -306,3 +306,75 @@ class AuthScreensContractTests(unittest.TestCase):
             self.assertEqual(res.status_code, 200)
             for marker in ('name="password"', 'name="next"', "toggle-password", "pc-input"):
                 self.assertIn(marker, body)
+
+
+class DashboardScreensContractTests(unittest.TestCase):
+    """Contract test nhóm dashboard migrate lên premium tokens (subproject 3).
+
+    Nguồn template phải dùng var(--pc-*), không còn hex palette cũ #0066ff;
+    route render 200 cả desktop lẫn mobile; contract canvas/chart data giữ nguyên.
+    """
+
+    def setUp(self):
+        self.client = app.test_client()
+
+    def _login_admin(self):
+        with app.app_context():
+            admin = (
+                User.query.filter_by(username="admin").first()
+                or User.query.filter_by(is_active=True).order_by(User.id.asc()).first()
+            )
+        with self.client.session_transaction() as sess:
+            sess["uid"] = admin.id
+            sess["username"] = admin.username
+            sess["fullname"] = admin.fullname
+            sess["unit"] = admin.unit_area or ""
+            sess["unit_area"] = admin.unit_area or ""
+            sess["unit_area_ref"] = admin.unit_area or ""
+            sess["unit_key"] = admin.unit_key or ""
+            sess["role_id"] = admin.role_id
+            sess["must_change"] = False
+            sess["is_admin"] = True
+            sess["session_version"] = int(admin.session_version or 0)
+            sess["csrf_token"] = "dash-test-csrf"
+            sess["last_active"] = datetime.now().timestamp()
+            sess["login_nonce"] = "dash-test"
+
+    def test_admin_dashboard_source_tokenized(self):
+        src = _read(os.path.join(APP_ROOT, "templates", "admin_dashboard.html"))
+        self.assertIn("var(--pc-primary)", src)
+        self.assertIn("#2b5396", src)
+        self.assertNotIn("#0066ff", src)
+        self.assertIn('id="overviewBarChart"', src)
+        self.assertIn('id="overviewDonutChart"', src)
+        self.assertIn("tojson", src)
+
+    def test_admin_dashboard_mobile_source_tokenized(self):
+        src = _read(os.path.join(APP_ROOT, "templates", "admin_dashboard_mobile.html"))
+        self.assertIn("var(--pc-primary)", src)
+        self.assertNotIn("#0066ff", src)
+        self.assertIn("dashboard_cards", src)
+
+    def test_report_dashboard_source_uses_premium_components(self):
+        src = _read(os.path.join(APP_ROOT, "templates", "report_dashboard.html"))
+        for marker in ("pc-page-header", "pc-card", "pc-table", "pc-badge", "pc-alert"):
+            self.assertIn(marker, src)
+        self.assertIn("url_for('tasks_bp.task_detail'", src)
+
+    def test_admin_dashboard_renders_for_admin_desktop(self):
+        self._login_admin()
+        res = self.client.get("/admin")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("overviewBarChart", res.get_data(as_text=True))
+
+    def test_admin_dashboard_renders_for_admin_mobile(self):
+        self._login_admin()
+        res = self.client.get("/admin", headers={"User-Agent": MOBILE_UA})
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("overview-mobile", res.get_data(as_text=True))
+
+    def test_report_dashboard_renders(self):
+        self._login_admin()
+        res = self.client.get("/tasks/report-dashboard")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("pc-page-header", res.get_data(as_text=True))

@@ -40,10 +40,10 @@
 
     .overview-panel,
     .overview-metric-card {
-        background: rgba(255, 255, 255, 0.94);
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        border-radius: 26px;
-        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
+        background: var(--pc-bg-card);
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-xl);
+        box-shadow: var(--pc-shadow-md);
     }
 
     .overview-panel-head h2 {
@@ -71,7 +71,7 @@
     .overview-metric-card:hover {
         transform: translateY(-2px);
         color: var(--text-main);
-        box-shadow: 0 22px 40px rgba(15, 23, 42, 0.1);
+        box-shadow: var(--pc-shadow-lg);
     }
 
     .overview-metric-card span {
@@ -90,19 +90,19 @@
     }
 
     .overview-metric-card.accent-primary {
-        border-top: 5px solid #0066ff;
+        border-top: 5px solid var(--pc-primary);
     }
 
     .overview-metric-card.accent-warning {
-        border-top: 5px solid #d97706;
+        border-top: 5px solid var(--pc-warning);
     }
 
     .overview-metric-card.accent-success {
-        border-top: 5px solid #059669;
+        border-top: 5px solid var(--pc-success);
     }
 
     .overview-metric-card.accent-indigo {
-        border-top: 5px solid #4f46e5;
+        border-top: 5px solid var(--pc-info);
     }
 
     .overview-chart-grid {
@@ -130,13 +130,6 @@
     .overview-canvas-wrap {
         position: relative;
         height: 300px;
-    }
-
-    [data-theme="dark"] .overview-panel,
-    [data-theme="dark"] .overview-metric-card {
-        background: rgba(15, 23, 42, 0.84);
-        border-color: rgba(148, 163, 184, 0.18);
-        box-shadow: 0 18px 45px rgba(2, 6, 23, 0.34);
     }
 
     @media (max-width: 1399.98px) {
@@ -198,7 +191,7 @@
                 labels: barLabels,
                 datasets: [{
                     data: barValues,
-                    backgroundColor: ['#0066ff', '#d97706', '#059669', '#4f46e5'],
+                    backgroundColor: ['#2b5396', '#b45309', '#15803d', '#0369a1'],
                     borderRadius: 14,
                     borderSkipped: false,
                     maxBarThickness: 72,
@@ -239,7 +232,7 @@
                 labels: donutLabels,
                 datasets: [{
                     data: donutValues,
-                    backgroundColor: ['#0066ff', '#f59e0b', '#10b981', '#7c3aed'],
+                    backgroundColor: ['#2b5396', '#3f6db3', '#15803d', '#0369a1'],
                     borderWidth: 0,
                     hoverOffset: 8,
                 }]

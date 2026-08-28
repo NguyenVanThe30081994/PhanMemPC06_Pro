@@ -4,7 +4,7 @@
 
 {% block head %}
 <style>
-    .overview-mobile-hero { background: #0f172a; color: #fff; padding: 20px; border-radius: 20px; margin-bottom: 16px; }
+    .overview-mobile-hero { background: var(--pc-primary-950); color: #fff; padding: 20px; border-radius: var(--pc-radius-lg); margin-bottom: 16px; }
     .overview-mobile-hero h1 { margin: 10px 0 8px; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; }
     .overview-mobile-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.92rem; }
     .overview-mobile-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
@@ -13,28 +13,24 @@
     .overview-mobile-stat span { display: block; font-size: 0.74rem; color: rgba(255,255,255,0.72); }
     .overview-mobile-stat strong { display: block; margin-top: 5px; font-size: 1.2rem; font-weight: 800; }
     .overview-mobile-grid { display: grid; gap: 14px; }
-    .overview-mobile-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04); }
+    .overview-mobile-card { background: var(--pc-bg-card); border: 1px solid var(--pc-border); border-radius: var(--pc-radius-lg); padding: 16px; box-shadow: var(--pc-shadow-xs); }
     .overview-mobile-card-header, .overview-mobile-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     .overview-mobile-card-title { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
     .overview-mobile-icon { width: 42px; height: 42px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
-    .overview-mobile-card-title h3 { font-size: 15px; font-weight: 800; color: var(--text-main); margin: 0; }
-    .overview-mobile-card-title p { margin: 4px 0 0; font-size: 12px; color: var(--text-muted); }
-    .overview-mobile-total { min-width: 48px; height: 38px; padding: 0 12px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; background: #0066ff; color: #fff; }
+    .overview-mobile-card-title h3 { font-size: 15px; font-weight: 800; color: var(--pc-text); margin: 0; }
+    .overview-mobile-card-title p { margin: 4px 0 0; font-size: 12px; color: var(--pc-text-muted); }
+    .overview-mobile-total { min-width: 48px; height: 38px; padding: 0 12px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; background: var(--pc-primary); color: #fff; }
     .overview-mobile-list { display: grid; gap: 8px; margin: 14px 0 16px; }
-    .overview-mobile-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 16px; background: #f8fafc; border: 1px solid rgba(148, 163, 184, 0.12); }
-    .overview-mobile-name { font-size: 13px; font-weight: 700; color: var(--text-main); }
-    .overview-mobile-count { font-size: 13px; font-weight: 800; color: var(--text-main); }
-    .overview-mobile-text { font-size: 12px; font-weight: 700; color: var(--text-muted); text-align: right; }
-    .overview-mobile-empty { margin: 14px 0 16px; padding: 24px 16px; text-align: center; color: var(--text-muted); font-weight: 700; border: 1px dashed rgba(148, 163, 184, 0.28); border-radius: 18px; background: #f8fafc; }
-    .overview-mobile-link { font-size: 12px; font-weight: 700; color: var(--primary); text-decoration: none; }
-    [data-theme="dark"] .overview-mobile-card { background: rgba(15, 23, 42, 0.84); border-color: rgba(148, 163, 184, 0.18); box-shadow: 0 12px 26px rgba(2, 6, 23, 0.32); }
-    [data-theme="dark"] .overview-mobile-total { background: #0066ff; }
-    [data-theme="dark"] .overview-mobile-row { background: rgba(15, 23, 42, 0.72); border-color: rgba(148, 163, 184, 0.14); }
-    [data-theme="dark"] .overview-mobile-empty { background: rgba(15, 23, 42, 0.68); border-color: rgba(148, 163, 184, 0.2); }
-    .accent-primary { background: rgba(59, 130, 246, 0.14); color: #0066ff; }
-    .accent-success { background: rgba(16, 185, 129, 0.14); color: #059669; }
-    .accent-warning { background: rgba(245, 158, 11, 0.16); color: #d97706; }
-    .accent-indigo { background: rgba(99, 102, 241, 0.14); color: #4f46e5; }
+    .overview-mobile-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; border-radius: var(--pc-radius-md); background: var(--pc-bg-subtle); border: 1px solid var(--pc-border); }
+    .overview-mobile-name { font-size: 13px; font-weight: 700; color: var(--pc-text); }
+    .overview-mobile-count { font-size: 13px; font-weight: 800; color: var(--pc-text); }
+    .overview-mobile-text { font-size: 12px; font-weight: 700; color: var(--pc-text-muted); text-align: right; }
+    .overview-mobile-empty { margin: 14px 0 16px; padding: 24px 16px; text-align: center; color: var(--pc-text-muted); font-weight: 700; border: 1px dashed var(--pc-border-strong); border-radius: var(--pc-radius-md); background: var(--pc-bg-subtle); }
+    .overview-mobile-link { font-size: 12px; font-weight: 700; color: var(--pc-primary); text-decoration: none; }
+    .accent-primary { background: var(--pc-primary-soft); color: var(--pc-primary); }
+    .accent-success { background: var(--pc-success-bg); color: var(--pc-success); }
+    .accent-warning { background: var(--pc-warning-bg); color: var(--pc-warning); }
+    .accent-indigo { background: var(--pc-info-bg); color: var(--pc-info); }
 </style>
 {% endblock %}
 

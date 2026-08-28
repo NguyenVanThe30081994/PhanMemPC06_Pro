@@ -1,5 +1,20 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject 3: Dashboard)
+Token hóa 3 dashboard đang dùng sang premium design system (không đổi logic):
+- `admin_dashboard.html`: style `overview-*` chuyển từ hex/shadow cứng sang
+  `var(--pc-*)`; palette 2 biểu đồ Chart.js đổi sang thang navy/semantic mới
+  (`#2b5396`…); bỏ khối `[data-theme="dark"]` thừa (token tự đổi theo theme).
+- `admin_dashboard_mobile.html`: tương tự cho `overview-mobile-*`, accent
+  dùng cặp `-soft/-text` token.
+- `report_dashboard.html`: `pc-page-header/pc-card/pc-table/pc-badge/pc-alert`
+  thay Bootstrap generic; progress bar tô bằng token semantic; giữ nguyên
+  loop, link `task_detail`, aria.
+- Ghi nhận: `templates/dashboard.html` là template mồ côi (không route nào
+  render) — KHÔNG nằm trong phạm vi, giữ nguyên, cần dọn ở subproject 6.
+- Test mới: `DashboardScreensContractTests` (6 test; suite 245 — chỉ còn 3 lỗi
+  có sẵn không liên quan). Đã verify /admin light+dark trên trình duyệt thật.
+
 ## 2026-08-28 (Giao diện — Subproject 2: Màn hình auth & bảo mật)
 Migrate 6 template auth/bảo mật sang design system `pc-*` (nền tảng
 subproject 1), giữ nguyên 100% contract chức năng:
