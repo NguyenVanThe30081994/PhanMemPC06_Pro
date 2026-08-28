@@ -1,5 +1,13 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject 5: Trang quản trị)
+Token hóa khung ngoài của `categories` + `category_admin` sang `pc-card`/`pc-btn`;
+các trang admin còn lại (`module_categories`, `units`, `roles`, `delegations`,
+`shortlinks`, `logs`, `db_tool`, `system_update`, `contacts`) dùng class custom
+(`pc06-page-summary-card`, `btn-bdhvs`, `pc06-section-menu-tab`) — bridge legacy
+đã map biến CSS sang token, không cần migrate thêm. Test mới:
+`AdminPagesContractTests` (11 tests; suite 263 — chỉ còn 3 lỗi có sẵn).
+
 ## 2026-08-28 (Giao diện — Subproject 4d: Import draft detail)
 Token hóa khung ngoài của `task_import_draft_detail` (~2.149 dòng, 26 hàm JS) sang
 `pc-card`/`pc-btn`/`pc-table`; giữ nguyên CSS nội bộ và toàn bộ JS nghiệp vụ

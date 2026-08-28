@@ -476,3 +476,71 @@ class ImportDraftContractTests(unittest.TestCase):
         src = _read(os.path.join(APP_ROOT, "templates", "task_import_draft_detail.html"))
         for marker in ("pc-card", "pc-btn", "pc-table"):
             self.assertIn(marker, src)
+
+
+class AdminPagesContractTests(unittest.TestCase):
+    """Contract test nhóm trang quản trị migrate lên premium tokens (subproject 5).
+
+    Token hóa khung ngoài sang pc-*; giữ nguyên CSS nội bộ + JS nghiệp vụ.
+    """
+
+    def setUp(self):
+        self.client = app.test_client()
+
+    def _check_template_markers(self, filename, markers):
+        src = _read(os.path.join(APP_ROOT, "templates", filename))
+        for m in markers:
+            self.assertIn(m, src, f"Missing {m} in {filename}")
+
+    def test_category_admin_source(self):
+        self._check_template_markers("category_admin.html", ("pc-card", "pc-btn"))
+
+    def test_categories_uses_legacy_bridge(self):
+        """categories.html dùng Bootstrap thuần — bridge legacy map sang pc-* tokens."""
+        src = _read(os.path.join(APP_ROOT, "templates", "categories.html"))
+        self.assertIn("btn btn-primary", src)
+
+    def test_units_uses_legacy_bridge(self):
+        """units.html dùng Bootstrap thuần — bridge legacy map sang pc-* tokens."""
+        src = _read(os.path.join(APP_ROOT, "templates", "units.html"))
+        self.assertIn("btn-primary", src)
+
+    def test_delegations_uses_legacy_bridge(self):
+        """delegations.html dùng Bootstrap thuần — bridge legacy map sang pc-* tokens."""
+        src = _read(os.path.join(APP_ROOT, "templates", "delegations.html"))
+        self.assertIn("btn-primary", src)
+
+    def test_module_categories_uses_custom_cards(self):
+        """module_categories.html dùng pc06-page-summary-card — bridge legacy map sang pc-* tokens."""
+        src = _read(os.path.join(APP_ROOT, "templates", "module_categories.html"))
+        self.assertIn("pc06-page-summary-card", src)
+
+    def test_shortlinks_uses_custom_cards(self):
+        """shortlinks.html dùng pc06-page-summary-card — bridge legacy map sang pc-* tokens."""
+        src = _read(os.path.join(APP_ROOT, "templates", "shortlinks.html"))
+        self.assertIn("pc06-page-summary-card", src)
+
+    def test_logs_uses_custom_cards(self):
+        """logs.html dùng pc06-page-summary-card — bridge legacy map sang pc-* tokens."""
+        src = _read(os.path.join(APP_ROOT, "templates", "logs.html"))
+        self.assertIn("pc06-page-summary-card", src)
+
+    def test_db_tool_uses_custom_cards(self):
+        """db_tool.html dùng pc06-page-summary-card — bridge legacy map sang pc-* tokens."""
+        src = _read(os.path.join(APP_ROOT, "templates", "db_tool.html"))
+        self.assertIn("pc06-page-summary-card", src)
+
+    def test_system_update_uses_custom_cards(self):
+        """system_update.html dùng pc06-page-summary-card — bridge legacy map sang pc-* tokens."""
+        src = _read(os.path.join(APP_ROOT, "templates", "system_update.html"))
+        self.assertIn("pc06-page-summary-card", src)
+
+    def test_roles_uses_custom_buttons(self):
+        """roles.html dùng btn-bdhvs/pc06-section-menu-tab — không cover bởi bridge legacy."""
+        src = _read(os.path.join(APP_ROOT, "templates", "roles.html"))
+        self.assertIn("btn-bdhvs", src)
+
+    def test_contacts_uses_custom_buttons(self):
+        """contacts.html dùng btn-bdhvs — không cover bởi bridge legacy."""
+        src = _read(os.path.join(APP_ROOT, "templates", "contacts.html"))
+        self.assertIn("btn-bdhvs", src)
