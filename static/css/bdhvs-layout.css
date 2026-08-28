@@ -1007,8 +1007,13 @@ a.pc06-chip {
     border-radius: 22px;
     background: rgba(248, 250, 252, 0.96);
     border: 1px solid rgba(148, 163, 184, 0.14);
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 12px;
+}
+
+.pc06-compact-card .pc06-toolbar-actions {
+    margin-top: auto;
 }
 
 .pc06-compact-card-head {
@@ -1383,8 +1388,8 @@ a.pc06-chip {
 }
 
 .pc06-section-menu-shell.with-actions {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
+    grid-template-columns: 1fr;
+    align-items: start;
     gap: 14px;
 }
 
@@ -1398,7 +1403,7 @@ a.pc06-chip {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
-    justify-content: flex-end;
+    justify-content: flex-start;
 }
 
 .pc06-section-menu-tab {

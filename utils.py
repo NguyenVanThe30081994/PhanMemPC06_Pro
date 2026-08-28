@@ -1376,11 +1376,15 @@ def has_any_module_permission(perms_json, module_codes, tier="view", is_admin=Fa
     )
 
 def get_perms_labels(perms_json):
-    if not perms_json: return ""
-    labels_map = {code: label for code, label in PERMISSION_MODULES}
+    labels = get_perms_label_list(perms_json)
+    return ", ".join(labels)
+
+def get_perms_label_list(perms_json):
+    """Trả danh sách nhãn quyền (dùng render badge, thay chuỗi nối dài)."""
+    if not perms_json: return []
     try:
         p = role_permission_form_payload(perms_json)
-        if not p: return ""
+        if not p: return []
         res = []
         for module_code, module_label in PERMISSION_MODULES:
             if p.get(f"p_{module_code}_view"):
@@ -1389,10 +1393,10 @@ def get_perms_labels(perms_json):
                 res.append(f"{module_label} (Xử lý)")
             if p.get(f"p_{module_code}_exec"):
                 res.append(f"{module_label} (Thực hiện)")
-        return ", ".join(res)
+        return res
     except Exception as e:
         print(f"Perms Label Error: {e}")
-        return ""
+        return []
 
 def clear_logs(start_date=None, end_date=None):
     try:

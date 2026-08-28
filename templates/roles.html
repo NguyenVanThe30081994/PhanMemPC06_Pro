@@ -174,9 +174,15 @@
                         <div class="pc06-compact-card-head">
                             <div>
                                 <h3>{{ r.name }}</h3>
-                                <p>{{ get_labels(r.perms) or 'Chưa phân quyền' }}</p>
                             </div>
                             <span class="pc06-chip-count">{{ role_user_counts.get(r.id, 0) }}</span>
+                        </div>
+                        <div class="pc06-perm-tags">
+                            {% for label in get_label_list(r.perms) %}
+                            <span class="pc06-perm-tag">{{ label }}</span>
+                            {% else %}
+                            <span class="pc06-perm-tag is-empty">Chưa phân quyền</span>
+                            {% endfor %}
                         </div>
                         <div class="pc06-toolbar-actions">
                             <a href="{{ url_for('admin_bp.roles', role_id=r.id) }}" class="pc-btn pc-btn-secondary">
@@ -651,7 +657,34 @@ document.querySelectorAll('form').forEach((form) => {
     }
     .system-filter-list {
         display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
         gap: 10px;
+    }
+    .pc06-perm-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        max-height: 8.5rem;
+        overflow-y: auto;
+        padding-right: 2px;
+    }
+    .pc06-perm-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: .2rem .55rem;
+        border-radius: var(--pc-radius-pill);
+        background: var(--pc-primary-soft);
+        color: var(--pc-primary-strong);
+        font-size: var(--pc-text-xs);
+        font-weight: 700;
+        line-height: 1.4;
+        white-space: nowrap;
+    }
+    .pc06-perm-tag.is-empty {
+        background: var(--pc-bg-subtle);
+        color: var(--pc-text-muted);
+        border: 1px dashed var(--pc-border-strong);
+        white-space: normal;
     }
     .system-filter-chip {
         width: 100%;

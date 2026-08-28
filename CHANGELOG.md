@@ -1,5 +1,20 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject M8: Rà soát trực quan local nhóm HỆ THỐNG — layout toolbar/chip/card vai trò)
+Truy cập local bằng trình duyệt thật (light + dark), sửa 4 điểm bất hợp lý còn lại:
+(1) Toolbar trang vai trò: tab xếp dọc từng viên do grid 2 cột bị nén — đổi
+`.pc06-section-menu-shell.with-actions` thành stack 1 cột (3 tab một hàng, 4 nút một hàng
+dưới, canh trái) trong `bdhvs-layout.css`.
+(2) Chip vai trò full-width khổng lồ — `.system-filter-list` thêm
+`repeat(auto-fill, minmax(230px, 1fr))` thành lưới compact (roles/logs/module_categories).
+(3) Tường chữ quyền hạn trong card "Quản trị vai trò" — thêm helper
+`get_perms_label_list()` (utils.py, đăng ký context `get_label_list`), render badge
+`pc06-perm-tag` kèm clamp max-height 8.5rem có scroll.
+(4) Nút trong card lệch cao độ — `.pc06-compact-card` chuyển flex column,
+`.pc06-toolbar-actions` margin-top:auto ghim đáy card.
+Đã verify trực quan light + dark trên /roles (cả 3 tab) + quét 6 trang Hệ thống còn lại.
+Bump `bdhvs-layout.css ?v=2.2.2`. Suite 279 tests — chỉ còn 3 lỗi có sẵn.
+
 ## 2026-08-28 (Giao diện — Subproject M7: Hotfix dark mode nhóm trang HỆ THỐNG + toolbar đồng nhất)
 Theo báo cáo user (màn hình /roles light+dark):
 (1) **Chữ chìm ở dark** — khối CSS `system-filter-chip` copy-paste dùng nền sáng cứng

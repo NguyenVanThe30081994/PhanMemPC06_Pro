@@ -41,6 +41,7 @@ from security_utils.runtime_security import (
 from security_utils.security_helpers import get_client_ip, log_security_event
 from utils import (
     get_perms_labels,
+    get_perms_label_list,
     has_any_module_permission,
     has_module_permission,
     init_db,
@@ -630,6 +631,7 @@ def inject_global_data():
             session_timeout_ms=int(app.config.get('PC06_SESSION_TIMEOUT_SECONDS', SESSION_LIFETIME)) * 1000,
             session_activity_marker='',
             get_labels=get_perms_labels,
+            get_label_list=get_perms_label_list,
             can_module=can_module,
             can_any_module=can_any_module,
             can_manage_with_system=can_manage_with_system,
@@ -644,6 +646,7 @@ def inject_global_data():
         session_timeout_ms=int(app.config.get('PC06_SESSION_TIMEOUT_SECONDS', SESSION_LIFETIME)) * 1000,
         session_activity_marker=build_session_activity_marker(),
         get_labels=get_perms_labels,
+        get_label_list=get_perms_label_list,
         can_module=can_module,
         can_any_module=can_any_module,
         can_manage_with_system=can_manage_with_system,
