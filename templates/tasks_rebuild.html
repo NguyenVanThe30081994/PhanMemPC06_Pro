@@ -81,58 +81,81 @@
         {% endif %}
     </section>
 
-    <!-- Tabs for Task Categories -->
-    <section class="task-tabs-section">
-        <ul class="nav nav-tabs task-nav-tabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link {% if stats.attention > 0 %}active{% elif stats.my > 0 %}{% else %}active{% endif %}" 
-                        id="attention-tab" data-bs-toggle="tab" data-bs-target="#attention-pane" type="button">
-                    <i class="fa-solid fa-exclamation-circle me-2"></i>Cần xử lý ngay
-                    {% if stats.attention > 0 %}<span class="badge bg-danger ms-2">{{ stats.attention }}</span>{% endif %}
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link {% if stats.attention == 0 and stats.my > 0 %}active{% endif %}" 
-                        id="my-tab" data-bs-toggle="tab" data-bs-target="#my-pane" type="button">
-                    <i class="fa-solid fa-user me-2"></i>Việc của tôi
-                    {% if stats.my > 0 %}<span class="badge bg-primary ms-2">{{ stats.my }}</span>{% endif %}
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="managed-tab" data-bs-toggle="tab" data-bs-target="#managed-pane" type="button">
-                    <i class="fa-solid fa-users me-2"></i>Tôi giao
-                    {% if stats.managed > 0 %}<span class="badge bg-warning ms-2">{{ stats.managed }}</span>{% endif %}
-                </button>
-            </li>
-            {% if watch_tasks|length > 0 %}
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="watch-tab" data-bs-toggle="tab" data-bs-target="#watch-pane" type="button">
-                    <i class="fa-solid fa-eye me-2"></i>Chỉ xem
-                    <span class="badge bg-secondary ms-2">{{ watch_tasks|length }}</span>
-                </button>
-            </li>
-            {% endif %}
-        </ul>
+    <!-- Unified Button Row: Actions + Filters -->
+    <section class="task-filter-bar d-flex flex-wrap align-items-center gap-2 mb-4">
+        {% if is_lead or is_admin %}
+        <button class="pc-btn pc-btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+            <i class="fa-solid fa-plus me-2"></i>Tạo công việc
+        </button>
+        <a class="pc-btn pc-btn-secondary" href="{{ url_for('tasks_bp.task_import_drafts') }}">
+            <i class="fa-solid fa-file-import me-2"></i>Nhập tài liệu
+        </a>
+        {% endif %}
+        <button class="pc-btn {% if stats.attention > 0 %}pc-btn-primary{% else %}pc-btn-secondary{% endif %}" 
+                id="filter-attention" type="button" onclick="switchTaskTab('attention')">
+            <i class="fa-solid fa-exclamation-circle me-2"></i>Cần xử lý ngay
+            {% if stats.attention > 0 %}<span class="ms-1">({{ stats.attention }})</span>{% endif %}
+        </button>
+        <button class="pc-btn {% if stats.attention == 0 and stats.my > 0 %}pc-btn-primary{% else %}pc-btn-secondary{% endif %}" 
+                id="filter-my" type="button" onclick="switchTaskTab('my')">
+            <i class="fa-solid fa-user me-2"></i>Việc của tôi
+            {% if stats.my > 0 %}<span class="ms-1">({{ stats.my }})</span>{% endif %}
+        </button>
+        <button class="pc-btn pc-btn-secondary" id="filter-managed" type="button" onclick="switchTaskTab('managed')">
+            <i class="fa-solid fa-users me-2"></i>Tôi giao
+            {% if stats.managed > 0 %}<span class="ms-1">({{ stats.managed }})</span>{% endif %}
+        </button>
+        {% if watch_tasks|length > 0 %}
+        <button class="pc-btn pc-btn-secondary" id="filter-watch" type="button" onclick="switchTaskTab('watch')">
+            <i class="fa-solid fa-eye me-2"></i>Chỉ xem
+            <span class="ms-1">({{ watch_tasks|length }})</span>
+        </button>
+        {% endif %}
+    </section>
 
-        <div class="tab-content task-tab-content">
-            <!-- Attention Tasks Tab -->
-            <div class="tab-pane fade {% if stats.attention > 0 %}show active{% elif stats.my > 0 %}{% else %}show active{% endif %}" 
-                 id="attention-pane" role="tabpanel">
-                {% if attention_tasks %}
-                <div class="task-list-grid">
-                    {% for task in attention_tasks %}
-                    {{ task_card(task) }}
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="task-empty-state">
-                    <i class="fa-solid fa-check-circle text-success mb-3" style="font-size: 3rem;"></i>
-                    <p>Không có công việc cần xử lý ngay.</p>
-                </div>
-                {% endif %}
+    <script>
+    function switchTaskTab(tabName) {
+        // Update button active states
+        document.querySelectorAll('.task-filter-bar .pc-btn').forEach(btn => {
+            btn.classList.remove('pc-btn-primary');
+            btn.classList.add('pc-btn-secondary');
+        });
+        var activeBtn = document.getElementById('filter-' + tabName);
+        if (activeBtn) {
+            activeBtn.classList.remove('pc-btn-secondary');
+            activeBtn.classList.add('pc-btn-primary');
+        }
+        // Switch visible tab panes directly
+        document.querySelectorAll('.task-tab-content .tab-pane').forEach(pane => {
+            pane.classList.remove('show', 'active');
+        });
+        var targetPane = document.getElementById(tabName + '-pane');
+        if (targetPane) {
+            targetPane.classList.add('show', 'active');
+        }
+    }
+    </script>
+
+    <!-- Tab Content Sections -->
+    <section class="task-tab-content">
+        <!-- Attention Tasks Tab -->
+        <div class="tab-pane fade {% if stats.attention > 0 %}show active{% elif stats.my > 0 %}{% else %}show active{% endif %}" 
+             id="attention-pane" role="tabpanel">
+            {% if attention_tasks %}
+            <div class="task-list-grid">
+                {% for task in attention_tasks %}
+                {{ task_card(task) }}
+                {% endfor %}
             </div>
+            {% else %}
+            <div class="task-empty-state">
+                <i class="fa-solid fa-check-circle text-success mb-3" style="font-size: 3rem;"></i>
+                <p>Không có công việc cần xử lý ngay.</p>
+            </div>
+            {% endif %}
+        </div>
 
-            <!-- My Tasks Tab -->
+        <!-- My Tasks Tab -->
             <div class="tab-pane fade {% if stats.attention == 0 and stats.my > 0 %}show active{% endif %}" 
                  id="my-pane" role="tabpanel">
                 {% if my_tasks %}

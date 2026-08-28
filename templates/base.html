@@ -1474,6 +1474,15 @@
                 updateActivity();
             }
         })();
+
+        // Auto-refresh notification badge every 60 seconds
+        (function() {
+            setInterval(function() {
+                if (typeof checkUpdates === 'function') {
+                    checkUpdates();
+                }
+            }, 60000);
+        })();
     </script>
 </body>
 

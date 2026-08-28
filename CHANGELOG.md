@@ -1,5 +1,8 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject SF: Header notif auto-scroll + Button standardization)
+Thêm auto-refresh notification badge mỗi 60s trong `base.html`. Chuẩn hóa button giao việc trong `tasks_rebuild.html`: gộp hàng action + filter thành 1 hàng duy nhất với `pc-btn pc-btn-secondary` bordered style thống nhất; active state dùng `pc-btn-primary`. Hàng 1 stat pills giữ nguyên pill style. Suite 265 tests — chỉ còn 3 lỗi có sẵn.
+
 ## 2026-08-28 (Giao diện — Subproject SE: Button consistency + Header cleanup)
 Chuẩn hóa button group trong trang giao việc (`tasks_rebuild.html`): cả "Tạo công việc" + "Nhập tài liệu" dùng `pc-btn pc-btn-lg` cùng baseline/spacing. Xóa search form + clock/weather pills khỏi top navbar `base.html` theo yêu cầu user. Suite 265 tests — chỉ còn 3 lỗi có sẵn.
 
