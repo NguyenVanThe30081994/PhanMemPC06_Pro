@@ -69,16 +69,6 @@
                 <small>Hoàn tất</small>
             </div>
         </div>
-        {% if is_lead or is_admin %}
-        <div class="task-actions-compact d-flex align-items-center gap-3">
-            <button class="pc-btn pc-btn-primary pc-btn-lg" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
-                <i class="fa-solid fa-plus me-2"></i>Tạo công việc
-            </button>
-            <a class="pc-btn pc-btn-secondary pc-btn-lg" href="{{ url_for('tasks_bp.task_import_drafts') }}">
-                <i class="fa-solid fa-file-import me-2"></i>Nhập tài liệu
-            </a>
-        </div>
-        {% endif %}
     </section>
 
     <!-- Unified Button Row: Actions + Filters -->
@@ -576,7 +566,7 @@
         padding: 10px 16px;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.8);
-        border: 1px solid rgba(148, 163, 184, 0.14);
+        border: 1.5px solid var(--pc-border);
         font-weight: 700;
         font-size: 0.9rem;
         white-space: nowrap;

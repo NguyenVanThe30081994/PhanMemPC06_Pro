@@ -1,5 +1,8 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject SG: Remove duplicate buttons + Stat pill border)
+Xóa 2 nút duplicate "Tạo công việc" + "Nhập tài liệu" ở hàng giữa `tasks_rebuild.html` (trùng với hàng unified button row bên dưới). Tăng border stat pills hàng 1 từ `rgba(148,163,184,0.14)` lên `var(--pc-border)` 1.5px để viền rõ hơn. Suite 265 tests — chỉ còn 3 lỗi có sẵn.
+
 ## 2026-08-28 (Giao diện — Subproject SF: Header notif auto-scroll + Button standardization)
 Thêm auto-refresh notification badge mỗi 60s trong `base.html`. Chuẩn hóa button giao việc trong `tasks_rebuild.html`: gộp hàng action + filter thành 1 hàng duy nhất với `pc-btn pc-btn-secondary` bordered style thống nhất; active state dùng `pc-btn-primary`. Hàng 1 stat pills giữ nguyên pill style. Suite 265 tests — chỉ còn 3 lỗi có sẵn.
 
