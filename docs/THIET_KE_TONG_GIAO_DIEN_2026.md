@@ -179,7 +179,7 @@ Phần này là **quyết định chuẩn mực** cho các khoảng trống mà 
 ### 4.2 Loading — chốt pattern `pc-skeleton` (chưa có trong CSS)
 
 - **Chuẩn mực:** design system bổ sung pattern skeleton (triển khai ở subproject tiếp theo, spec như sau):
-  - `pc-skeleton` — khối xám `var(--pc-bg-subtle)`, radius `--pc-radius-md`, animation shimmer bằng `--pc-dur-slow` + `--pc-ease`, tôn trọng `prefers-reduced-motion`.
+  - `pc-skeleton` — khối xám `var(--pc-bg-subtle)`, radius `--pc-radius-md`, animation shimmer bằng `--pc-dur-loop` + `--pc-ease`, tôn trọng `prefers-reduced-motion`.
   - Biến thể: `pc-skeleton-line` (cao 1em, width %), `pc-skeleton-circle` (radius pill), `pc-skeleton-card` (cao ~5rem, dùng thay card đang load).
   - Quy tắc dùng: khu vực load async (fetch/AI analyze) hiển thị skeleton thay vì spinner đứng yên; spinner Bootstrap chỉ chấp nhận trong nút đang xử lý.
 - **Hiện trạng:** không có skeleton chung; `spinner-border` rải rác (`thong_bao.html:180`…).

@@ -1,5 +1,12 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject M2: Pattern pc-skeleton)
+Thêm pattern skeleton chuẩn (chuẩn mực Mục 4.2 của tài liệu tổng thiết kế): `.pc-skeleton`
+(+ `-line/-circle/-card`) với shimmer `@keyframes pc-skeleton-shimmer`, duration mới
+`--pc-dur-loop: 1.4s`, dark mode dùng gradient alpha thấp, tự tắt dưới `prefers-reduced-motion`.
+Quy tắc dùng: spinner chỉ trong nút xử lý; khu vực async hiển thị skeleton. Bump
+`pc06-premium.css ?v=1.1.0`. Test mới: `SkeletonComponentTests`; suite 269 — chỉ còn 3 lỗi có sẵn.
+
 ## 2026-08-28 (Giao diện — Subproject M1: Shell mobile token hóa + font thống nhất)
 Theo tài liệu tổng thiết kế `docs/THIET_KE_TONG_GIAO_DIEN_2026.md`: `base_mobile.html` bỏ
 khối biến hex inline, trỏ `--primary/--bg-*/--text-*/--border` về token `--pc-*` qua bridge

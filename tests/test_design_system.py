@@ -591,3 +591,19 @@ class ShellMobileTokenTests(unittest.TestCase):
         src = _read(os.path.join(APP_ROOT, "templates", "base.html"))
         self.assertIn("Be+Vietnam+Pro", src)
         self.assertNotIn("family=Inter", src)
+
+
+class SkeletonComponentTests(unittest.TestCase):
+    """Subproject M2: pattern pc-skeleton (chuẩn mực Mục 4.2 —
+    docs/THIET_KE_TONG_GIAO_DIEN_2026.md)."""
+
+    def test_premium_css_defines_skeleton(self):
+        css = _read(PREMIUM_CSS)
+        for cls in (
+            "--pc-dur-loop:",
+            ".pc-skeleton", ".pc-skeleton-line",
+            ".pc-skeleton-circle", ".pc-skeleton-card",
+            "@keyframes pc-skeleton-shimmer",
+            '[data-theme="dark"] .pc-skeleton::after',
+        ):
+            self.assertIn(cls, css)

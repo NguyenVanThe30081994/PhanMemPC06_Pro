@@ -110,6 +110,7 @@
     --pc-dur-fast: 120ms;
     --pc-dur-base: 200ms;
     --pc-dur-slow: 320ms;
+    --pc-dur-loop: 1.4s;
     --pc-ease: cubic-bezier(.2, 0, 0, 1);
 
     /* Z-index */
@@ -543,6 +544,31 @@ a:hover { color: var(--pc-primary-strong); }
     color: var(--pc-text);
 }
 .pc-login-google:hover { border-color: var(--pc-primary); background: var(--pc-bg-subtle); color: var(--pc-text); box-shadow: var(--pc-shadow-xs); }
+
+/* Skeleton — chuẩn mực Mục 4.2 (docs/THIET_KE_TONG_GIAO_DIEN_2026.md) */
+.pc-skeleton {
+    position: relative;
+    overflow: hidden;
+    background: var(--pc-bg-subtle);
+    border-radius: var(--pc-radius-md);
+}
+.pc-skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .55), transparent);
+    animation: pc-skeleton-shimmer var(--pc-dur-loop) var(--pc-ease) infinite;
+}
+[data-theme="dark"] .pc-skeleton::after {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .12), transparent);
+}
+@keyframes pc-skeleton-shimmer {
+    100% { transform: translateX(100%); }
+}
+.pc-skeleton-line { height: 1em; }
+.pc-skeleton-circle { border-radius: var(--pc-radius-pill); }
+.pc-skeleton-card { height: 5rem; }
 
 /* ---------- 5. App shell — token hóa class hiện có, KHÔNG đổi DOM ---------- */
 .desktop-sidebar {
