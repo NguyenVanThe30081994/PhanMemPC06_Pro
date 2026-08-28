@@ -60,3 +60,4 @@ dist/
 
 # Scratch/debug scripts
 scratch/
+.superpowers/
