@@ -3,7 +3,7 @@
 {% block title %}Công việc{% endblock %}
 
 {% macro task_card(task, show_actions=False) -%}
-<article class="task-workspace-card task-tone-{{ task.workspace_tone }}">
+<article class="task-workspace-card pc-card task-tone-{{ task.workspace_tone }}">
     {% if show_actions %}
     <div class="task-card-corner-actions">
         {% if task.can_edit %}
@@ -71,7 +71,7 @@
         </div>
         {% if is_lead or is_admin %}
         <div class="task-actions-compact">
-            <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+            <button class="btn btn-primary pc-btn" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
                 <i class="fa-solid fa-plus me-2"></i>Tạo công việc
             </button>
             <a class="btn btn-outline-primary" href="{{ url_for('tasks_bp.task_import_drafts') }}">
@@ -1616,7 +1616,7 @@
                     <button type="button" class="btn btn-outline-secondary" id="wizardBackBtn" disabled>Quay lại</button>
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
-                        <button type="button" class="btn btn-primary" id="wizardNextBtn">Tiếp tục</button>
+                        <button type="button" class="btn btn-primary pc-btn" id="wizardNextBtn">Tiếp tục</button>
                         <button type="submit" class="btn btn-primary d-none" id="wizardSubmitBtn">Xuất việc</button>
                     </div>
                 </div>
@@ -1790,7 +1790,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-primary">Lưu cấu hình</button>
+                    <button type="submit" class="btn btn-primary pc-btn">Lưu cấu hình</button>
                 </div>
             </form>
         </div>
@@ -1819,7 +1819,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
-                <button type="button" class="btn btn-primary" id="applyWizardRowAssignBtn">Áp dụng</button>
+                <button type="button" class="btn btn-primary pc-btn" id="applyWizardRowAssignBtn">Áp dụng</button>
             </div>
         </div>
     </div>
@@ -2551,7 +2551,7 @@
 
         container.innerHTML = `
             <div class="table-responsive border rounded-3 bg-white">
-                <table class="table table-bordered table-sm align-middle mb-0 wizard-outline-table">
+                <table class="table table-bordered pc-table table-sm align-middle mb-0 wizard-outline-table">
                     <thead scope="col"><tr>${headerCells.join('')}</tr></thead>
                     <tbody>${bodyHtml || '<tr><td colspan="' + totalCols + '" class="text-center text-muted py-3">Chưa có dòng nào.</td></tr>'}</tbody>
                 </table>

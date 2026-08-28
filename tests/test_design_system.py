@@ -441,3 +441,23 @@ class OutlineScreensContractTests(unittest.TestCase):
         src = _read(os.path.join(APP_ROOT, "templates", "outline_assign.html"))
         for marker in ("pc-card", "pc-btn"):
             self.assertIn(marker, src)
+
+
+class TaskCoreContractTests(unittest.TestCase):
+    """Contract test nhóm task core migrate lên premium tokens (subproject 4c).
+
+    Token hóa khung ngoài sang pc-*; giữ nguyên CSS nội bộ + JS nghiệp vụ.
+    """
+
+    def setUp(self):
+        self.client = app.test_client()
+
+    def test_tasks_rebuild_source_uses_premium_components(self):
+        src = _read(os.path.join(APP_ROOT, "templates", "tasks_rebuild.html"))
+        for marker in ("pc-card", "pc-btn", "pc-table"):
+            self.assertIn(marker, src)
+
+    def test_task_detail_rebuild_source_uses_premium_components(self):
+        src = _read(os.path.join(APP_ROOT, "templates", "task_detail_rebuild.html"))
+        for marker in ("pc-btn", "pc-table"):
+            self.assertIn(marker, src)

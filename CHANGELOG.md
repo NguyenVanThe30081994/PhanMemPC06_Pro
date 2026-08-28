@@ -1,5 +1,12 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject 4c: Task core rebuild)
+Token hóa khung ngoài của `tasks_rebuild` + `task_detail_rebuild` (~6.000 dòng,
+124 hàm JS) sang `pc-card`/`pc-btn`/`pc-table`; giữ nguyên CSS nội bộ và toàn bộ
+JS nghiệp vụ (filter, pagination, wizard, assignment flow). Test mới:
+`TaskCoreContractTests` (2 source tests; suite 251 — chỉ còn 3 lỗi có sẵn).
+Ghi nhận: không đổi layout/JS để tránh vỡ luồng nghiệp vụ phức tạp.
+
 ## 2026-08-28 (Giao diện — Subproject 4b: Outline editor + assign)
 Token hóa container/button của 2 trang outline standalone sang `pc-card`/`pc-btn`,
 giữ nguyên CSS palette đặc thù (`--navy/--seal/--gold`) và JS editor phức tạp
