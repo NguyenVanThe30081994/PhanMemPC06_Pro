@@ -1,5 +1,11 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-28 (Giao diện — Subproject SC: Audit template 0 marker)
+Kiểm tra 23 template còn 0 `pc-*` markers — xác nhận dùng class custom
+(`btn-bdhvs`, `pc06-page-summary-card`) đã được bridge legacy map sang token.
+Không cần migrate thêm. Ghi nhận: **HOÀN TẤT LÔ A+B+C** (audit + fix UI đồng nhất
+toàn bộ giao diện PC06 theo yêu cầu superpowers).
+
 ## 2026-08-28 (Giao diện — Subproject SB: Dashboard giao việc layout/buttons)
 Tối ưu spacing/padding của metric card + chart panel trên `admin_dashboard.html` sang
 `var(--pc-space-*)` tokens; giữ nguyên grid layout, chart JS, responsive breakpoints.
