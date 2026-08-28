@@ -89,3 +89,21 @@ class DesignSystemContractTests(unittest.TestCase):
             ".nav-link-top", ".mobile-header", ".mobile-bottom-nav",
         ):
             self.assertIn(selector, css, f"Thiếu shell selector {selector}")
+
+
+class LoginPilotTests(unittest.TestCase):
+    def setUp(self):
+        self.client = app.test_client()
+
+    def test_login_desktop_uses_design_system_and_keeps_contract(self):
+        res = self.client.get("/login")
+        self.assertEqual(res.status_code, 200)
+        body = res.get_data(as_text=True)
+        self.assertIn("pc06-premium.css", body)
+        self.assertIn("pc-login", body)
+        self.assertIn('name="username"', body)
+        self.assertIn('name="password"', body)
+        self.assertIn('id="password_field"', body)
+        self.assertIn('id="forgotModal"', body)
+        self.assertIn("togglePasswordVisibility", body)
+        self.assertIn("csrf_token", body)

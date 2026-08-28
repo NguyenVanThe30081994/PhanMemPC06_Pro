@@ -7,178 +7,115 @@
     <title>Đăng nhập – HỆ THỐNG PC06</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pc06-premium.css') }}?v=1.0.0">
     <style>
-        :root {
-            --primary: #0066ff;
-            --primary-dark: #1e40af;
-            --azure-light: #f0f9ff;
+        .pc-login-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background: url('/static/img/cand_logo_bg.jpg') center/cover no-repeat;
         }
-        * { font-family: 'Inter', 'Be Vietnam Pro', sans-serif; }
-        
-        body {
-            min-height: 100vh;
-            margin: 0;
-            background: url('/static/img/cand_logo_bg.jpg') center/cover no-repeat fixed;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            overflow: hidden;
+        .pc-login-bg::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(18, 31, 56, .84) 0%, rgba(43, 83, 150, .60) 100%);
         }
-
-        .login-container {
+        .pc-login-shell {
             position: relative;
-            z-index: 10;
-            width: 100%;
-            max-width: 440px;
-        }
-
-        .bento-card {
-            background: #ffffff;
-            border: 1px solid rgba(15, 23, 42, 0.06);
-            border-radius: 24px;
-            padding: 44px 40px;
-            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
-        }
-
-        .logo-box {
-            width: 80px;
-            height: 80px;
-            background: var(--primary);
-            border-radius: 20px;
+            z-index: 1;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 28px;
+            padding: var(--pc-space-6);
+        }
+        .pc-login-card { width: 100%; max-width: 460px; padding: 44px 40px; }
+        .pc-login-logo {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto var(--pc-space-6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--pc-radius-lg);
+            background: var(--pc-primary);
             color: #fff;
-            font-size: 32px;
+            font-size: 30px;
+            box-shadow: var(--pc-shadow-md);
         }
-
-        .brand-title {
-            font-family: 'Montserrat', sans-serif;
+        .pc-login-title {
+            font-size: var(--pc-text-h1);
             font-weight: 800;
-            font-size: 28px;
-            letter-spacing: -1px;
-            color: #0f172a;
-            margin-bottom: 8px;
+            letter-spacing: -.02em;
             text-align: center;
+            color: var(--pc-text);
+            margin-bottom: 6px;
         }
-
-        .brand-subtitle {
-            font-size: 14px;
-            color: #64748b;
+        .pc-login-subtitle {
+            font-size: var(--pc-text-body);
+            color: var(--pc-text-muted);
             text-align: center;
-            margin-bottom: 40px;
-            font-weight: 500;
+            margin-bottom: var(--pc-space-8);
         }
-
-        .form-label {
-            font-size: 12px;
-            font-weight: 700;
-            text-uppercase: uppercase;
-            letter-spacing: 1px;
-            color: #475569;
-            margin-bottom: 8px;
-            margin-left: 4px;
+        .pc-input-suffix {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+            border-left: 0;
         }
-
-        .form-control {
-            background: #f8fafc;
-            border: 1px solid rgba(15, 23, 42, 0.1);
-            border-radius: 12px;
-            padding: 14px 18px;
-            font-size: 15px;
-            font-weight: 500;
-            color: #1e293b;
-            transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
-        }
-
-        .form-control:focus {
-            background: #fff;
-            border-color: #0066ff;
-            box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.12);
-            outline: none;
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            border: none;
-            border-radius: 12px;
-            padding: 15px;
-            font-weight: 700;
-            font-size: 16px;
-            letter-spacing: 0.5px;
-            transition: background-color 0.15s ease;
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-dark);
-        }
-
-        .footer-note {
-            text-align: center;
-            margin-top: 30px;
-            font-size: 12px;
-            color: #94a3b8;
-            font-weight: 500;
+        @media (max-width: 575px) {
+            .pc-login-card { padding: 32px 24px; }
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="bento-card">
-            <div class="logo-box">
-                <i class="fa-solid fa-shield-halved"></i>
-            </div>
-            
-            <h1 class="brand-title">HỆ THỐNG PC06</h1>
+    <div class="pc-login-bg" aria-hidden="true"></div>
+    <div class="pc-login-shell">
+        <div class="pc-card pc-login-card pc-login">
+            <div class="pc-login-logo"><i class="fa-solid fa-shield-halved"></i></div>
+            <h1 class="pc-login-title">HỆ THỐNG PC06</h1>
+            <p class="pc-login-subtitle">Đăng nhập để tiếp tục làm việc</p>
 
             {% with messages = get_flashed_messages(with_categories=true) %}
               {% if messages %}
                 {% for category, message in messages %}
-                  <div class="alert alert-{{ 'danger' if category == 'error' else category }} rounded-4 border-0 shadow-sm mb-4 py-3 px-4">
-                    <div class="d-flex align-items-center gap-2 small fw-bold">
-                        <i class="fa-solid fa-circle-exclamation"></i>
-                        {{ message }}
-                    </div>
+                  <div class="pc-alert {{ 'pc-alert-danger' if category == 'error' else 'pc-alert-' ~ category }} mb-3">
+                      <i class="fa-solid fa-circle-exclamation mt-1"></i>
+                      <div>{{ message }}</div>
                   </div>
                 {% endfor %}
               {% endif %}
             {% endwith %}
+
             <form method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
-                <div class="mb-4">
-                    <label class="form-label text-uppercase letter-spacing-1">Tên tài khoản</label>
-                    <input type="text" name="username" class="form-control" placeholder="Nhập tên đăng nhập..." required autocomplete="username">
+                <div class="pc-form-group">
+                    <label class="pc-label" for="username_field">Tên tài khoản</label>
+                    <input type="text" id="username_field" name="username" class="pc-input" placeholder="Nhập tên đăng nhập..." required autocomplete="username">
                 </div>
 
-                <div class="mb-5">
-                    <label class="form-label d-flex justify-content-between text-uppercase letter-spacing-1">
+                <div class="pc-form-group">
+                    <label class="pc-label d-flex justify-content-between align-items-center" for="password_field">
                         Mật khẩu
-                        <a href="#" class="text-decoration-none text-primary tiny fw-bold" data-bs-toggle="modal" data-bs-target="#forgotModal">Quên mật khẩu?</a>
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#forgotModal" style="text-transform:none; letter-spacing:0;">Quên mật khẩu?</a>
                     </label>
-                    <div class="input-group">
-                        <input type="password" name="password" id="password_field" class="form-control" placeholder="Nhập mật khẩu..." required autocomplete="current-password" style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
-                        <button class="btn btn-outline-light border px-3" type="button" onclick="togglePasswordVisibility()" style="border-top-right-radius: 12px; border-bottom-right-radius: 12px; background: #f8fafc;">
-                            <i class="fa-regular fa-eye-slash text-muted" id="eye_icon"></i>
+                    <div class="d-flex">
+                        <input type="password" name="password" id="password_field" class="pc-input" placeholder="Nhập mật khẩu..." required autocomplete="current-password" style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                        <button class="pc-btn pc-btn-secondary pc-input-suffix" type="button" onclick="togglePasswordVisibility()" aria-label="Hiện hoặc ẩn mật khẩu">
+                            <i class="fa-regular fa-eye-slash" id="eye_icon"></i>
                         </button>
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100 mb-2">
+                <button type="submit" class="pc-btn pc-btn-primary w-100">
                     ĐĂNG NHẬP HỆ THỐNG <i class="fa-solid fa-arrow-right ms-2"></i>
                 </button>
             </form>
 
             {% if config.get('GOOGLE_OAUTH_CLIENT_ID') and config.get('GOOGLE_OAUTH_CLIENT_SECRET') %}
-            <div class="d-flex align-items-center gap-3 my-4">
-                <div class="flex-grow-1" style="height:1px; background:rgba(15,23,42,0.08);"></div>
-                <span class="small fw-semibold text-muted" style="font-size:12px; letter-spacing:0.5px;">HOẶC</span>
-                <div class="flex-grow-1" style="height:1px; background:rgba(15,23,42,0.08);"></div>
-            </div>
-            <a href="/auth/google" class="btn w-100 d-flex align-items-center justify-content-center gap-2 py-3"
-               style="background:#fff; border:1px solid rgba(15,23,42,0.12); border-radius:12px; font-weight:600; color:#1e293b; transition:background-color 0.15s ease;">
+            <div class="pc-login-divider">HOẶC</div>
+            <a href="/auth/google" class="pc-btn pc-login-google">
                 <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
                     <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.7-.4-3.9z"/>
                     <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
@@ -188,27 +125,26 @@
                 Đăng nhập bằng Google
             </a>
             {% endif %}
-            
         </div>
     </div>
 
     <!-- Forgot Password Modal -->
     <div class="modal fade" id="forgotModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content" style="background:#fff; border:1px solid rgba(15,23,42,0.06); border-radius:20px; box-shadow:0 12px 32px rgba(15,23,42,0.12); overflow:visible;">
-                <div class="modal-header" style="display:flex; align-items:center; justify-content:space-between; padding:16px 24px 0 24px; border:none; margin:0; background:transparent;">
-                    <h5 class="modal-title fw-bold" style="display:inline-flex; align-items:center; padding:8px 20px; border-radius:10px; background:#0066ff; color:#fff; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.8px;">Khôi phục mật khẩu</h5>
-                    <button type="button" class="btn-close" style="opacity:0.6; background-color:rgba(100,116,139,0.1); padding:12px; border-radius:50%; margin:0;" data-bs-toggle="modal"></button>
+            <div class="modal-content pc-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title">Khôi phục mật khẩu</h5>
+                    <button type="button" class="btn-close" data-bs-toggle="modal"></button>
                 </div>
-
-                <div class="modal-body text-center py-5">
-                    <div class="bg-primary rounded-circle d-inline-flex p-4 mb-4 text-white shadow-lg" style="--bs-bg-opacity: 0.15">
+                <div class="modal-body text-center py-4">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3"
+                         style="width:72px; height:72px; background:var(--pc-primary-soft); color:var(--pc-primary);">
                         <i class="fa-solid fa-shield-halved fs-2"></i>
                     </div>
                     <p class="mb-0 px-3 fw-medium">Để bảo mật hệ thống, vui lòng liên hệ <strong>Quản trị viên</strong> hoặc <strong>Đội Tham mưu</strong> để được cấp lại mật khẩu mới.</p>
                 </div>
-                <div class="modal-footer border-0 pt-0 justify-content-center">
-                    <button type="button" class="btn btn-primary rounded-pill px-5 py-2 fw-bold" data-bs-dismiss="modal">ĐÃ HIỂU</button>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="pc-btn pc-btn-primary" data-bs-dismiss="modal">ĐÃ HIỂU</button>
                 </div>
             </div>
         </div>
