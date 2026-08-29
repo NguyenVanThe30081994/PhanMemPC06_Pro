@@ -1,5 +1,20 @@
 # CHANGELOG / TIMELINE
 
+## 2026-08-29 (Giao diện — Subproject M14: Droplist bỏ chrome trình duyệt + bỏ bulk Danh bạ)
+Theo phản hồi "droplist Nguồn import/Lĩnh vực vẫn là base theo trình duyệt" + "bỏ nút
+Chọn tất cả / Xóa đã chọn ở Danh bạ":
+- **Gốc rễ droplist native**: `pc-select` không có `appearance: none` — Safari/Chromium
+vẽ nguyên viền + mũi tên + focus ring hệ thống đè CSS. Fix toàn cục trong
+`pc06-premium.css`: MỌI `<select>` (kể cả không class) áp `appearance: none` +
+chevron SVG theo token + focus ring chuẩn; `select[multiple]` giữ nguyên scroll.
+- **File input** ("Chọn tệp" trên Nhập import / Nhập Excel): style
+`::file-selector-button` theo token; phát hiện + gỡ rule `content: "Chọn tệp"` rác
+trong `style.css` (Chromium render hỏng button 30px mất chữ).
+- **Danh bạ**: bỏ nút "Chọn tất cả" + "Xóa đã chọn" + text trạng thái — chỉ còn ô tích
+đầu cột (theo yêu cầu); toolbar còn tìm kiếm + đếm liên hệ.
+Bump `pc06-premium.css ?v=1.3.7`, `style.css ?v=4.2.1`. Đã verify trực quan trang
+Nhập import + Danh bạ (dark). Suite 281 tests — chỉ còn 3 lỗi có sẵn.
+
 ## 2026-08-29 (Giao diện — Subproject M13: Override toàn cục droplist + bỏ bulk tab Tài khoản)
 Theo phản hồi "droplist chưa đồng bộ với button / vì sao các droplist chưa sửa":
 - **Fix hệ thống**: override toàn cục `.form-select` + `.form-control` trong

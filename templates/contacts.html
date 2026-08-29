@@ -106,19 +106,6 @@
 
                 <div class="d-flex align-items-center gap-3 flex-wrap ms-auto">
                     <span class="pc06-toolbar-count" id="contactVisibleCount">{{ contacts|length }} liên hệ</span>
-                    {% if can_module('contact', 'process') %}
-                    <div class="pc06-contacts-bulk-bar">
-                        <button type="button" class="pc-btn pc-btn-secondary" onclick="toggleAllContacts()">
-                            <i class="fa-solid fa-check-double"></i>
-                            Chọn tất cả
-                        </button>
-                        <button type="button" class="pc-btn pc-btn-secondary text-danger" id="bulkDeleteBtn" onclick="submitBulkDelete()" disabled>
-                            <i class="fa-solid fa-trash-can"></i>
-                            Xóa đã chọn
-                        </button>
-                        <span class="small text-muted" id="bulkSelectionText">Chưa chọn liên hệ nào</span>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
 

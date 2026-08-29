@@ -1345,14 +1345,7 @@ body {
     margin-bottom: 1.25rem;
 }
 
-/* Localized File Input Button */
-input[type="file"]::file-selector-button {
-    content: "Chọn tệp";
-}
-/* For Webkit/Blink specifically */
-input[type="file"]::-webkit-file-upload-button {
-    content: "Chọn tệp"; /* Note: This might not work in all versions, template change is safer */
-}
+/* File input button được style trong pc06-premium.css (không set content — Chromium render hỏng) */
 
 .data-header {
     padding: 16px 24px;
