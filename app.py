@@ -282,6 +282,7 @@ SENSITIVE_REAUTH_ENDPOINTS = {
     'admin_bp.db_tool',
     'admin_bp.db_manage',
     'admin_bp.reset_users_password_bulk',
+    'admin_bp.reset_users_password_by_units',
     'admin_bp.system_update',
     'admin_bp.git_pull',
     'auth_bp.two_factor_setup',

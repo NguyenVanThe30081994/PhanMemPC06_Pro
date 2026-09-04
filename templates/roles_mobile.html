@@ -10,6 +10,10 @@
     .mobile-role-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
     .mobile-role-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
     .mobile-role-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06); padding: 16px; margin-bottom: 14px; }
+    .mobile-unit-checklist { display: grid; gap: 8px; max-height: 15rem; overflow-y: auto; }
+    .mobile-unit-check { display: flex; align-items: center; gap: 8px; padding: .55rem .65rem; border: 1px solid var(--border); border-radius: 14px; background: var(--bg-surface); cursor: pointer; font-size: .9rem; }
+    .mobile-unit-check span:first-of-type { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pc06-chip-count-sm { min-width: 26px; height: 22px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: var(--pc-primary-soft); color: var(--pc-primary-strong); font-size: .72rem; font-weight: 800; flex-shrink: 0; }
 </style>
 {% endblock %}
 
@@ -49,6 +53,10 @@
             <span>Chọn tất cả</span>
         </label>
         <div class="d-flex flex-wrap justify-content-end gap-2">
+            <button type="button" class="btn btn-sm btn-outline-info rounded-pill" data-bs-toggle="modal" data-bs-target="#mobileBulkResetByUnitsModal">
+                <i class="fa-solid fa-building-circle-arrow-right"></i>
+                Reset theo đơn vị
+            </button>
             <button type="button" class="btn btn-sm btn-outline-warning rounded-pill" onclick="submitMobileBulkPasswordReset()">
                 <i class="fa-solid fa-rotate-left"></i>
                 Reset toàn bộ
@@ -107,6 +115,56 @@
     {% if selected_unit %}<input type="hidden" name="unit" value="{{ selected_unit }}">{% endif %}
     {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
 </form>
+<form method="POST" action="{{ url_for('admin_bp.reset_users_password_by_units') }}" id="mobileBulkResetByUnitsForm" class="d-none">
+    <input type="hidden" name="unit_values" id="mobileBulkResetByUnitsValues">
+    <input type="hidden" name="temporary_password" id="mobileBulkResetByUnitsPassword">
+    <input type="hidden" name="confirm_password" id="mobileBulkResetByUnitsConfirm">
+</form>
+<!-- Mobile Bulk Reset Password By Units Modal -->
+<div class="modal fade" id="mobileBulkResetByUnitsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header modal-header-pill dark">
+                <h5 class="modal-title fw-bold">RESET MẬT KHẨU THEO ĐƠN VỊ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3">
+                <p class="small text-muted mb-3">Chọn một hoặc nhiều đơn vị. Toàn bộ tài khoản thuộc các đơn vị được tích sẽ nhận mật khẩu tạm thời mới và bắt buộc đổi mật khẩu khi đăng nhập lại. Tài khoản <code>admin</code> hệ thống luôn được giữ nguyên.</p>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark small">ĐƠN VỊ <span class="text-muted fw-normal">(tích chọn)</span></label>
+                    <div class="mobile-unit-checklist">
+                        {% for unit in units_with_counts %}
+                        <label class="mobile-unit-check">
+                            <input type="checkbox" class="form-check-input mobile-bulk-reset-unit-check" value="{{ unit.value }}" onchange="updateMobileBulkResetByUnitsState()">
+                            <span class="fw-bold">{{ unit.name }}</span>
+                            <span class="pc06-chip-count-sm">{{ unit.count }}</span>
+                        </label>
+                        {% else %}
+                        <div class="pc-alert pc-alert-warning small mb-0">Chưa có đơn vị nào có tài khoản để reset.</div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-text mt-2" id="mobileBulkResetByUnitsSelectionText">Chưa chọn đơn vị nào</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark small">MẬT KHẨU TẠM THỜI</label>
+                    <input type="password" class="form-control" id="mobileBulkResetByUnitsPasswordInput" autocomplete="new-password" placeholder="Nhập mật khẩu tạm thời mạnh...">
+                    <div class="form-text mt-1">{{ password_requirements_text }}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark small">NHẬP LẠI MẬT KHẨU</label>
+                    <input type="password" class="form-control" id="mobileBulkResetByUnitsConfirmInput" autocomplete="new-password" placeholder="Nhập lại để xác nhận...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-danger rounded-pill" id="mobileBulkResetByUnitsSubmitBtn" onclick="submitMobileBulkResetByUnits()" disabled>
+                    <i class="fa-solid fa-key"></i>
+                    Reset mật khẩu
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 <!-- Add Role Modal -->
 <div class="modal fade" id="addRoleModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered mx-3">
@@ -352,6 +410,40 @@ function submitMobileBulkPasswordReset() {
     document.getElementById('mobileBulkPasswordResetSelectedIds').value = JSON.stringify(resettableIds);
     document.getElementById('mobileBulkPasswordResetTemporaryPassword').value = tempPassword;
     document.getElementById('mobileBulkPasswordResetForm').submit();
+}
+
+function updateMobileBulkResetByUnitsState() {
+    const selectedChecks = Array.from(document.querySelectorAll('.mobile-bulk-reset-unit-check:checked'));
+    const submitBtn = document.getElementById('mobileBulkResetByUnitsSubmitBtn');
+    const selectionText = document.getElementById('mobileBulkResetByUnitsSelectionText');
+    if (!submitBtn || !selectionText) return;
+    submitBtn.disabled = selectedChecks.length === 0;
+    selectionText.textContent = selectedChecks.length === 0
+        ? 'Chưa chọn đơn vị nào'
+        : `Đã chọn ${selectedChecks.length} đơn vị`;
+}
+
+async function submitMobileBulkResetByUnits() {
+    const selectedUnits = Array.from(document.querySelectorAll('.mobile-bulk-reset-unit-check:checked')).map((item) => item.value).filter(Boolean);
+    if (!selectedUnits.length) {
+        pcAlert('Cần chọn ít nhất một đơn vị để reset mật khẩu.', 'warning');
+        return;
+    }
+    const tempPassword = (document.getElementById('mobileBulkResetByUnitsPasswordInput').value || '').trim();
+    const confirmPassword = (document.getElementById('mobileBulkResetByUnitsConfirmInput').value || '').trim();
+    if (!tempPassword) {
+        pcAlert('Cần nhập mật khẩu tạm thời.', 'warning');
+        return;
+    }
+    if (tempPassword !== confirmPassword) {
+        pcAlert('Mật khẩu xác nhận không khớp với mật khẩu tạm thời.', 'error');
+        return;
+    }
+    if (!(await pcConfirm(`Reset mật khẩu cho toàn bộ tài khoản thuộc ${selectedUnits.length} đơn vị đã chọn?`))) return;
+    document.getElementById('mobileBulkResetByUnitsValues').value = JSON.stringify(selectedUnits);
+    document.getElementById('mobileBulkResetByUnitsPassword').value = tempPassword;
+    document.getElementById('mobileBulkResetByUnitsConfirm').value = confirmPassword;
+    document.getElementById('mobileBulkResetByUnitsForm').submit();
 }
 
 document.querySelectorAll('form').forEach((form) => {

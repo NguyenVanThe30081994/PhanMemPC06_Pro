@@ -2,7 +2,7 @@
 
 > File này ghi lại toàn bộ kiến trúc, trạng thái, quyết định và việc cần làm của dự án
 > để Agent phiên làm việc mới đọc ĐẦU TIÊN là nắm được toàn bộ mã nguồn và biết việc tiếp theo.
-> Cập nhật mỗi khi thay đổi trạng thái. (Cập nhật lần cuối: 2026-08-31)
+> Cập nhật mỗi khi thay đổi trạng thái. (Cập nhật lần cuối: 2026-09-02)
 
 ---
 
@@ -82,7 +82,8 @@ DB MariaDB `dea35688_pc06tuyenquang`. Xem bằng chứng trong `DEPLOY_CPANEL.md
 - `routes/auth.py` (`auth_bp`) — `/login`, `/logout`, `/password`, `/reauth`, 2FA `/login/two-factor`,
   `/security/two-factor` (TOTP mã hóa Fernet trong `User.totp_secret_encrypted`).
 - `routes/admin.py` (`admin_bp`, 90KB) — dashboard `/admin`, `/roles` (vai trò + tài khoản, import
-  Excel, reset mật khẩu bulk), `/admin/units`, `/admin/delegations`, `/logs`, `/admin/db-tool`,
+  Excel, reset mật khẩu bulk theo tài khoản đã chọn **và theo đơn vị tích chọn**
+  `/admin/users/reset-password-by-units`), `/admin/units`, `/admin/delegations`, `/logs`, `/admin/db-tool`,
   `/admin/db-manage`, `/admin/module-categories`, `/admin/categories` (admin danh mục),
   `/admin/system/update` + `/admin/system/git-pull` + `/admin/git/*`, `/admin/styleguide`
   (trang tra cứu design system, chỉ admin), `/admin/deadline-watchdog/run`.
@@ -167,9 +168,19 @@ working tree sạch, `main` == `origin/main` (commit cuối `f3103f5` — Subpro
   layout reauth, class CSS dark mode.
 - Đã sửa 3 lỗi ĐA06 26/08: L1 (403 export do gọi sai chữ ký `can_view_task`), L2 (thiếu import
   `export_outline_docx`), L3 (đồng bộ 302/403) trong `routes/tasks.py` + `tests/test_task_outline_word_export.py`.
+- **Reset mật khẩu hàng loạt theo đơn vị** (02/09/2026): thêm endpoint
+  `POST /admin/users/reset-password-by-units` (`routes/admin.py:reset_users_password_by_units`,
+  guard `can_module('user','process')`, đã đưa vào `SENSITIVE_REAUTH_ENDPOINTS` trong `app.py`).
+  Nhận `unit_values` (JSON list stable-value danh mục Đơn vị) + `temporary_password`/`confirm_password`;
+  reset mọi tài khoản thuộc các đơn vị tích chọn, giữ nguyên `admin`, bật `must_change_password`,
+  tăng `session_version`. UI: modal "Reset theo đơn vị" (danh sách checkbox đơn vị kèm số tài khoản)
+  trên cả `templates/roles.html` + `roles_mobile.html`; đồng thời khôi phục thanh tác vụ hàng loạt
+  desktop (nút "Reset mật khẩu đã chọn" + "Xóa đã chọn" vốn bị orphan). Helper `_build_unit_user_query`
+  khớp `unit_area` theo MỌI biểu diễn (stable/value/code/name) + `unit_key`. Test mới
+  `tests/test_admin_bulk_reset_by_units.py` (7 case).
 
 ### 🚧 Đang dở / cần xử lý
-- **Suite 281 test còn 3 lỗi có sẵn** (đã chạy lại xác thực ngày 31/08/2026 bằng
+- **Suite 288 test còn 3 lỗi có sẵn** (đã chạy lại xác thực ngày 02/09/2026 bằng
   `.venv/bin/python run_tests.py`):
   1. `tests/test_report_aggregate` — **ImportError: No module named 'pytest'** (requirements.txt
      có pytest nhưng `.venv` local chưa cài; lỗi môi trường, không phải code).
@@ -209,7 +220,7 @@ working tree sạch, `main` == `origin/main` (commit cuối `f3103f5` — Subpro
      `tests/test_task_synthesis.py:184` và `:211` (ví dụ kỳ vọng `"assign_1: Đoạn văn của Đội A."`).
    - Nếu định dạng cũ (đoạn thuần) là chuẩn → sửa phần ghép đoạn trong
      `services/task_report_aggregate.py` / `_export_outline_word_v2` để không chèn nhãn.
-   Sau khi sửa, baseline mới là **281 test / 0 fail** — mọi thay đổi sau này không được tăng lỗi.
+   Sau khi sửa, baseline mới là **288 test / 0 fail** — mọi thay đổi sau này không được tăng lỗi.
 2. **Cài `pytest` vào `.venv`** (`.venv/bin/pip install pytest`) để hết ImportError của
    `tests/test_report_aggregate` khi chạy local; giữ `pytest` trong `requirements.txt` cho CI.
 3. **Gỡ route trùng** `task_export_outline_docx` (`routes/tasks.py:174`) hoặc v2 — giữ đúng 1,
@@ -294,5 +305,6 @@ cp pc06_system.db "backups/pc06_system_$(date +%Y%m%d_%H%M%S).db"
   người dùng giữ cache cũ.
 - Local dev DB là `pc06_system.db` SQLite ở root (có file `-journal` là bình thường); DB prod
   là MariaDB — schema migrate tự chạy lúc khởi động app, không cần SQL thủ công.
-- Baseline test theo từng thời điểm: trước 26/08 là 222 test/4 fail; hiện 281 test/3 fail
-  (sau khi fix mục 4.1–4.2 sẽ là 281/0). Ghi rõ baseline trong mọi CHANGELOG entry.
+- Baseline test theo từng thời điểm: trước 26/08 là 222 test/4 fail; 31/08 là 281 test/3 fail;
+  hiện **288 test/3 fail** (thêm 7 test reset-mật-khẩu-theo-đơn-vị 02/09, giữ nguyên 3 lỗi nền
+  — sau khi fix mục 4.1–4.2 sẽ là 288/0). Ghi rõ baseline trong mọi CHANGELOG entry.

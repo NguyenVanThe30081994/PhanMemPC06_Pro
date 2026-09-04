@@ -48,6 +48,11 @@
                             <span class="d-none d-xl-inline">Nhập Excel</span>
                             <span class="d-xl-none">Nhập</span>
                         </button>
+                        <button type="button" class="pc-btn pc-btn-secondary" data-bs-toggle="modal" data-bs-target="#bulkResetByUnitsModal" {% if not units_with_counts %}disabled title="Chưa có đơn vị nào có tài khoản để reset"{% endif %}>
+                            <i class="fa-solid fa-building-circle-arrow-right"></i>
+                            <span class="d-none d-xl-inline">Reset theo đơn vị</span>
+                            <span class="d-xl-none">Reset ĐV</span>
+                        </button>
                         <button class="pc-btn pc-btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
                             <i class="fa-solid fa-user-plus"></i>
                             <span class="d-none d-xl-inline">Thêm tài khoản</span>
@@ -130,6 +135,24 @@
                         </tbody>
                     </table>
                 </div>
+                {% if can_manage_roles %}
+                <div class="pc06-bulk-bar">
+                    <div class="pc06-bulk-bar-info">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span id="bulkUserSelectionText">Chưa chọn tài khoản nào</span>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="pc-btn pc-btn-secondary" id="bulkPasswordResetBtn" onclick="submitBulkPasswordReset()" disabled>
+                            <i class="fa-solid fa-key"></i>
+                            Reset mật khẩu đã chọn
+                        </button>
+                        <button type="button" class="pc-btn pc-btn-danger" id="bulkUserDeleteBtn" onclick="submitBulkUserDelete()" disabled>
+                            <i class="fa-solid fa-trash-can"></i>
+                            Xóa đã chọn
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
             </section>
             </div>
 
@@ -202,6 +225,58 @@
     {% if selected_unit %}<input type="hidden" name="unit" value="{{ selected_unit }}">{% endif %}
     {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
 </form>
+<form method="POST" action="{{ url_for('admin_bp.reset_users_password_by_units') }}" id="bulkResetByUnitsForm" class="d-none">
+    <input type="hidden" name="unit_values" id="bulkResetByUnitsValues">
+    <input type="hidden" name="temporary_password" id="bulkResetByUnitsPassword">
+    <input type="hidden" name="confirm_password" id="bulkResetByUnitsConfirm">
+</form>
+<!-- Bulk Reset Password By Units Modal -->
+<div class="modal fade" id="bulkResetByUnitsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header modal-header-pill dark">
+                <h5 class="modal-title fw-bold">RESET MẬT KHẨU THEO ĐƠN VỊ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="small text-muted mb-3">Chọn một hoặc nhiều đơn vị. Toàn bộ tài khoản thuộc các đơn vị được tích sẽ nhận mật khẩu tạm thời mới và bắt buộc đổi mật khẩu khi đăng nhập lại. Tài khoản <code>admin</code> hệ thống luôn được giữ nguyên.</p>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark small">ĐƠN VỊ <span class="text-muted fw-normal">(tích chọn)</span></label>
+                    <div class="pc06-unit-checklist">
+                        {% for unit in units_with_counts %}
+                        <label class="pc06-unit-check">
+                            <input type="checkbox" class="form-check-input bulk-reset-unit-check" value="{{ unit.value }}" onchange="updateBulkResetByUnitsState()">
+                            <span class="fw-bold">{{ unit.name }}</span>
+                            <span class="pc06-chip-count-sm">{{ unit.count }}</span>
+                        </label>
+                        {% else %}
+                        <div class="pc-alert pc-alert-warning pc06-modal-alert mb-0">Chưa có đơn vị nào có tài khoản để reset.</div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-text mt-2" id="bulkResetByUnitsSelectionText">Chưa chọn đơn vị nào</div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label fw-bold text-dark small">MẬT KHẨU TẠM THỜI</label>
+                        <input type="password" class="pc-input" id="bulkResetByUnitsPasswordInput" autocomplete="new-password" placeholder="Nhập mật khẩu tạm thời mạnh...">
+                        <div class="form-text mt-1">{{ password_requirements_text }}</div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-bold text-dark small">NHẬP LẠI MẬT KHẨU</label>
+                        <input type="password" class="pc-input" id="bulkResetByUnitsConfirmInput" autocomplete="new-password" placeholder="Nhập lại để xác nhận...">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="pc-btn pc-btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="pc-btn pc-btn-danger" id="bulkResetByUnitsSubmitBtn" onclick="submitBulkResetByUnits()" disabled>
+                    <i class="fa-solid fa-key"></i>
+                    Reset mật khẩu
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 <!-- Add Role Modal -->
 <div class="modal fade" id="addRoleModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -534,11 +609,13 @@ function updateUserBulkSelectionState() {
     const selectedChecks = enabledChecks.filter((item) => item.checked);
     const checkAll = document.getElementById('userCheckAll');
     const bulkBtn = document.getElementById('bulkUserDeleteBtn');
+    const bulkResetBtn = document.getElementById('bulkPasswordResetBtn');
     const bulkText = document.getElementById('bulkUserSelectionText');
     if (!checkAll || !bulkBtn || !bulkText) return;
     checkAll.checked = enabledChecks.length > 0 && selectedChecks.length === enabledChecks.length;
     checkAll.indeterminate = selectedChecks.length > 0 && selectedChecks.length < enabledChecks.length;
     bulkBtn.disabled = selectedChecks.length === 0;
+    if (bulkResetBtn) bulkResetBtn.disabled = selectedChecks.length === 0;
     bulkText.textContent = selectedChecks.length === 0 ? 'Chưa chọn tài khoản nào' : `Đã chọn ${selectedChecks.length} tài khoản`;
 }
 
@@ -578,6 +655,40 @@ function submitBulkPasswordReset() {
     document.getElementById('bulkPasswordResetSelectedIds').value = JSON.stringify(resettableIds);
     document.getElementById('bulkPasswordResetTemporaryPassword').value = tempPassword;
     document.getElementById('bulkPasswordResetForm').submit();
+}
+
+function updateBulkResetByUnitsState() {
+    const selectedChecks = Array.from(document.querySelectorAll('.bulk-reset-unit-check:checked'));
+    const submitBtn = document.getElementById('bulkResetByUnitsSubmitBtn');
+    const selectionText = document.getElementById('bulkResetByUnitsSelectionText');
+    if (!submitBtn || !selectionText) return;
+    submitBtn.disabled = selectedChecks.length === 0;
+    selectionText.textContent = selectedChecks.length === 0
+        ? 'Chưa chọn đơn vị nào'
+        : `Đã chọn ${selectedChecks.length} đơn vị`;
+}
+
+async function submitBulkResetByUnits() {
+    const selectedUnits = Array.from(document.querySelectorAll('.bulk-reset-unit-check:checked')).map((item) => item.value).filter(Boolean);
+    if (!selectedUnits.length) {
+        pcAlert('Cần chọn ít nhất một đơn vị để reset mật khẩu.', 'warning');
+        return;
+    }
+    const tempPassword = (document.getElementById('bulkResetByUnitsPasswordInput').value || '').trim();
+    const confirmPassword = (document.getElementById('bulkResetByUnitsConfirmInput').value || '').trim();
+    if (!tempPassword) {
+        pcAlert('Cần nhập mật khẩu tạm thời.', 'warning');
+        return;
+    }
+    if (tempPassword !== confirmPassword) {
+        pcAlert('Mật khẩu xác nhận không khớp với mật khẩu tạm thời.', 'error');
+        return;
+    }
+    if (!(await pcConfirm(`Reset mật khẩu cho toàn bộ tài khoản thuộc ${selectedUnits.length} đơn vị đã chọn?`))) return;
+    document.getElementById('bulkResetByUnitsValues').value = JSON.stringify(selectedUnits);
+    document.getElementById('bulkResetByUnitsPassword').value = tempPassword;
+    document.getElementById('bulkResetByUnitsConfirm').value = confirmPassword;
+    document.getElementById('bulkResetByUnitsForm').submit();
 }
 
 document.querySelectorAll('.toggle-password').forEach(btn => {
@@ -668,6 +779,70 @@ document.querySelectorAll('form').forEach((form) => {
         background: var(--pc-primary-soft);
         color: var(--pc-primary-strong);
         font-weight: 900;
+        flex-shrink: 0;
+    }
+    .pc06-bulk-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: .75rem 1rem;
+        border-top: 1px solid var(--pc-border);
+        background: var(--pc-bg-subtle);
+    }
+    .pc06-bulk-bar-info {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: var(--pc-text-sm);
+        font-weight: 700;
+        color: var(--pc-text-muted);
+    }
+    .pc06-unit-checklist {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 8px;
+        max-height: 16rem;
+        overflow-y: auto;
+        padding: 2px;
+    }
+    .pc06-unit-check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: .5rem .65rem;
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-md);
+        background: var(--pc-bg-surface);
+        cursor: pointer;
+        font-size: var(--pc-text-sm);
+    }
+    .pc06-unit-check:hover {
+        border-color: var(--pc-border-strong);
+    }
+    .pc06-unit-check .form-check-input {
+        margin: 0;
+        flex-shrink: 0;
+    }
+    .pc06-unit-check span:first-of-type {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .pc06-chip-count-sm {
+        min-width: 26px;
+        height: 22px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--pc-primary-soft);
+        color: var(--pc-primary-strong);
+        font-size: var(--pc-text-xs);
+        font-weight: 800;
         flex-shrink: 0;
     }
     @media (max-width: 1080px) {

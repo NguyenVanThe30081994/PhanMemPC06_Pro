@@ -47,6 +47,7 @@ from utils import (
 from category_helpers import (
     apply_reference_display,
     canonicalize_category_value,
+    category_resolver,
     ensure_category_item_alias,
     get_module_field_items,
     get_category_items,
@@ -1031,6 +1032,33 @@ def roles():
     ).group_by(User.role_id).all()
     role_user_counts = {int(role_id): int(count) for role_id, count in raw_role_counts if role_id}
 
+    raw_unit_counts = db.session.query(User.unit_area, func.count(User.id)).group_by(User.unit_area).all()
+    raw_unit_counts_map = {(unit_value or ''): int(count) for unit_value, count in raw_unit_counts}
+    units_with_counts = []
+    seen_unit_keys = set()
+    for option in unit_options:
+        option_value = option.get('stable_value') or option.get('value') or ''
+        if not option_value or option_value in seen_unit_keys:
+            continue
+        seen_unit_keys.add(option_value)
+        option_name = option.get('name') or option.get('value') or ''
+        option_count = 0
+        for unit_value, unit_count in raw_unit_counts_map.items():
+            if not unit_value:
+                continue
+            canonical_unit = canonicalize_category_value(unit_value, unit_options, prefer_stable=True) or unit_value
+            unit_display = resolve_category_display(canonical_unit or unit_value, unit_options, fallback_label=unit_value)['display_name']
+            unit_key = extract_unit_key(unit_display) if unit_display else ''
+            if canonical_unit == option_value or unit_value == option_value or (unit_key and extract_unit_key(option_name) == unit_key):
+                option_count += unit_count
+        if option_count > 0:
+            units_with_counts.append({
+                'value': option_value,
+                'name': option_name,
+                'count': option_count,
+            })
+    units_with_counts.sort(key=lambda item: item['name'].lower())
+
     selected_unit_display = resolve_category_display(selected_unit, unit_options, fallback_label=selected_unit)['display_name'] if selected_unit else ''
     return render_template(
         'roles.html',
@@ -1043,13 +1071,15 @@ def roles():
         selected_unit_display=selected_unit_display,
         search_query=search_query,
         available_units=available_units,
+        units_with_counts=units_with_counts,
         role_user_counts=role_user_counts,
         total_role_count=len(roles),
         total_user_count=sum(role_user_counts.values()),
         permission_modules=PERMISSION_MODULES,
         default_role_permission_map=json.dumps(build_default_role_permissions(''), ensure_ascii=False),
         default_role_module_codes=json.dumps(list(DEFAULT_ROLE_MODULE_CODES), ensure_ascii=False),
-        unit_cats=stable_form_category_options(unit_options)
+        unit_cats=stable_form_category_options(unit_options),
+        password_requirements_text=get_password_requirements()
     )
 
 
@@ -1267,6 +1297,129 @@ def reset_users_password_bulk():
     if skipped_admin:
         flash('Tài khoản admin hệ thống được giữ lại và không bị reset mật khẩu.', 'warning')
     return redirect(url_for('admin_bp.roles', role_id=selected_role_id, unit=selected_unit, q=search_query))
+
+
+def _build_unit_user_query(selected_unit_values):
+    """Tạo User query khớp với danh sách đơn vị được chọn.
+
+    Mỗi giá trị gửi lên có thể là stable_value (`category_item:<id>`), value
+    (code/slug) hoặc tên hiển thị. Query so khớp `unit_area` với MỌI cách biểu
+    diễn của đơn vị đó (stable, value, code, name) và `unit_key` dẫn xuất, để
+    bắt được tài khoản lưu theo bất kỳ dạng nào (dữ liệu cũ chưa đồng bộ danh mục).
+    Admin hệ thống ('admin') được bảo vệ bởi `_reset_users_passwords_bulk`.
+    """
+    if not selected_unit_values:
+        return None
+
+    from sqlalchemy import or_
+
+    unit_options = _unit_category_options()
+    resolver = category_resolver(unit_options)
+    conditions = []
+    for raw_value in selected_unit_values:
+        value = (raw_value or '').strip()
+        if not value:
+            continue
+        match_values = {value}
+        option = resolver.get(value.lower())
+        if option:
+            match_values.update(filter(None, [
+                option.get('stable_value'),
+                option.get('value'),
+                option.get('code'),
+                option.get('name'),
+            ]))
+        canonical_unit = canonicalize_category_value(value, unit_options, prefer_stable=True) or value
+        match_values.add(canonical_unit)
+        unit_display = resolve_category_display(value, unit_options, fallback_label=value)['display_name']
+        if unit_display:
+            match_values.add(unit_display)
+
+        or_parts = [User.unit_area == mv for mv in match_values if mv]
+        unit_key = extract_unit_key(unit_display) if unit_display else ''
+        if unit_key:
+            or_parts.append(User.unit_key == unit_key)
+        conditions.append(or_(*or_parts))
+
+    if not conditions:
+        return None
+    return User.query.filter(or_(*conditions))
+
+
+@admin_bp.route('/admin/users/reset-password-by-units', methods=['POST'])
+def reset_users_password_by_units():
+    from permissions import can_module
+    if not can_module('user', 'process'):
+        flash('Bạn không có quyền reset mật khẩu theo đơn vị.', 'danger')
+        return redirect(url_for('admin_bp.roles'))
+
+    raw_unit_values = request.form.get('unit_values', '').strip()
+    selected_unit_values = []
+    if raw_unit_values:
+        try:
+            parsed = json.loads(raw_unit_values)
+            if isinstance(parsed, list):
+                selected_unit_values = [str(value).strip() for value in parsed if str(value or '').strip()]
+        except Exception:
+            selected_unit_values = []
+
+    if not selected_unit_values:
+        flash('Cần chọn ít nhất một đơn vị để reset mật khẩu.', 'warning')
+        return redirect(url_for('admin_bp.roles'))
+
+    temporary_password = (request.form.get('temporary_password') or '').strip()
+    confirm_password = (request.form.get('confirm_password') or '').strip()
+    if temporary_password != confirm_password:
+        flash('Mật khẩu xác nhận không khớp với mật khẩu tạm thời.', 'danger')
+        return redirect(url_for('admin_bp.roles'))
+
+    is_valid_password, password_error = validate_password(temporary_password)
+    if not is_valid_password:
+        flash(password_error or f'Mật khẩu tạm thời không hợp lệ. {get_password_requirements()}', 'danger')
+        return redirect(url_for('admin_bp.roles'))
+
+    reset_query = _build_unit_user_query(selected_unit_values)
+    if reset_query is None:
+        flash('Cần chọn ít nhất một đơn vị để reset mật khẩu.', 'warning')
+        return redirect(url_for('admin_bp.roles'))
+
+    updated_count, skipped_admin = _reset_users_passwords_bulk(reset_query, temporary_password=temporary_password)
+    if updated_count == 0 and not skipped_admin:
+        flash('Không có tài khoản nào trong các đơn vị đã chọn để reset mật khẩu.', 'warning')
+        return redirect(url_for('admin_bp.roles'))
+    if updated_count == 0 and skipped_admin:
+        flash('Tài khoản admin hệ thống được giữ lại và không bị reset mật khẩu.', 'warning')
+        return redirect(url_for('admin_bp.roles'))
+
+    db.session.commit()
+
+    unit_options = _unit_category_options()
+    unit_display_parts = []
+    for unit_value in selected_unit_values:
+        canonical_unit = canonicalize_category_value(unit_value, unit_options, prefer_stable=True) or unit_value
+        unit_display_parts.append(
+            resolve_category_display(canonical_unit or unit_value, unit_options, fallback_label=unit_value)['display_name']
+        )
+    unit_log_label = '; '.join(dict.fromkeys(filter(None, unit_display_parts)))
+
+    log_action(
+        session['uid'],
+        session['fullname'],
+        "Reset mật khẩu hàng loạt theo đơn vị",
+        "Tài khoản",
+        f"so_luong={updated_count} | so_don_vi={len(unit_display_parts)} | don_vi={unit_log_label}"
+        + " | reset_tam_thoi=co_bat_buoc_doi_mat_khau"
+    )
+
+    flash(
+        f'Đã reset {updated_count} tài khoản thuộc {len(unit_display_parts)} đơn vị với mật khẩu tạm thời bạn vừa nhập '
+        'và yêu cầu đổi mật khẩu khi đăng nhập.',
+        'success',
+    )
+    if skipped_admin:
+        flash('Tài khoản admin hệ thống được giữ lại và không bị reset mật khẩu.', 'warning')
+    return redirect(url_for('admin_bp.roles'))
+
 
 @admin_bp.route('/admin/user/toggle-status/<int:uid>')
 def toggle_user_status(uid):
