@@ -21,7 +21,7 @@
     .mobile-link-box span { display: block; font-size: 0.74rem; color: var(--text-muted); margin-bottom: 6px; }
     .mobile-link-box a, .mobile-link-box div { word-break: break-all; font-weight: 700; color: var(--text-main); text-decoration: none; }
     .mobile-link-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-    .mobile-link-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+    .mobile-link-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
     .mobile-link-fab { position: fixed; bottom: 88px; right: 18px; width: 58px; height: 58px; border-radius: 18px; border: 0; background: linear-gradient(135deg, #0066ff, #0052cc); color: #fff; box-shadow: 0 18px 30px rgba(0, 102, 255, 0.3); }
 </style>
 {% endblock %}
@@ -64,6 +64,10 @@
                 <i class="fa-solid fa-qrcode"></i>
             </a>
             {% if is_admin or link.created_by == session.uid %}
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" title="Sửa file nguồn"
+                    onclick='openEditLink({{ link.id }}, {{ link.original_url|tojson }}, {{ link.short_code|tojson }}, {{ link.custom_name|tojson }}, {{ link.info|tojson }}, {{ link.category|tojson }}, {{ link.domain|tojson }})'>
+                <i class="fa-solid fa-pen-to-square"></i>
+            </button>
             <form method="POST" action="{{ url_for('shortlink_bp.delete_link', link_id=link.id) }}" class="m-0" onsubmit="return pc06ConfirmSubmit(event, 'Xóa liên kết này?')">
                 <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill w-100">
                     <i class="fa-solid fa-trash-can"></i>
@@ -111,10 +115,48 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="editLinkModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4">
+            <form method="POST" id="editLinkForm">
+                <div class="modal-header border-0">
+                    <div><h5 class="modal-title fw-bold mb-1">Sửa liên kết rút gọn</h5></div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <div class="mb-3"><label class="form-label small fw-bold">Liên kết rút gọn <span class="text-danger">(không đổi)</span></label><input type="text" id="edit_short_url" class="form-control" readonly></div>
+                    <div class="mb-3"><label class="form-label small fw-bold">Đường dẫn nguồn *</label><input type="url" name="original_url" id="edit_original_url" class="form-control" placeholder="https://..." required>
+                        <div class="form-text">Đổi file nguồn ở đây — mã QR và link rút gọn giữ nguyên.</div></div>
+                    <div class="mb-3"><label class="form-label small fw-bold">Tên hiển thị</label><input type="text" name="custom_name" id="edit_custom_name" class="form-control"></div>
+                    <div class="mb-3"><label class="form-label small fw-bold">Ghi chú</label><input type="text" name="info" id="edit_info" class="form-control"></div>
+                    <div class="mb-3"><label class="form-label small fw-bold">Lĩnh vực</label><select name="category" id="edit_category" class="form-select"><option value="">Chọn lĩnh vực</option>{% for item in link_categories %}<option value="{{ item.value }}">{{ item.name }}</option>{% endfor %}</select></div>
+                    <div class="mb-1"><label class="form-label small fw-bold">Đội nghiệp vụ</label><select name="domain" id="edit_domain" class="form-select"><option value="">Chọn đội nghiệp vụ</option>{% for unit in pro_units %}<option value="{{ unit.value }}">{{ unit.name }}</option>{% endfor %}</select></div>
+                </div>
+                <div class="modal-footer border-0"><button type="submit" class="btn-mobile btn-mobile-primary" aria-label="Lưu thay đổi" title="Lưu thay đổi"><i class="fa-solid fa-floppy-disk"></i><span class="visually-hidden">Lưu thay đổi</span></button></div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+const SHORTLINK_EDIT_BASE = "{{ url_for('shortlink_bp.manage_links') }}/edit/";
+const SHORTLINK_HOST = "{{ request.host_url.rstrip('/') }}";
+
+function openEditLink(id, originalUrl, shortCode, customName, info, category, domain) {
+    const form = document.getElementById('editLinkForm');
+    form.action = SHORTLINK_EDIT_BASE + id;
+    document.getElementById('edit_short_url').value = SHORTLINK_HOST + '/s/' + shortCode;
+    document.getElementById('edit_original_url').value = originalUrl || '';
+    document.getElementById('edit_custom_name').value = customName || '';
+    document.getElementById('edit_info').value = info || '';
+    document.getElementById('edit_category').value = category || '';
+    document.getElementById('edit_domain').value = domain || '';
+    new bootstrap.Modal(document.getElementById('editLinkModal')).show();
+}
+
 function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(() => {
         Swal.fire({

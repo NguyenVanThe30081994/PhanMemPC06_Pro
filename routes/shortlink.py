@@ -7,6 +7,7 @@ import qrcode
 from io import BytesIO
 import secrets
 import string
+import re
 import datetime
 from urllib.parse import urlparse
 
@@ -46,7 +47,17 @@ def _normalize_target_url(raw_url):
     candidate = (raw_url or '').strip()
     if not candidate:
         return None
-    if not (candidate.startswith('http://') or candidate.startswith('https://')):
+    low = candidate.lower()
+    if not (low.startswith('http://') or low.startswith('https://')):
+        # Chặn scheme khác nhúng lậu vào link không có http(s):// (XSS):
+        # 'javascript:alert(1)', 'data:text/html,...', 'vbscript:', 'file:'...
+        # Ngoại lệ: 'host:8080/x' (sau ':' là số) vẫn được coi là thiếu scheme.
+        head = candidate.split('/', 1)[0]
+        if ':' in head:
+            scheme = head.split(':', 1)[0]
+            rest = head.split(':', 1)[1]
+            if re.fullmatch(r'[a-zA-Z][a-zA-Z0-9+.\-]*', scheme) and not rest[:1].isdigit():
+                return None
         candidate = 'https://' + candidate
     parsed = urlparse(candidate)
     if parsed.scheme not in {'http', 'https'}:
@@ -101,6 +112,9 @@ def add_link():
         return redirect(url_for('shortlink_bp.manage_links'))
 
     if custom_code:
+        if not re.fullmatch(r'[a-zA-Z0-9_-]{1,50}', custom_code):
+            flash('Mã rút gọn chỉ được chứa chữ cái, số, gạch ngang (-) hoặc gạch dưới (_).', 'danger')
+            return redirect(url_for('shortlink_bp.manage_links'))
         # Check if custom code exists
         existing = ShortLink.query.filter_by(short_code=custom_code).first()
         if existing:
@@ -132,6 +146,14 @@ def add_link():
 
 @shortlink_bp.route('/links/edit/<int:link_id>', methods=['POST'])
 def edit_link(link_id):
+    """Cập nhật "file nguồn" (đường dẫn gốc) và thông tin của một liên kết.
+
+    QUAN TRỌNG: mã rút gọn (short_code) KHÔNG được phép thay đổi ở đây.
+    Mã QR chỉ mã hóa <host>/s/<short_code>, nên chỉ cần giữ nguyên short_code
+    thì mã QR và link rút gọn đã phát hành (đang dán/treo ở nơi công cộng)
+    vẫn dùng tiếp được — người dùng chỉ cần đổi đường dẫn nguồn để trỏ tới
+    tệp/URL đúng mà không phải tạo lại QR hay phát tán link mới.
+    """
     if not session.get('uid'):
         return redirect(url_for('auth_bp.login'))
     _ensure_shortlink_schema()
@@ -147,26 +169,17 @@ def edit_link(link_id):
         return redirect(url_for('shortlink_bp.manage_links'))
 
     original_url = _normalize_target_url(request.form.get('original_url', ''))
-    custom_code = request.form.get('custom_code', '').strip()
     custom_name = request.form.get('custom_name', '').strip()
     info = request.form.get('info', '').strip()
     link_categories = module_category_options('notify', 'category', 'Lĩnh vực', 'Đội nghiệp vụ')
     pro_units = module_category_options('tasks', 'domain', 'Đội nghiệp vụ')
 
     if not original_url:
-        flash('Vui lòng nhập đường dẫn gốc!', 'danger')
+        flash('Vui lòng nhập đường dẫn nguồn!', 'danger')
         return redirect(url_for('shortlink_bp.manage_links'))
 
-    if not custom_code:
-        flash('Mã rút gọn không được để trống khi cập nhật.', 'danger')
-        return redirect(url_for('shortlink_bp.manage_links'))
-
-    existing = ShortLink.query.filter(ShortLink.short_code == custom_code, ShortLink.id != link.id).first()
-    if existing:
-        flash(f'Mã rút gọn "{custom_code}" đã tồn tại. Vui lòng chọn mã khác!', 'danger')
-        return redirect(url_for('shortlink_bp.manage_links'))
-
-    link.short_code = custom_code
+    old_url = link.original_url
+    # short_code được giữ nguyên có chủ đích — không đọc từ form.
     link.original_url = original_url
     link.custom_name = custom_name
     link.info = info
@@ -174,7 +187,19 @@ def edit_link(link_id):
     link.domain = canonicalize_category_value(request.form.get('domain', ''), pro_units, prefer_stable=True)
 
     db.session.commit()
-    flash('Đã cập nhật liên kết rút gọn!', 'success')
+
+    try:
+        from utils import log_action
+        changed = 'đổi nguồn' if old_url != original_url else 'cập nhật thông tin'
+        log_action(session['uid'], session.get('fullname', ''), 'Sửa liên kết rút gọn', 'QR và liên kết',
+                   f"mã={link.short_code} ({changed}): {old_url} -> {original_url}")
+    except Exception:
+        pass
+
+    if old_url != original_url:
+        flash('Đã đổi file nguồn. Mã QR và link rút gọn giữ nguyên, không cần tạo lại!', 'success')
+    else:
+        flash('Đã cập nhật liên kết rút gọn!', 'success')
     return redirect(url_for('shortlink_bp.manage_links'))
 
 @shortlink_bp.route('/links/delete/<int:link_id>', methods=['POST'])

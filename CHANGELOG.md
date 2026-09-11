@@ -1,5 +1,27 @@
 # CHANGELOG / TIMELINE
 
+## 2026-09-10 (QR và liên kết — Sửa file nguồn không đổi mã QR / link rút gọn)
+Theo yêu cầu "gửi sai file nguồn thì sửa lại được mà không thay đổi mã QR và link rút gọn":
+- **Khóa `short_code` khi sửa**: `edit_link` (`routes/shortlink.py`) không còn nhận/ghi mã
+  rút gọn từ form — kể cả client cũ gửi `custom_code` khác thì mã vẫn giữ nguyên. Vì QR chỉ
+  mã hóa `<host>/s/<short_code>`, đổi mỗi `original_url` không làm thay đổi ảnh QR đã in/phát tán.
+- **UI Sửa** thiếu hẳn từ trước đến nay (chỉ có Tạo + Xóa): thêm nút bút + modal "Sửa liên kết
+  rút gọn" trên cả `shortlinks.html` (desktop) và `shortlinks_mobile.html`; trường
+  "Liên kết rút gọn" readonly + chú thích QR giữ nguyên. Grid action mobile 3→4 cột.
+- **`add_link`**: chặn `custom_code` ký tự lạ (`[a-zA-Z0-9_-]{1,50}`) ngay ở server để mã luôn
+  an toàn trong URL/QR. Sửa thành công ghi `log_action` 'Sửa liên kết rút gọn' (module
+  QR và liên kết) với old→new URL.
+- **Vá lỗi bảo mật `_normalize_target_url`** (test mới phát hiện ra, lỗi nền từ trước):
+  nhập `javascript:alert(1)` bị auto-prefix thành `https://javascript:alert(1)` và lọt qua
+  validation (netloc hợp lệ về mặt urlparse) -> URL độc hại được lưu rồi redirect khi quét QR.
+  Nay chặn mọi scheme lạ (`javascript:`/`data:`/`vbscript:`/`file:`/...) khi link không có
+  `http(s)://` — kể cả viết hoa; vẫn cho dạng `host:8080/x` và `example.com/file.pdf`.
+- Test mới `tests/test_shortlink_edit_target.py` (6 case): đổi nguồn giữ mã; form gửi
+  `custom_code` vẫn bị bỏ qua; ảnh QR byte-identical trước/sau sửa; URL trống/chối
+  `javascript:`; user khác không sửa được; có log. ✅ Đã chạy `run_tests.py`
+  (env cô lập `~/.workbuddy-ai/binaries/python/envs/pc06`): **293 test, chỉ còn 2 fail
+  nền cũ** (`test_task_synthesis`, không liên quan); 6 test mới pass toàn bộ.
+
 ## 2026-08-29 (Giao diện — Subproject M14: Droplist bỏ chrome trình duyệt + bỏ bulk Danh bạ)
 Theo phản hồi "droplist Nguồn import/Lĩnh vực vẫn là base theo trình duyệt" + "bỏ nút
 Chọn tất cả / Xóa đã chọn ở Danh bạ":

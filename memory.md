@@ -2,7 +2,7 @@
 
 > File này ghi lại toàn bộ kiến trúc, trạng thái, quyết định và việc cần làm của dự án
 > để Agent phiên làm việc mới đọc ĐẦU TIÊN là nắm được toàn bộ mã nguồn và biết việc tiếp theo.
-> Cập nhật mỗi khi thay đổi trạng thái. (Cập nhật lần cuối: 2026-09-02)
+> Cập nhật mỗi khi thay đổi trạng thái. (Cập nhật lần cuối: 2026-09-10)
 
 ---
 
@@ -33,8 +33,10 @@ DB MariaDB `dea35688_pc06tuyenquang`. Xem bằng chứng trong `DEPLOY_CPANEL.md
   (`DATABASE_URL`), chọn tự động trong `storage.py`.
 - openpyxl, pandas, python-docx, pymupdf (đọc PDF), qrcode, phonenumbers, pyotp (2FA TOTP),
   APScheduler (watchdog hạn nộp), google-api-python-client (Google Forms/OAuth).
-- Local `.venv` đang là **Python 3.14.7**; prod yêu cầu Python ≥ 3.9 (khuyến nghị 3.11/3.12 —
-  `DEPLOY_CPANEL.md`).
+- Local: `.venv` (Python 3.14.7) đã ghi trong tài liệu **không còn tồn tại** trên máy này —
+  `start_server.sh` sẽ tự tạo lại khi chạy. Env test đã cài sẵn (10/09/2026):
+  `~/.workbuddy-ai/binaries/python/envs/pc06/bin/python` (3.13, đủ requirements + pytest).
+  Prod yêu cầu Python ≥ 3.9 (khuyến nghị 3.11/3.12 — `DEPLOY_CPANEL.md`).
 
 **Entrypoint:**
 - Dev: `app.py` (chạy trực tiếp, host/port qua `PC06_HOST`/`PC06_PORT`, mặc định 127.0.0.1:5000),
@@ -137,7 +139,7 @@ DB MariaDB `dea35688_pc06tuyenquang`. Xem bằng chứng trong `DEPLOY_CPANEL.md
   hiện `pc06-premium.css ?v=1.3.7`, `style.css ?v=4.2.1`, `bdhvs-layout.css ?v=2.2.4`).
 - JS custom: `static/js/main.js`, `static/js/category-picker.js`.
 
-**Test:** `tests/` — 31 module, **281 test**. Runner duy nhất: `python3 run_tests.py` (tự ép DB
+**Test:** `tests/` — 32 module, **293 test**. Runner duy nhất: `python3 run_tests.py` (tự ép DB
 SQLite tạm + data dir tạm, an toàn khi lỡ chạy trên server prod). Contract test design system:
 `tests/test_design_system.py`. CI: `.github/workflows/deploy.yml` — push `main` → job `test`
 (chạy `run_tests.py`) → job `web-deploy` (FTP lên host, secrets `FTP_SERVER/USERNAME/PASSWORD`)
@@ -179,13 +181,24 @@ working tree sạch, `main` == `origin/main` (commit cuối `f3103f5` — Subpro
   khớp `unit_area` theo MỌI biểu diễn (stable/value/code/name) + `unit_key`. Test mới
   `tests/test_admin_bulk_reset_by_units.py` (7 case).
 
+- **QR & liên kết: sửa file nguồn không đổi QR/link** (10/09/2026): `edit_link`
+  (`routes/shortlink.py`) khóa `short_code` (không đọc từ form) — chỉ đổi `original_url`
+  + metadata, nên mã QR đã in/vẫn trỏ đúng sau khi sửa; thêm nút "Sửa" + modal trên
+  `shortlinks.html` + `shortlinks_mobile.html` (trước đó hoàn toàn không có UI sửa);
+  chặn ký tự lạ ở `custom_code` khi tạo; ghi `log_action` old→new.
+  **Vá lỗi nền `_normalize_target_url`** (test mới phát hiện): `javascript:alert(1)` bị
+  prefix thành `https://javascript:alert(1)` lọt validation → Nay chặn mọi scheme lạ
+  khi link thiếu `http(s)://`, vẫn cho `host:8080/x`. Test mới
+  `tests/test_shortlink_edit_target.py` (6 case) ✅ ĐÃ CHẠY PASS TOÀN BỘ 10/09/2026 bằng
+  `~/.workbuddy-ai/binaries/python/envs/pc06/bin/python run_tests.py` → **293 test / 2 fail
+  nền cũ** (test_task_synthesis). Local KHÔNG còn `.venv`; dùng env cô lập pc06 này.
+
 ### 🚧 Đang dở / cần xử lý
-- **Suite 288 test còn 3 lỗi có sẵn** (đã chạy lại xác thực ngày 02/09/2026 bằng
-  `.venv/bin/python run_tests.py`):
-  1. `tests/test_report_aggregate` — **ImportError: No module named 'pytest'** (requirements.txt
-     có pytest nhưng `.venv` local chưa cài; lỗi môi trường, không phải code).
-  2. `tests.test_task_synthesis.TaskSynthesisTests.test_save_synthesis_then_export_uses_synthesis`
-  3. `tests.test_task_synthesis.TaskSynthesisTests.test_clear_synthesis_falls_back_to_auto_merge`
+- **Suite 293 test còn 2 lỗi có sẵn** (chạy xác thực lại 10/09/2026 bằng env cô lập
+  `~/.workbuddy-ai/binaries/python/envs/pc06` — local không còn `.venv`; lưu ý ImportError
+  pytest của `test_report_aggregate` đã không còn xuất hiện trên env pc06):
+  1. `tests.test_task_synthesis.TaskSynthesisTests.test_save_synthesis_then_export_uses_synthesis`
+  2. `tests.test_task_synthesis.TaskSynthesisTests.test_clear_synthesis_falls_back_to_auto_merge`
      — Cả 2: Word tổng hợp hiện chèn tiền tố `assign_N:` (`services/task_report_aggregate.py`
      dòng 74/94/96) nên `assertIn("Văn bản tổng hợp...")` thuần không khớp
      (`tests/test_task_synthesis.py:184` và `:211`).
@@ -220,9 +233,10 @@ working tree sạch, `main` == `origin/main` (commit cuối `f3103f5` — Subpro
      `tests/test_task_synthesis.py:184` và `:211` (ví dụ kỳ vọng `"assign_1: Đoạn văn của Đội A."`).
    - Nếu định dạng cũ (đoạn thuần) là chuẩn → sửa phần ghép đoạn trong
      `services/task_report_aggregate.py` / `_export_outline_word_v2` để không chèn nhãn.
-   Sau khi sửa, baseline mới là **288 test / 0 fail** — mọi thay đổi sau này không được tăng lỗi.
-2. **Cài `pytest` vào `.venv`** (`.venv/bin/pip install pytest`) để hết ImportError của
-   `tests/test_report_aggregate` khi chạy local; giữ `pytest` trong `requirements.txt` cho CI.
+   Sau khi sửa, baseline mới là **293 test / 0 fail** — mọi thay đổi sau này không được tăng lỗi.
+2. **Môi trường test local**: `.venv` trong dự án KHÔNG còn tồn tại. Dùng env cô lập đã cài đủ
+   requirements: `~/.workbuddy-ai/binaries/python/envs/pc06/bin/python run_tests.py`
+   (env này có pytest nên `test_report_aggregate` chạy bình thường).
 3. **Gỡ route trùng** `task_export_outline_docx` (`routes/tasks.py:174`) hoặc v2 — giữ đúng 1,
    chạy lại `run_tests.py` (đề nghị #2 báo cáo DA06).
 4. **Xác nhận trạng thái GitHub Actions** (mở tab Actions của repo). Nếu đỏ do bước 1: sau khi
@@ -247,7 +261,8 @@ cd /Users/thenhung/Documents/GitHub/PhanMemPC06_Pro
 PC06_PORT=5001 .venv/bin/python app.py    # đổi port khi 5000 bận
 
 # Test (LUÔN dùng runner này — ép SQLite tạm, KHÔNG chạy python -m unittest trực tiếp)
-.venv/bin/python run_tests.py
+~/.workbuddy-ai/binaries/python/envs/pc06/bin/python run_tests.py   # env đã cài sẵn
+.venv/bin/python run_tests.py                                        # nếu .venv đã được tạo lại
 
 # Migration / backfill runtime
 .venv/bin/python migrate.py --dry-run

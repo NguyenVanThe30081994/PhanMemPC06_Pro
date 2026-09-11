@@ -79,6 +79,10 @@
                         <td class="text-center text-muted small">{{ link.created_at.strftime('%d/%m/%Y') }}</td>
                         <td class="pe-4 text-end">
                             {% if is_admin or link.created_by == session.uid %}
+                            <button type="button" class="btn btn-light btn-circle btn-circle-sm border shadow-sm" title="Sửa file nguồn"
+                                    onclick='openEditLink({{ link.id }}, {{ link.original_url|tojson }}, {{ link.short_code|tojson }}, {{ link.custom_name|tojson }}, {{ link.info|tojson }}, {{ link.category|tojson }}, {{ link.domain|tojson }})'>
+                                <i class="fa-solid fa-pen-to-square tiny"></i>
+                            </button>
                             <form method="POST" action="{{ url_for('shortlink_bp.delete_link', link_id=link.id) }}" class="d-inline m-0" onsubmit="return pc06ConfirmSubmit(event, 'Xóa liên kết này?')">
                                 <button type="submit" class="btn btn-light btn-circle btn-circle-sm border shadow-sm text-danger" title="Xóa">
                                     <i class="fa-solid fa-trash-can tiny"></i>
@@ -160,6 +164,73 @@
                     <button type="submit" class="pc-btn pc-btn-primary">
                         <i class="fa-solid fa-bolt"></i>
                         Tạo liên kết
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editLinkModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 pc06-modal-shell">
+            <form method="POST" id="editLinkForm">
+                <div class="modal-header border-0 pc06-modal-head shortlink-modal-head">
+                    <div class="text-center w-100">
+                        <h5 class="modal-title fw-bold mb-0">Sửa liên kết rút gọn</h5>
+                    </div>
+                    <button type="button" class="btn-close shortlink-modal-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="pc06-form-section">
+                        <label class="form-label fw-bold">Liên kết rút gọn <span class="text-danger">(không thể thay đổi)</span></label>
+                        <input type="text" id="edit_short_url" class="form-control" readonly>
+                        <div class="form-text">
+                            Mã QR và link rút gọn <b>giữ nguyên</b> khi bạn thay đổi file nguồn bên dưới —
+                            không cần in/ phát tán lại mã QR.
+                        </div>
+                    </div>
+                    <div class="pc06-form-section mt-3">
+                        <label class="form-label fw-bold">Đường dẫn nguồn <span class="text-danger">*</span></label>
+                        <input type="url" name="original_url" id="edit_original_url" class="form-control" placeholder="https://example.com/..." required>
+                        <div class="form-text">Dán đường dẫn của tệp/ trang muốn trỏ tới (ví dụ khi gửi nhầm file, dán link tệp đúng vào đây).</div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Tên hiển thị</label>
+                            <input type="text" name="custom_name" id="edit_custom_name" class="form-control" placeholder="Ví dụ: Khảo sát Đội 1">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Ghi chú</label>
+                            <input type="text" name="info" id="edit_info" class="form-control" placeholder="Thông tin bổ sung">
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Lĩnh vực</label>
+                            <select name="category" id="edit_category" class="form-select">
+                                <option value="">Chọn lĩnh vực</option>
+                                {% for item in link_categories %}
+                                <option value="{{ item.value }}">{{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Đội nghiệp vụ</label>
+                            <select name="domain" id="edit_domain" class="form-select">
+                                <option value="">Chọn đội nghiệp vụ</option>
+                                {% for unit in pro_units %}
+                                <option value="{{ unit.value }}">{{ unit.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="pc-btn pc-btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="pc-btn pc-btn-primary">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        Lưu thay đổi
                     </button>
                 </div>
             </form>
@@ -263,6 +334,21 @@
     }
 </style>
 <script>
+    const SHORTLINK_EDIT_BASE = "{{ url_for('shortlink_bp.manage_links') }}/edit/";
+    const SHORTLINK_HOST = "{{ request.host_url.rstrip('/') }}";
+
+    function openEditLink(id, originalUrl, shortCode, customName, info, category, domain) {
+        const form = document.getElementById('editLinkForm');
+        form.action = SHORTLINK_EDIT_BASE + id;
+        document.getElementById('edit_short_url').value = SHORTLINK_HOST + '/s/' + shortCode;
+        document.getElementById('edit_original_url').value = originalUrl || '';
+        document.getElementById('edit_custom_name').value = customName || '';
+        document.getElementById('edit_info').value = info || '';
+        document.getElementById('edit_category').value = category || '';
+        document.getElementById('edit_domain').value = domain || '';
+        new bootstrap.Modal(document.getElementById('editLinkModal')).show();
+    }
+
     function copyToClipboard(text) {
         navigator.clipboard.writeText(text).then(function() {
             Swal.fire({
