@@ -9,6 +9,7 @@ nên các chỗ gọi hiện có không đổi.
 import io
 import os
 import re
+from datetime import datetime
 
 try:
     from docx import Document as DocxDocument
@@ -146,6 +147,127 @@ def _table_column_role(cells):
     return roles
 
 
+def _normalize_table_deadline(value):
+    """Đổi ngày đầy đủ trong ô thời gian về ISO; giữ None với mốc không đủ ngày."""
+    text = re.sub(r"\s+", " ", str(value or "").strip())
+    match = re.search(r"(?<!\d)(\d{1,2})\s*/\s*(\d{1,2})\s*/\s*(\d{4})(?!\d)", text)
+    if not match:
+        return None
+    try:
+        return datetime.strptime("/".join(match.groups()), "%d/%m/%Y").strftime("%Y-%m-%d")
+    except ValueError:
+        return None
+
+
+def _is_table_section_number(value):
+    normalized = re.sub(r"[^IVXLCDM]", "", remove_accents(str(value or "")).upper())
+    return bool(normalized and re.fullmatch(r"[IVXLCDM]+", normalized))
+
+
+def _pdf_table_rows(document, catalog=None):
+    """Đọc bảng PDF thành rows chuẩn, giữ nhóm/STT và toàn bộ ô nguồn.
+
+    Khi PDF có bảng thật, bảng là nguồn chuẩn. Không dùng text tuyến tính để nối
+    thêm rows vì PDF Word thường tách từng ô thành các mảnh độc lập.
+    """
+    rows = []
+    seen = set()
+    current_section = ""
+    for page in document:
+        try:
+            table_finder = getattr(page, "find_tables", lambda: None)()
+            tables = getattr(table_finder, "tables", []) if table_finder else []
+            for table in tables or []:
+                data = table.extract()
+                if not data or not data[0] or not any(data[0]):
+                    continue
+                headers = [
+                    re.sub(r"\s+", " ", str(cell or "").strip().replace("\n", " "))
+                    for cell in data[0]
+                ]
+                roles = _table_column_role(headers)
+                content_index = roles.get("content", -1)
+                if content_index < 0:
+                    continue
+                schema = _table_build_schema(headers)
+                index_index = roles.get("index", -1)
+                for data_row in data[1:]:
+                    cells = [
+                        re.sub(r"\s+", " ", str(cell or "").strip().replace("\n", " "))
+                        for cell in data_row
+                    ]
+                    if not any(cells):
+                        continue
+                    content = cells[content_index] if content_index < len(cells) else ""
+                    number = cells[index_index] if 0 <= index_index < len(cells) else ""
+                    if not content:
+                        continue
+                    if index_index >= 0 and _is_table_section_number(number):
+                        current_section = content
+                        continue
+                    if index_index >= 0 and not re.fullmatch(r"\d+(?:\s*\.\s*\d+)*\.?", number):
+                        continue
+
+                    lead_index = roles.get("lead", -1)
+                    coordinate_index = roles.get("coordinate", -1)
+                    deadline_index = roles.get("deadline", -1)
+                    product_index = roles.get("product", -1)
+                    note_index = roles.get("note", -1)
+                    lead = cells[lead_index] if 0 <= lead_index < len(cells) else ""
+                    coordinate = cells[coordinate_index] if 0 <= coordinate_index < len(cells) else ""
+                    deadline = cells[deadline_index] if 0 <= deadline_index < len(cells) else ""
+                    product = cells[product_index] if 0 <= product_index < len(cells) else ""
+                    note = cells[note_index] if 0 <= note_index < len(cells) else ""
+                    dedupe = _normalize_outline_match_text(
+                        " | ".join([current_section, number, content])
+                    )
+                    if dedupe in seen:
+                        continue
+                    seen.add(dedupe)
+
+                    unit_domains = []
+                    if catalog and lead:
+                        assignment = _resolve_outline_assignee_hint(f"Cơ quan chủ trì: {lead}", catalog)
+                        if assignment:
+                            unit_domains = assignment.get("unit_domains") or []
+                    content_parts = [content]
+                    if lead:
+                        content_parts.append(f"Cơ quan chủ trì: {lead}")
+                    if coordinate:
+                        content_parts.append(f"Cơ quan phối hợp: {coordinate}")
+                    if deadline:
+                        content_parts.append(f"Thời gian: {deadline}")
+                    if product:
+                        content_parts.append(f"Sản phẩm, kết quả: {product}")
+                    if note:
+                        content_parts.append(f"Ghi chú: {note}")
+                    rows.append(
+                        {
+                            "title": content[:255],
+                            "content": f"- {' | '.join(content_parts)}"[:3000],
+                            "heading": current_section[:255],
+                            "level": 2,
+                            "number": number.strip(),
+                            "parent_row_index": None,
+                            "has_numbers": False,
+                            "number_fields": [],
+                            "assign_type": "unit" if unit_domains else "",
+                            "domain": "",
+                            "unit_domains": unit_domains,
+                            "role_ids": [],
+                            "user_ids": [],
+                            "assignee_hint": f"Cơ quan chủ trì: {lead}" if lead else "",
+                            "assignee_detected": bool(unit_domains),
+                            "table_schema": schema,
+                            "table_cells": {str(idx): cell for idx, cell in enumerate(cells)},
+                            "deadline": _normalize_table_deadline(deadline),
+                        }
+                    )
+        except Exception:
+            continue
+    return rows
+
+
 def _table_header_based_rows(table, catalog=None, seen=None):
     """Xử lý bảng KHÔNG có cột số thứ tự (Stt/La Mã): dò vai trò cột theo tiêu đề
     (vd: Nhiệm vụ | Đơn vị | Thời hạn) và biến mỗi dòng dữ liệu thành 1 nội dung gán.
@@ -215,6 +337,7 @@ def _table_header_based_rows(table, catalog=None, seen=None):
                 "assignee_detected": bool(unit_domains),
                 "table_schema": schema,
                 "table_cells": {str(idx): cell for idx, cell in enumerate(cells)},
+                "deadline": _normalize_table_deadline(deadline),
             }
         )
     return rows
@@ -306,6 +429,7 @@ def _table_rows_to_outline_rows(document, catalog=None):
                         "assignee_detected": bool(unit_domains),
                         "table_schema": schema,
                         "table_cells": {str(idx): cell for idx, cell in enumerate(cells)},
+                        "deadline": _normalize_table_deadline(deadline),
                     }
                 )
         # Bảng không có dòng số thứ tự nào -> thử dò cột theo tiêu đề
@@ -338,83 +462,24 @@ def _parse_outline_docx_rows(file_storage):
 
 
 def _parse_outline_pdf_rows(file_storage):
-    """Parse file PDF (báo cáo / đề cương): trích chữ từng trang -> dòng -> cây mục lục."""
+    """Parse PDF: ưu tiên bảng cấu trúc, fallback text khi PDF không có bảng."""
     lines, error = _parse_outline_pdf_text(file_storage)
     if error:
         raise ValueError(error)
 
     catalog = _task_assignment_catalog()
-    hierarchy_items = _parse_outline_with_hierarchy(lines, is_docx=False)
-    rows = _flatten_hierarchy_to_rows(hierarchy_items, catalog=catalog)
-    # Gộp thêm dòng từ các bảng trong PDF nếu có (bảng nhiệm vụ dạng chữ)
     try:
         file_storage.stream.seek(0)
         document = PdfDocument.open(stream=file_storage.stream.read(), filetype="pdf")
-        for page in document:
-            try:
-                for table in (getattr(page, "find_tables", lambda: None)() or {}).tables:
-                    data = table.extract()
-                    if not data or not data[0] or not any(data[0]):
-                        continue
-                    headers = [re.sub(r"\s+", " ", str(c or "").strip().replace("\n", " ")) for c in data[0]]
-                    roles = _table_column_role(headers)
-                    schema = _table_build_schema(headers)
-                    seen = {_normalize_outline_match_text(str(r.get("title") or "")) for r in rows}
-                    for data_row in data[1:]:
-                        cells = [re.sub(r"\s+", " ", str(c or "").strip().replace("\n", " ")) for c in data_row]
-                        if not any(cells):
-                            continue
-                        content = cells[roles["content"]] if roles.get("content", -1) >= 0 else (max(cells, key=len) if cells else "")
-                        if not content:
-                            continue
-                        lead = cells[roles["lead"]] if roles.get("lead", -1) >= 0 else ""
-                        deadline = cells[roles["deadline"]] if roles.get("deadline", -1) >= 0 else ""
-                        coordinate = cells[roles["coordinate"]] if roles.get("coordinate", -1) >= 0 else ""
-                        product = cells[roles["product"]] if roles.get("product", -1) >= 0 else ""
-                        if _normalize_outline_match_text(content) in seen:
-                            continue
-                        seen.add(_normalize_outline_match_text(content))
-                        unit_domains = []
-                        if catalog and lead:
-                            assignment = _resolve_outline_assignee_hint(f"Cơ quan chủ trì: {lead}", catalog)
-                            if assignment:
-                                unit_domains = assignment.get("unit_domains") or []
-                        content_parts = [content]
-                        if lead:
-                            content_parts.append(f"Cơ quan chủ trì: {lead}")
-                        if coordinate:
-                            content_parts.append(f"Cơ quan phối hợp: {coordinate}")
-                        if deadline:
-                            content_parts.append(f"Thời gian: {deadline}")
-                        if product:
-                            content_parts.append(f"Sản phẩm, kết quả: {product}")
-                        rows.append(
-                            {
-                                "title": content[:255],
-                                "content": f"- {' | '.join(content_parts)}"[:3000],
-                                "heading": "",
-                                "level": 2,
-                                "number": "",
-                                "parent_row_index": None,
-                                "has_numbers": False,
-                                "number_fields": [],
-                                "assign_type": "unit" if unit_domains else "",
-                                "domain": "",
-                                "unit_domains": unit_domains,
-                                "role_ids": [],
-                                "user_ids": [],
-                                "assignee_hint": f"Cơ quan chủ trì: {lead}" if lead else "",
-                                "assignee_detected": bool(unit_domains),
-                                "table_schema": schema,
-                                "table_cells": {str(idx): cell for idx, cell in enumerate(cells)},
-                            }
-                        )
-            except Exception:
-                continue
+        table_rows = _pdf_table_rows(document, catalog=catalog)
         document.close()
+        if table_rows:
+            return table_rows
     except Exception:
         pass
-    return rows
+
+    hierarchy_items = _parse_outline_with_hierarchy(lines, is_docx=False)
+    return _flatten_hierarchy_to_rows(hierarchy_items, catalog=catalog)
 
 
 def _blocks_to_outline_rows(blocks):
@@ -581,4 +646,3 @@ def _merge_outline_rows_groups(groups):
         row["sources"] = sorted(entry["sources"])
         result.append(row)
     return result
-

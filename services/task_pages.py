@@ -200,6 +200,18 @@ from services.task_workspace_views import (
     _task_item_synthesis_text,
 )
 
+
+def _parse_item_deadline(value, fallback=None):
+    """Chuẩn hóa deadline riêng của dòng; nếu không đủ ngày thì dùng hạn Task."""
+    raw = str(value or "").strip()
+    if raw:
+        try:
+            return datetime.strptime(raw, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+    return fallback
+
+
 def _tasks_page_v2():
     perms = _current_perms()
     can_view_all_tasks = _can_view_all_tasks(perms)
@@ -430,7 +442,7 @@ def _tasks_page_v2():
                         output_type="OUTLINE",
                         report_kind=item_config.get("report_kind") or "narrative",
                         attachment_required=bool(item_config.get("attachment_required")),
-                        deadline=new_task.deadline,
+                        deadline=_parse_item_deadline(item_config.get("deadline"), new_task.deadline),
                         sort_order=index,
                         report_sources_json=_outline_sources_json(item_config.get("sources") or []),
                     )
@@ -916,7 +928,7 @@ def _create_outline_items_v2(tid):
             output_type="OUTLINE",
             report_kind=item_config["report_kind"],
             attachment_required=bool(item_config["attachment_required"]),
-            deadline=parent_task.deadline,
+            deadline=_parse_item_deadline(item_config.get("deadline"), parent_task.deadline),
             sort_order=current_count + index,
         )
         db.session.add(task_item)

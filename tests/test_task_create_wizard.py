@@ -4,6 +4,8 @@ import json
 import unittest
 import uuid
 from datetime import datetime
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from app import app
 from models import (
@@ -261,6 +263,7 @@ class TaskCreateWizardTests(unittest.TestCase):
             follow_redirects=True,
         )
         self.assertEqual(response.status_code, 200)
+
         with app.app_context():
             task = (
                 Task.query.filter_by(title="Wizard xóa có giao việc")
@@ -279,6 +282,56 @@ class TaskCreateWizardTests(unittest.TestCase):
             self.assertEqual(TaskItem.query.filter_by(task_id=task_id).count(), 0)
             self.assertEqual(TaskAssignment.query.filter_by(task_id=task_id).count(), 0)
             self.assertEqual(TaskSubmission.query.filter_by(task_id=task_id).count(), 0)
+
+    def test_pdf_table_parse_uses_structured_rows_and_preserves_metadata(self):
+        """PDF dạng bảng phải trả đúng dòng nhiệm vụ, không trộn text tuyến tính."""
+        from services import outline_rows
+
+        class FakeTable:
+            def extract(self):
+                return [
+                    [
+                        "Stt",
+                        "Nội dung nhiệm vụ",
+                        "Cơ quan, đơn vị chủ trì",
+                        "Cơ quan, đơn vị phối hợp",
+                        "Thời gian hoàn thành",
+                        "Sản phẩm, kết quả",
+                        "Ghi chú",
+                    ],
+                    ["I", "I. Hạ tầng số", "", "", "", "", ""],
+                    ["1", "Triển khai hạ tầng", "Sở KH&CN", "Công an tỉnh", "30/09/2026", "Kết quả", "Theo dõi"],
+                    ["2", "Đào tạo kỹ năng", "Sở GD&ĐT", "Các đơn vị", "Thường xuyên", "Báo cáo", ""],
+                ]
+
+        class FakePage:
+            def find_tables(self):
+                return SimpleNamespace(tables=[FakeTable()])
+
+        class FakeDocument:
+            def __iter__(self):
+                return iter([FakePage()])
+
+            def close(self):
+                pass
+
+        class FakeStorage:
+            filename = "phu-luc.pdf"
+
+            def __init__(self):
+                self.stream = io.BytesIO(b"pdf")
+
+        with patch.object(outline_rows, "_parse_outline_pdf_text", return_value=(["nhiễu"], None)), \
+             patch.object(outline_rows, "_task_assignment_catalog", return_value=[]), \
+             patch.object(outline_rows, "PdfDocument", SimpleNamespace(open=lambda **kwargs: FakeDocument())):
+            rows = outline_rows._parse_outline_pdf_rows(FakeStorage())
+
+        self.assertEqual(len(rows), 2)
+        self.assertEqual([row["number"] for row in rows], ["1", "2"])
+        self.assertEqual([row["heading"] for row in rows], ["I. Hạ tầng số", "I. Hạ tầng số"])
+        self.assertEqual(rows[0]["deadline"], "2026-09-30")
+        self.assertEqual(rows[0]["table_cells"]["6"], "Theo dõi")
+        self.assertEqual(rows[0]["table_schema"][0]["role"], "stt")
 
     def test_create_outline_task_with_items_in_one_post(self):
         admin = self._admin()
@@ -631,7 +684,7 @@ class TaskCreateWizardTests(unittest.TestCase):
         table.rows[1].cells[0].text = "1"
         table.rows[1].cells[1].text = "Triển khai quy định pháp luật"
         table.rows[1].cells[2].text = "Đội A"
-        table.rows[1].cells[3].text = "30/9"
+        table.rows[1].cells[3].text = "30/09/2026"
         table.rows[2].cells[0].text = "2"
         table.rows[2].cells[1].text = "Đào tạo kỹ năng số"
         table.rows[2].cells[2].text = "Đội B"
@@ -657,6 +710,7 @@ class TaskCreateWizardTests(unittest.TestCase):
         self.assertFalse(next(col for col in schema if col["role"] == "stt")["visible"])
         self.assertEqual(rows[0]["table_cells"]["1"], "Triển khai quy định pháp luật")
         self.assertEqual(rows[0]["table_cells"]["2"], "Đội A")
+        self.assertEqual(rows[0]["deadline"], "2026-09-30")
         self.assertIn("doia", rows[0]["unit_domains"])
 
         # Tạo task: lưu schema cấp task + cells cấp đầu mục
@@ -673,6 +727,7 @@ class TaskCreateWizardTests(unittest.TestCase):
                 "item_table_schema": schema_json,
                 "item_title": [rows[0]["title"], rows[1]["title"]],
                 "item_content": [rows[0]["content"], rows[1]["content"]],
+                "item_deadline": [rows[0]["deadline"], rows[1].get("deadline") or ""],
                 "item_report_kind": ["narrative", "narrative"],
                 "item_table_cells": [cells_json_0, cells_json_1],
                 "item_assign_type": ["unit", "unit"],
@@ -701,6 +756,7 @@ class TaskCreateWizardTests(unittest.TestCase):
             items = TaskItem.query.filter_by(task_id=task.id).order_by(TaskItem.sort_order.asc()).all()
             self.assertEqual(len(items), 2)
             self.assertTrue(items[0].table_cells_json)
+            self.assertEqual(items[0].deadline, datetime.strptime("2026-09-30", "%Y-%m-%d").date())
             stored_cells = json.loads(items[0].table_cells_json)
             self.assertEqual(stored_cells["2"], "Đội A")
             render_html = _render_outline_table_html(schema_map, _outline_item_table_cells(items[0]), items[0].content or "")

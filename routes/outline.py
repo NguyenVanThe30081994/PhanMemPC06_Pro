@@ -4,7 +4,7 @@ routes/outline.py — Blueprint: Trình biên tập đề cương
 
 Chức năng:
     GET  /outline-editor            -> Trang giao diện (yêu cầu đăng nhập)
-    POST /api/parse-outline         -> Upload .docx/.txt, parse cây cấu trúc
+    POST /api/parse-outline         -> Upload .docx/.txt/.pdf, parse cây cấu trúc
     POST /api/save-outline          -> Lưu cây đã chỉnh sửa (JSON -> .docx)
 
 Tích hợp vào app.py:
@@ -22,10 +22,42 @@ from flask import (Blueprint, current_app, flash, jsonify, render_template,
 from werkzeug.utils import secure_filename
 
 from outline_parser import parse_docx, parse_text, build_tree, collect_stats
+from services.outline_rows import _parse_outline_upload_rows
 
 outline_bp = Blueprint('outline_bp', __name__, url_prefix='')
 
 OUTLINE_ALLOWED_EXTENSIONS = {'.docx', '.txt'}
+
+
+def _pdf_rows_to_tree(rows):
+    """Dựng cây tối giản cho trình biên tập cũ từ rows bảng PDF chuẩn."""
+    sections = []
+    by_heading = {}
+    for row in rows or []:
+        heading = str(row.get('heading') or '').strip() or 'Nội dung đề cương'
+        section = by_heading.get(heading)
+        if section is None:
+            section = {
+                'id': uuid.uuid4().hex[:8],
+                'type': 'h1',
+                'label': '',
+                'text': heading,
+                'children': [],
+            }
+            by_heading[heading] = section
+            sections.append(section)
+        section['children'].append({
+            'id': uuid.uuid4().hex[:8],
+            'type': 'h2',
+            'label': str(row.get('number') or '').strip(),
+            'text': str(row.get('title') or '').strip(),
+            'children': [],
+        })
+    return {
+        'title': 'Đề cương từ PDF',
+        'subtitle': '',
+        'sections': sections,
+    }
 
 
 def _require_login():
@@ -72,8 +104,15 @@ def api_parse_outline():
         return jsonify({'error': 'File không hợp lệ.'}), 400
 
     try:
-        path = _save_uploaded_file(file_storage)
         ext = os.path.splitext(file_storage.filename)[1].lower()
+
+        if ext == '.pdf':
+            tree = _pdf_rows_to_tree(_parse_outline_upload_rows(file_storage))
+            tree['filename'] = file_storage.filename
+            tree['stats'] = collect_stats(tree)
+            return jsonify(tree)
+
+        path = _save_uploaded_file(file_storage)
 
         if ext == '.docx':
             tree = parse_docx(path)

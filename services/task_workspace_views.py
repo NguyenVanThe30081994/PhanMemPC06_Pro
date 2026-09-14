@@ -237,6 +237,7 @@ def _parse_outline_item_configs_from_request(form):
     sources_values = form.getlist("item_sources")
     heading_values = form.getlist("item_heading")
     table_cells_values = form.getlist("item_table_cells")
+    deadline_values = form.getlist("item_deadline")
     table_schema = []
     try:
         raw_schema = str(form.get("item_table_schema") or "").strip()
@@ -328,6 +329,7 @@ def _parse_outline_item_configs_from_request(form):
                 ],
                 "table_schema": table_schema if table_cells else [],
                 "table_cells": table_cells,
+                "deadline": str(deadline_values[index] if index < len(deadline_values) else "").strip() or None,
             }
         )
     return configs
@@ -475,4 +477,3 @@ def _task_form_field_views(task):
 
 def _task_form_field_views_for_user(task, user):
     return task_form_field_views(_task_form_fields_for_user(task, user), _normalize_task_form_field_type, _form_field_options)
-

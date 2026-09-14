@@ -2762,6 +2762,7 @@
                 <input type="hidden" name="item_inherit" value="${isChild ? (inherited ? '1' : '0') : '0'}">
                 <input type="hidden" name="item_report_secondary" value="${rowData.report_secondary ? '1' : '0'}">
                 <input type="hidden" name="item_sources" value="${escapeHtml((rowData.sources || []).join(','))}">
+                <input type="hidden" name="item_deadline" value="${escapeHtml(String(rowData.deadline || ''))}">
             </div>
             <div class="number-fields-preview ${reportKind === 'number' ? '' : 'd-none'} mt-2 p-2 bg-light rounded" data-number-preview>
                 ${numberFields.length > 0 ? `

@@ -2,7 +2,7 @@
 
 > File này ghi lại toàn bộ kiến trúc, trạng thái, quyết định và việc cần làm của dự án
 > để Agent phiên làm việc mới đọc ĐẦU TIÊN là nắm được toàn bộ mã nguồn và biết việc tiếp theo.
-> Cập nhật mỗi khi thay đổi trạng thái. (Cập nhật lần cuối: 2026-09-10)
+> Cập nhật mỗi khi thay đổi trạng thái. (Cập nhật lần cuối: 2026-09-14)
 
 ---
 
@@ -139,7 +139,7 @@ DB MariaDB `dea35688_pc06tuyenquang`. Xem bằng chứng trong `DEPLOY_CPANEL.md
   hiện `pc06-premium.css ?v=1.3.7`, `style.css ?v=4.2.1`, `bdhvs-layout.css ?v=2.2.4`).
 - JS custom: `static/js/main.js`, `static/js/category-picker.js`.
 
-**Test:** `tests/` — 32 module, **293 test**. Runner duy nhất: `python3 run_tests.py` (tự ép DB
+**Test:** `tests/` — 32 module, **295 test**. Runner duy nhất: `python3 run_tests.py` (tự ép DB
 SQLite tạm + data dir tạm, an toàn khi lỡ chạy trên server prod). Contract test design system:
 `tests/test_design_system.py`. CI: `.github/workflows/deploy.yml` — push `main` → job `test`
 (chạy `run_tests.py`) → job `web-deploy` (FTP lên host, secrets `FTP_SERVER/USERNAME/PASSWORD`)
@@ -190,11 +190,28 @@ working tree sạch, `main` == `origin/main` (commit cuối `f3103f5` — Subpro
   prefix thành `https://javascript:alert(1)` lọt validation → Nay chặn mọi scheme lạ
   khi link thiếu `http(s)://`, vẫn cho `host:8080/x`. Test mới
   `tests/test_shortlink_edit_target.py` (6 case) ✅ ĐÃ CHẠY PASS TOÀN BỘ 10/09/2026 bằng
-  `~/.workbuddy-ai/binaries/python/envs/pc06/bin/python run_tests.py` → **293 test / 2 fail
+  `~/.workbuddy-ai/binaries/python/envs/pc06/bin/python run_tests.py` → **295 test / 2 fail
   nền cũ** (test_task_synthesis). Local KHÔNG còn `.venv`; dùng env cô lập pc06 này.
+- **Triển khai đường vào PDF và tổng hợp theo dòng (14/09/2026):** bộ đọc PDF dạng bảng
+  lấy bảng làm nguồn chuẩn, loại bỏ text tuyến tính nhiễu, giữ nhóm/STT và 7 cột nguồn;
+  file phụ lục thật trả đúng **75 dòng / 11 nhóm**. API editor cũ `/api/parse-outline` cũng
+  nhận `.pdf` và dựng lại cây 11 section / 75 mục. Wizard lưu deadline ISO đầy đủ theo từng
+  `TaskItem` và giao diện chi tiết hiển thị “Hạn riêng”. Các mốc chỉ ghi dạng `Thường xuyên`,
+  `2026–2027` hoặc `15/7` không đủ dữ kiện nên vẫn giữ nguyên ô nguồn và dùng hạn Task chung.
+- **Dashboard định kỳ theo OUTLINE (14/09/2026):** tổng hợp cả assignment cấp Task và cấp
+  TaskItem, nhóm theo đơn vị; mỗi assignment có thể hiển thị thêm tên dòng nhiệm vụ. Đã thêm
+  regression test cho PDF metadata/deadline và dashboard assignment theo TaskItem.
 
 ### 🚧 Đang dở / cần xử lý
-- **Suite 293 test còn 2 lỗi có sẵn** (chạy xác thực lại 10/09/2026 bằng env cô lập
+- **Kiểm tra trực tiếp giao việc với file phụ lục (14/09/2026):** E2E lõi sau khi dùng 75
+  dòng bảng tạo được 75 TaskItem và 75 assignment; đơn vị mở trang/nộp báo cáo; quản trị xem
+  chi tiết/dashboard và xuất DOCX thành công. Smoke route thật cũng xác nhận wizard 75 dòng,
+  editor cũ 11 section/75 mục. E2E POST `/tasks` trực tiếp từ payload 75 rows tạo đúng 75
+  TaskItem, 75 assignment và lưu 33 deadline đầy đủ theo dòng; dữ liệu smoke đã xóa sạch.
+- **Database local khi kiểm tra:** chỉ có tài khoản bootstrap admin, chưa có task/assignment/
+  submission/unit catalog thực tế; phần phân giải cơ quan chủ trì sang đơn vị phải kiểm tra
+  thêm trên dữ liệu triển khai thật.
+- **Suite 295 test còn 2 lỗi có sẵn** (chạy xác thực lại 14/09/2026 bằng env cô lập
   `~/.workbuddy-ai/binaries/python/envs/pc06` — local không còn `.venv`; lưu ý ImportError
   pytest của `test_report_aggregate` đã không còn xuất hiện trên env pc06):
   1. `tests.test_task_synthesis.TaskSynthesisTests.test_save_synthesis_then_export_uses_synthesis`
@@ -227,26 +244,32 @@ working tree sạch, `main` == `origin/main` (commit cuối `f3103f5` — Subpro
 
 ## 4. Việc tiếp theo cần làm (NEXT STEPS)
 
-1. **Sửa 2 test `test_task_synthesis` để mở khóa CI/CD** (ưu tiên cao nhất — đang làm pipeline
+0. **Đã triển khai P0 bộ đọc PDF theo bảng chuẩn**; cần mở rộng kiểm thử với các mẫu PDF
+   không có đường viền/bảng scan và nhiều bảng không có cột STT.
+1. **Đã lưu deadline đầy đủ theo dòng**; bước tiếp theo là chuẩn hóa metadata chu kỳ/mốc
+   không đủ ngày và tách rõ người thực hiện với đơn vị phối hợp/người theo dõi.
+2. **Đã sửa dashboard tổng hợp** cho assignment cấp Task + TaskItem; cần bổ sung tiếp chỉ số
+   thiếu hạn, chất lượng và ngoại lệ theo nhóm nhiệm vụ.
+3. **Sửa 2 test `test_task_synthesis` để mở khóa CI/CD** (ưu tiên cao nhất — đang làm pipeline
    deploy đỏ). Chọn 1 hướng rồi nhất quán:
    - Nếu tiền tố `assign_N: ` là định dạng chuẩn → sửa assert trong
      `tests/test_task_synthesis.py:184` và `:211` (ví dụ kỳ vọng `"assign_1: Đoạn văn của Đội A."`).
    - Nếu định dạng cũ (đoạn thuần) là chuẩn → sửa phần ghép đoạn trong
      `services/task_report_aggregate.py` / `_export_outline_word_v2` để không chèn nhãn.
-   Sau khi sửa, baseline mới là **293 test / 0 fail** — mọi thay đổi sau này không được tăng lỗi.
-2. **Môi trường test local**: `.venv` trong dự án KHÔNG còn tồn tại. Dùng env cô lập đã cài đủ
+   Sau khi sửa, baseline mới là **295 test / 0 fail** — mọi thay đổi sau này không được tăng lỗi.
+4. **Môi trường test local**: `.venv` trong dự án KHÔNG còn tồn tại. Dùng env cô lập đã cài đủ
    requirements: `~/.workbuddy-ai/binaries/python/envs/pc06/bin/python run_tests.py`
    (env này có pytest nên `test_report_aggregate` chạy bình thường).
-3. **Gỡ route trùng** `task_export_outline_docx` (`routes/tasks.py:174`) hoặc v2 — giữ đúng 1,
+5. **Gỡ route trùng** `task_export_outline_docx` (`routes/tasks.py:174`) hoặc v2 — giữ đúng 1,
    chạy lại `run_tests.py` (đề nghị #2 báo cáo DA06).
-4. **Xác nhận trạng thái GitHub Actions** (mở tab Actions của repo). Nếu đỏ do bước 1: sau khi
+6. **Xác nhận trạng thái GitHub Actions** (mở tab Actions của repo). Nếu đỏ do bước 3: sau khi
    fix + push, deploy FTP sẽ tự chạy lại. Nếu cần deploy khẩn không qua CI, làm thủ công theo
    `DEPLOY_CPANEL.md` (upload zip + `touch tmp/restart.txt`).
-5. **Smoke test giao diện light/dark trên trình duyệt thật** các trang vừa bump CSS (M5–M14:
+7. **Smoke test giao diện light/dark trên trình duyệt thật** các trang vừa bump CSS (M5–M14:
    tasks, roles, contacts, links, logs, db_tool…), kiểm tra droplist/file input sau M14.
-6. **Trả 400 khi `deadline` sai định dạng** ở `/api/create-outline-task`
+8. **Trả 400 khi `deadline` sai định dạng** ở `/api/create-outline-task`
    (`routes/outline.py` / `services/task_admin.py` — cần rà vị trí chính xác) thay vì bỏ qua âm thầm.
-7. (Đường dài, theo `THIET_KE_CHUC_NANG_TASK_CUOI.md`) Hoàn thiện pha FORM + tổng hợp Excel;
+9. (Đường dài, theo `THIET_KE_CHUC_NANG_TASK_CUOI.md`) Hoàn thiện pha FORM + tổng hợp Excel;
    gọn dần `TaskParticipant`; sau khi dữ liệu mới ổn định mới dọn bảng/logic cũ.
 
 ---

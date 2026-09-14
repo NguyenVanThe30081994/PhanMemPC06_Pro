@@ -160,7 +160,7 @@
 
 <div class="upload-bar pc-card">
   <div class="upload-inner">
-    <input type="file" id="docxInput" accept=".docx,.txt" class="file-input">
+    <input type="file" id="docxInput" accept=".docx,.txt,.pdf" class="file-input">
     <button class="btn primary pc-btn" id="btnParse">Quét cấu trúc</button>
     <span class="upload-name" id="fileName"></span>
   </div>
@@ -189,7 +189,7 @@
   <div class="empty-state">
     <div class="big"><i class="fa-solid fa-list-check" aria-hidden="true"></i></div>
     <h3>Chưa có đề cương nào được tải lên</h3>
-    <p>Chọn file <strong>.docx</strong> hoặc <strong>.txt</strong> rồi bấm "Quét cấu trúc".<br>
+    <p>Chọn file <strong>.docx</strong>, <strong>.txt</strong> hoặc <strong>.pdf</strong> rồi bấm "Quét cấu trúc".<br>
        Sau đó bấm <strong>Gán việc</strong> bên cạnh từng mục để chọn cán bộ thực hiện, rồi "Tạo công việc".</p>
   </div>
 </main>
@@ -579,7 +579,7 @@
   // ── Wiring ──
   document.getElementById('btnParse').addEventListener('click', function () {
     var input = document.getElementById('docxInput');
-    if (!input.files[0]) { toast('Vui lòng chọn file .docx hoặc .txt'); return; }
+    if (!input.files[0]) { toast('Vui lòng chọn file .docx, .txt hoặc .pdf'); return; }
     parseFile(input.files[0]);
   });
   document.getElementById('btnExpand').addEventListener('click', function () { collapsed = {}; render(); });

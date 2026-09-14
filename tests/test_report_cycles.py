@@ -317,6 +317,50 @@ class ReportCycleIntegrationTests(unittest.TestCase):
             self.assertEqual(submission.cycle_key, expected["key"])
             self.assertEqual(submission.cycle_label, expected["label"])
 
+    def test_dashboard_aggregates_outline_item_assignments(self):
+        with app.app_context():
+            admin = (
+                User.query.filter_by(username="admin").first()
+                or User.query.filter_by(is_active=True).order_by(User.id.asc()).first()
+            )
+            user_id = self._create_user("Đội Dashboard", "dashboard")
+            task = Task(
+                title="[TEST] Dashboard đề cương theo dòng",
+                content="Kiểm tra tổng hợp assignment theo TaskItem.",
+                author_id=admin.id,
+                author_name=admin.fullname,
+                task_type="Báo cáo định kỳ",
+                task_mode="OUTLINE",
+                report_period_json=json.dumps({"kind": "periodic", "period": "month", "day_of_month": 20}),
+                created_at=datetime.now(),
+            )
+            db.session.add(task)
+            db.session.flush()
+            item = TaskItem(task_id=task.id, title="Dòng dashboard", report_kind="narrative", sort_order=0)
+            db.session.add(item)
+            db.session.flush()
+            db.session.add(
+                TaskAssignment(
+                    task_id=task.id,
+                    task_item_id=item.id,
+                    user_id=user_id,
+                    assignee_type="unit",
+                    title_snapshot=item.title,
+                    status="assigned",
+                    assigned_at=datetime.now(),
+                )
+            )
+            db.session.commit()
+            self.created_task_ids.append(task.id)
+
+            self._login(admin.id)
+            response = self.client.get("/tasks/report-dashboard")
+            self.assertEqual(response.status_code, 200)
+            html = response.get_data(as_text=True)
+            self.assertIn("Đội Dashboard", html)
+            self.assertIn("Dòng dashboard", html)
+            self.assertIn("0/1 đã nộp", html)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -80,9 +80,11 @@ def _build_report_dashboard_data(uid, perms):
 
         units = {}
         assignments = (
-            TaskAssignment.query.options(joinedload(TaskAssignment.user))
+            TaskAssignment.query.options(
+                joinedload(TaskAssignment.user),
+                joinedload(TaskAssignment.task_item),
+            )
             .filter_by(task_id=task.id)
-            .filter(TaskAssignment.task_item_id.is_(None))
             .all()
         )
         for assignment in assignments:
@@ -99,6 +101,7 @@ def _build_report_dashboard_data(uid, perms):
             unit["assignees"].append(
                 {
                     "name": getattr(user, "fullname", None) or getattr(user, "username", None) or f"UID {user.id}",
+                    "item_title": getattr(getattr(assignment, "task_item", None), "title", None) or "",
                     "status": status,
                     "submitted_at": (
                         submission.submitted_at.strftime("%d/%m/%Y %H:%M")

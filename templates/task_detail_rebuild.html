@@ -206,7 +206,8 @@
                                             {% for row in outline_matrix.rows %}
                                             <tr>
                                                 <td>
-                                                    <div class="fw-semibold">{{ row.item.item_code or loop.index }}. {{ row.item.title }}</div>
+                                                <div class="fw-semibold">{{ row.item.item_code or loop.index }}. {{ row.item.title }}</div>
+                                                {% if row.item.deadline %}<div class="small text-muted mt-1">Hạn riêng: {{ row.item.deadline.strftime('%d/%m/%Y') }}</div>{% endif %}
                                                 {% if row.table_render_html %}
                                                 <div class="mt-2">{{ row.table_render_html|safe }}</div>
                                                 {% endif %}
@@ -538,6 +539,7 @@
                                         <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-2">
                                             <div>
                                                 <div class="fw-semibold">{{ row.item.item_code }}. {{ row.item.title }}</div>
+                                                {% if row.item.deadline %}<div class="small text-muted mt-1">Hạn riêng: {{ row.item.deadline.strftime('%d/%m/%Y') }}</div>{% endif %}
                                                 {% if row.secondary_text %}
                                                 <div class="small text-muted mt-1">{{ row.secondary_text }}</div>
                                                 {% endif %}

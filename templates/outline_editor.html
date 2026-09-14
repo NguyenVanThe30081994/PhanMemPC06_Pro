@@ -179,7 +179,7 @@
       <div class="seal">06</div>
       <div>
         <div class="mast-eyebrow">PhanMemPC06 Pro — Trình biên tập đề cương</div>
-        <div class="mast-app">Tải file .docx / .txt bất kỳ, cấu trúc được nhận diện và tái hiện tự động</div>
+        <div class="mast-app">Tải file .docx / .txt / .pdf bất kỳ, cấu trúc được nhận diện và tái hiện tự động</div>
       </div>
     </div>
     <h1 class="doc-title" id="docTitle">Chưa có đề cương</h1>
@@ -191,7 +191,7 @@
 
 <div class="upload-bar pc-card">
   <div class="upload-inner">
-    <input type="file" id="docxInput" accept=".docx,.txt" class="file-input">
+    <input type="file" id="docxInput" accept=".docx,.txt,.pdf" class="file-input">
     <button class="btn primary pc-btn" id="btnParse">Phân tích cấu trúc</button>
     <span class="upload-name" id="fileName"></span>
   </div>
@@ -235,7 +235,7 @@
   <div class="empty-state">
     <div class="big"><i class="fa-solid fa-file-lines" aria-hidden="true"></i></div>
     <h3>Chưa có đề cương nào được tải lên</h3>
-    <p>Chọn file <strong>.docx</strong> hoặc <strong>.txt</strong> ở phía trên rồi bấm "Phân tích cấu trúc".<br>Cấu trúc mục lục sẽ được nhận diện tự động theo từng cấp (I, 1, 1.1, 1.1.1, gạch đầu dòng, dấu +).</p>
+    <p>Chọn file <strong>.docx</strong>, <strong>.txt</strong> hoặc <strong>.pdf</strong> ở phía trên rồi bấm "Phân tích cấu trúc".<br>Cấu trúc mục lục sẽ được nhận diện tự động theo từng cấp (I, 1, 1.1, 1.1.1, gạch đầu dòng, dấu +).</p>
   </div>
 </main>
 
@@ -616,7 +616,7 @@
   // ── Toolbar wiring ──
   document.getElementById('btnParse').addEventListener('click', function () {
     var input = document.getElementById('docxInput');
-    if (!input.files[0]) { toast('Vui lòng chọn file .docx hoặc .txt'); return; }
+    if (!input.files[0]) { toast('Vui lòng chọn file .docx, .txt hoặc .pdf'); return; }
     parseFile(input.files[0]);
   });
   document.getElementById('btnExpand').addEventListener('click', function () {

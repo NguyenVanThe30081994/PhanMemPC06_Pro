@@ -74,6 +74,9 @@
                                 {% for assignee in unit.assignees %}
                                 <span class="d-inline-block me-2 mb-1">
                                     {{ assignee.name }}
+                                    {% if assignee.item_title %}
+                                    <small class="d-block" style="color: var(--pc-text-muted);">{{ assignee.item_title }}</small>
+                                    {% endif %}
                                     {% if assignee.status == "submitted" %}
                                     <span class="pc-badge pc-badge-success" title="{{ assignee.submitted_at }}"><i class="fa-solid fa-check" aria-hidden="true"></i></span>
                                     {% else %}
