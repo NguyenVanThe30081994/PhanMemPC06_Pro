@@ -8,6 +8,8 @@ nên các chỗ gọi hiện có không đổi.
 
 import re
 
+from flask import g, has_request_context
+
 from category_helpers import canonicalize_category_value, resolve_category_display
 from models import AppRole, User, db
 from services.task_categories import _task_assignment_unit_options, _task_domain_options
@@ -190,7 +192,20 @@ def _task_unit_identity(user):
 
 
 def _task_assignee_unit_name(user):
-    return _task_unit_identity(user).get("unit_name", "Chưa có đơn vị")
+    if not user:
+        return "Chưa có đơn vị"
+    cache_key = getattr(user, "id", None) or ("object", id(user))
+    if has_request_context():
+        cache = getattr(g, "_task_assignee_unit_name_cache", None)
+        if cache is None:
+            cache = {}
+            g._task_assignee_unit_name_cache = cache
+        if cache_key in cache:
+            return cache[cache_key]
+    unit_name = _task_unit_identity(user).get("unit_name", "Chưa có đơn vị")
+    if has_request_context():
+        g._task_assignee_unit_name_cache[cache_key] = unit_name
+    return unit_name
 
 
 def _users_for_unit(unit_name):

@@ -1338,11 +1338,19 @@ def _export_form_task_v2(tid):
 def _build_outline_progress_matrix(task, current_uid):
     """Ma trận tiến độ: hàng = đầu mục, cột = đơn vị nhận việc."""
     rows = _parse_outline_item_rows(task, current_uid)
+    unit_name_cache = {}
+
+    def assignment_unit_name(assignment):
+        user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
+        cache_key = getattr(user, "id", None) or ("object", id(user))
+        if cache_key not in unit_name_cache:
+            unit_name_cache[cache_key] = _task_assignee_unit_name(user)
+        return unit_name_cache[cache_key]
+
     unit_names = []
     for row in rows:
         for assignment in row["assignments"]:
-            user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
-            unit_name = _task_assignee_unit_name(user)
+            unit_name = assignment_unit_name(assignment)
             if unit_name not in unit_names:
                 unit_names.append(unit_name)
     unit_names.sort(key=lambda name: remove_accents(name).lower())
@@ -1353,12 +1361,11 @@ def _build_outline_progress_matrix(task, current_uid):
         cells = []
         item_submitted = 0
         item_total = len(row["assignments"])
+        assignments_by_unit = {}
+        for assignment in row["assignments"]:
+            assignments_by_unit.setdefault(assignment_unit_name(assignment), []).append(assignment)
         for unit_name in unit_names:
-            unit_assignments = []
-            for assignment in row["assignments"]:
-                user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
-                if _task_assignee_unit_name(user) == unit_name:
-                    unit_assignments.append(assignment)
+            unit_assignments = assignments_by_unit.get(unit_name, [])
             unit_submitted = sum(1 for assignment in unit_assignments if _task_is_submitted(assignment))
             item_submitted += unit_submitted
             cell_numbers = []

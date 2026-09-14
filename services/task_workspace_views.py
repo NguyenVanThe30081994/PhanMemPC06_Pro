@@ -12,8 +12,11 @@ import json
 import re
 
 from flask import session
+from sqlalchemy.orm import joinedload
 from werkzeug.datastructures import MultiDict
 from werkzeug.utils import secure_filename
+
+from models import TaskSubmission
 
 from task_read_models import (
     build_file_task_rows,
@@ -137,11 +140,35 @@ def _render_outline_table_html(schema_map, cells, fallback_content=""):
 
 def _parse_outline_item_rows(task, current_uid):
     rows = []
-    for item in _task_items_for_task(task):
+    items = _task_items_for_task(task)
+    item_assignments = []
+    all_assignments = []
+    for item in items:
         assignments = _task_assignments_query(task, task_item_id=item.id).all()
+        item_assignments.append((item, assignments))
+        all_assignments.extend(assignments)
+
+    # Một trang quản trị có thể có hàng nghìn assignment. Lấy submission theo
+    # lô để tránh N+1 query (một query/assignment) khi dựng ma trận đề cương.
+    latest_submission_by_assignment = {}
+    assignment_ids = [assignment.id for assignment in all_assignments if getattr(assignment, "id", None)]
+    if assignment_ids:
+        submissions = (
+            TaskSubmission.query.options(joinedload(TaskSubmission.files))
+            .filter(TaskSubmission.assignment_id.in_(assignment_ids))
+            .order_by(TaskSubmission.assignment_id.asc(), TaskSubmission.created_at.desc(), TaskSubmission.id.desc())
+            .all()
+        )
+        for submission in submissions:
+            latest_submission_by_assignment.setdefault(submission.assignment_id, submission)
+    for assignment in all_assignments:
+        if getattr(assignment, "last_submission", None):
+            latest_submission_by_assignment[assignment.id] = assignment.last_submission
+
+    for item, assignments in item_assignments:
         my_assignment = next((assignment for assignment in assignments if assignment.user_id == current_uid), None)
         latest_submissions = {
-            assignment.id: _latest_assignment_submission(assignment)
+            assignment.id: latest_submission_by_assignment.get(assignment.id)
             for assignment in assignments
         }
         secondary_text = ""

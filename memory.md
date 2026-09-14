@@ -139,7 +139,7 @@ DB MariaDB `dea35688_pc06tuyenquang`. Xem bằng chứng trong `DEPLOY_CPANEL.md
   hiện `pc06-premium.css ?v=1.3.7`, `style.css ?v=4.2.1`, `bdhvs-layout.css ?v=2.2.4`).
 - JS custom: `static/js/main.js`, `static/js/category-picker.js`.
 
-**Test:** `tests/` — 32 module, **295 test**. Runner duy nhất: `python3 run_tests.py` (tự ép DB
+**Test:** `tests/` — 33 module, **300 test**. Runner duy nhất: `python3 run_tests.py` (tự ép DB
 SQLite tạm + data dir tạm, an toàn khi lỡ chạy trên server prod). Contract test design system:
 `tests/test_design_system.py`. CI: `.github/workflows/deploy.yml` — push `main` → job `test`
 (chạy `run_tests.py`) → job `web-deploy` (FTP lên host, secrets `FTP_SERVER/USERNAME/PASSWORD`)
@@ -198,6 +198,13 @@ working tree sạch, `main` == `origin/main` (commit cuối `f3103f5` — Subpro
   nhận `.pdf` và dựng lại cây 11 section / 75 mục. Wizard lưu deadline ISO đầy đủ theo từng
   `TaskItem` và giao diện chi tiết hiển thị “Hạn riêng”. Các mốc chỉ ghi dạng `Thường xuyên`,
   `2026–2027` hoặc `15/7` không đủ dữ kiện nên vẫn giữ nguyên ô nguồn và dùng hạn Task chung.
+- **P0 quy mô 124 đơn vị (14/09/2026):** thêm fixture chính thức 124 mã/tên đơn vị (117 xã,
+  7 phường), seed idempotent tài khoản `TEST124_<mã>` và runner cô lập
+  `scripts/run_tuyen_quang_124_p0.py`. Chạy trực tiếp với file phụ lục thật: 75 đầu mục,
+  9.300/9.300 phân công, mỗi đơn vị 75/75; 124/124 tài khoản mở được trang đơn vị; một đơn vị
+  tiếp nhận/nộp thành công; quản trị mở dashboard và xuất DOCX thành công. Đã xử lý nút thắt
+  P0 do cache nhận diện đơn vị, cache resolver danh mục theo request và truy vấn submission theo
+  lô, giảm trang quản trị xuống 5,572 giây và trang đơn vị mẫu 0,715 giây trong DB SQLite test.
 - **Dashboard định kỳ theo OUTLINE (14/09/2026):** tổng hợp cả assignment cấp Task và cấp
   TaskItem, nhóm theo đơn vị; mỗi assignment có thể hiển thị thêm tên dòng nhiệm vụ. Đã thêm
   regression test cho PDF metadata/deadline và dashboard assignment theo TaskItem.
@@ -207,11 +214,17 @@ working tree sạch, `main` == `origin/main` (commit cuối `f3103f5` — Subpro
   dòng bảng tạo được 75 TaskItem và 75 assignment; đơn vị mở trang/nộp báo cáo; quản trị xem
   chi tiết/dashboard và xuất DOCX thành công. Smoke route thật cũng xác nhận wizard 75 dòng,
   editor cũ 11 section/75 mục. E2E POST `/tasks` trực tiếp từ payload 75 rows tạo đúng 75
-  TaskItem, 75 assignment và lưu 33 deadline đầy đủ theo dòng; dữ liệu smoke đã xóa sạch.
+  TaskItem, 75 assignment và lưu 33 deadline đầy đủ theo dòng. Đã test browser thật trên DB
+  cô lập: admin nhìn thấy 75 lượt giao + ma trận tiến độ; tài khoản đơn vị nhìn thấy 75 đầu mục,
+  hạn riêng, nút tiếp nhận, vùng nội dung báo cáo, tệp minh chứng và gửi báo cáo. Ảnh kiểm thử
+  lưu tại `ui-admin-assignment.png`, `ui-admin-progress-matrix.png`, `ui-reporting-unit.png`.
+- **Đã hoàn tất đánh giá P0 124 xã/phường (14/09/2026):** runner đã tạo bộ tài khoản test và
+  chạy đủ ma trận 9.300 assignment trên DB cô lập; JSON credential/report và DOCX kết quả nằm
+  trong thư mục `data_dir` của lượt chạy. Đây là dữ liệu test, chưa seed vào production.
 - **Database local khi kiểm tra:** chỉ có tài khoản bootstrap admin, chưa có task/assignment/
   submission/unit catalog thực tế; phần phân giải cơ quan chủ trì sang đơn vị phải kiểm tra
   thêm trên dữ liệu triển khai thật.
-- **Suite 295 test còn 2 lỗi có sẵn** (chạy xác thực lại 14/09/2026 bằng env cô lập
+- **Suite 300 test còn 2 lỗi có sẵn** (chạy xác thực lại 14/09/2026 bằng env cô lập
   `~/.workbuddy-ai/binaries/python/envs/pc06` — local không còn `.venv`; lưu ý ImportError
   pytest của `test_report_aggregate` đã không còn xuất hiện trên env pc06):
   1. `tests.test_task_synthesis.TaskSynthesisTests.test_save_synthesis_then_export_uses_synthesis`

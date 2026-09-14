@@ -1,0 +1,623 @@
+[
+  {
+    "code": "00691",
+    "name": "Phường Hà Giang 2",
+    "kind": "phường"
+  },
+  {
+    "code": "00694",
+    "name": "Phường Hà Giang 1",
+    "kind": "phường"
+  },
+  {
+    "code": "02212",
+    "name": "Phường Nông Tiến",
+    "kind": "phường"
+  },
+  {
+    "code": "02215",
+    "name": "Phường Minh Xuân",
+    "kind": "phường"
+  },
+  {
+    "code": "02509",
+    "name": "Phường Mỹ Lâm",
+    "kind": "phường"
+  },
+  {
+    "code": "02512",
+    "name": "Phường An Tường",
+    "kind": "phường"
+  },
+  {
+    "code": "02524",
+    "name": "Phường Bình Thuận",
+    "kind": "phường"
+  },
+  {
+    "code": "00700",
+    "name": "Xã Ngọc Đường",
+    "kind": "xã"
+  },
+  {
+    "code": "00706",
+    "name": "Xã Phú Linh",
+    "kind": "xã"
+  },
+  {
+    "code": "00715",
+    "name": "Xã Lũng Cú",
+    "kind": "xã"
+  },
+  {
+    "code": "00721",
+    "name": "Xã Đồng Văn",
+    "kind": "xã"
+  },
+  {
+    "code": "00733",
+    "name": "Xã Sà Phìn",
+    "kind": "xã"
+  },
+  {
+    "code": "00745",
+    "name": "Xã Phố Bảng",
+    "kind": "xã"
+  },
+  {
+    "code": "00763",
+    "name": "Xã Lũng Phìn",
+    "kind": "xã"
+  },
+  {
+    "code": "00769",
+    "name": "Xã Mèo Vạc",
+    "kind": "xã"
+  },
+  {
+    "code": "00778",
+    "name": "Xã Sơn Vĩ",
+    "kind": "xã"
+  },
+  {
+    "code": "00787",
+    "name": "Xã Sủng Máng",
+    "kind": "xã"
+  },
+  {
+    "code": "00802",
+    "name": "Xã Khâu Vai",
+    "kind": "xã"
+  },
+  {
+    "code": "00808",
+    "name": "Xã Tát Ngà",
+    "kind": "xã"
+  },
+  {
+    "code": "00817",
+    "name": "Xã Niêm Sơn",
+    "kind": "xã"
+  },
+  {
+    "code": "00820",
+    "name": "Xã Yên Minh",
+    "kind": "xã"
+  },
+  {
+    "code": "00829",
+    "name": "Xã Thắng Mố",
+    "kind": "xã"
+  },
+  {
+    "code": "00832",
+    "name": "Xã Bạch Đích",
+    "kind": "xã"
+  },
+  {
+    "code": "00847",
+    "name": "Xã Mậu Duệ",
+    "kind": "xã"
+  },
+  {
+    "code": "00859",
+    "name": "Xã Ngọc Long",
+    "kind": "xã"
+  },
+  {
+    "code": "00865",
+    "name": "Xã Đường Thượng",
+    "kind": "xã"
+  },
+  {
+    "code": "00871",
+    "name": "Xã Du Già",
+    "kind": "xã"
+  },
+  {
+    "code": "00874",
+    "name": "Xã Quản Bạ",
+    "kind": "xã"
+  },
+  {
+    "code": "00883",
+    "name": "Xã Cán Tỷ",
+    "kind": "xã"
+  },
+  {
+    "code": "00889",
+    "name": "Xã Nghĩa Thuận",
+    "kind": "xã"
+  },
+  {
+    "code": "00892",
+    "name": "Xã Tùng Vài",
+    "kind": "xã"
+  },
+  {
+    "code": "00901",
+    "name": "Xã Lùng Tám",
+    "kind": "xã"
+  },
+  {
+    "code": "00913",
+    "name": "Xã Vị Xuyên",
+    "kind": "xã"
+  },
+  {
+    "code": "00919",
+    "name": "Xã Minh Tân",
+    "kind": "xã"
+  },
+  {
+    "code": "00922",
+    "name": "Xã Thuận Hòa",
+    "kind": "xã"
+  },
+  {
+    "code": "00925",
+    "name": "Xã Tùng Bá",
+    "kind": "xã"
+  },
+  {
+    "code": "00928",
+    "name": "Xã Thanh Thủy",
+    "kind": "xã"
+  },
+  {
+    "code": "00937",
+    "name": "Xã Lao Chải",
+    "kind": "xã"
+  },
+  {
+    "code": "00952",
+    "name": "Xã Cao Bồ",
+    "kind": "xã"
+  },
+  {
+    "code": "00958",
+    "name": "Xã Thượng Sơn",
+    "kind": "xã"
+  },
+  {
+    "code": "00967",
+    "name": "Xã Việt Lâm",
+    "kind": "xã"
+  },
+  {
+    "code": "00970",
+    "name": "Xã Linh Hồ",
+    "kind": "xã"
+  },
+  {
+    "code": "00976",
+    "name": "Xã Bạch Ngọc",
+    "kind": "xã"
+  },
+  {
+    "code": "00982",
+    "name": "Xã Minh Sơn",
+    "kind": "xã"
+  },
+  {
+    "code": "00985",
+    "name": "Xã Giáp Trung",
+    "kind": "xã"
+  },
+  {
+    "code": "00991",
+    "name": "Xã Bắc Mê",
+    "kind": "xã"
+  },
+  {
+    "code": "00994",
+    "name": "Xã Minh Ngọc",
+    "kind": "xã"
+  },
+  {
+    "code": "01006",
+    "name": "Xã Yên Cường",
+    "kind": "xã"
+  },
+  {
+    "code": "01012",
+    "name": "Xã Đường Hồng",
+    "kind": "xã"
+  },
+  {
+    "code": "01021",
+    "name": "Xã Hoàng Su Phì",
+    "kind": "xã"
+  },
+  {
+    "code": "01024",
+    "name": "Xã Bản Máy",
+    "kind": "xã"
+  },
+  {
+    "code": "01033",
+    "name": "Xã Thàng Tín",
+    "kind": "xã"
+  },
+  {
+    "code": "01051",
+    "name": "Xã Tân Tiến",
+    "kind": "xã"
+  },
+  {
+    "code": "01057",
+    "name": "Xã Pờ Ly Ngài",
+    "kind": "xã"
+  },
+  {
+    "code": "01075",
+    "name": "Xã Nậm Dịch",
+    "kind": "xã"
+  },
+  {
+    "code": "01084",
+    "name": "Xã Hồ Thầu",
+    "kind": "xã"
+  },
+  {
+    "code": "01090",
+    "name": "Xã Thông Nguyên",
+    "kind": "xã"
+  },
+  {
+    "code": "01096",
+    "name": "Xã Pà Vầy Sủ",
+    "kind": "xã"
+  },
+  {
+    "code": "01108",
+    "name": "Xã Xín Mần",
+    "kind": "xã"
+  },
+  {
+    "code": "01117",
+    "name": "Xã Trung Thịnh",
+    "kind": "xã"
+  },
+  {
+    "code": "01141",
+    "name": "Xã Nấm Dẩn",
+    "kind": "xã"
+  },
+  {
+    "code": "01144",
+    "name": "Xã Quảng Nguyên",
+    "kind": "xã"
+  },
+  {
+    "code": "01147",
+    "name": "Xã Khuôn Lùng",
+    "kind": "xã"
+  },
+  {
+    "code": "01153",
+    "name": "Xã Bắc Quang",
+    "kind": "xã"
+  },
+  {
+    "code": "01156",
+    "name": "Xã Vĩnh Tuy",
+    "kind": "xã"
+  },
+  {
+    "code": "01165",
+    "name": "Xã Đồng Tâm",
+    "kind": "xã"
+  },
+  {
+    "code": "01171",
+    "name": "Xã Tân Quang",
+    "kind": "xã"
+  },
+  {
+    "code": "01180",
+    "name": "Xã Bằng Hành",
+    "kind": "xã"
+  },
+  {
+    "code": "01192",
+    "name": "Xã Liên Hiệp",
+    "kind": "xã"
+  },
+  {
+    "code": "01201",
+    "name": "Xã Hùng An",
+    "kind": "xã"
+  },
+  {
+    "code": "01216",
+    "name": "Xã Đồng Yên",
+    "kind": "xã"
+  },
+  {
+    "code": "01225",
+    "name": "Xã Tiên Nguyên",
+    "kind": "xã"
+  },
+  {
+    "code": "01234",
+    "name": "Xã Yên Thành",
+    "kind": "xã"
+  },
+  {
+    "code": "01237",
+    "name": "Xã Quang Bình",
+    "kind": "xã"
+  },
+  {
+    "code": "01243",
+    "name": "Xã Tân Trịnh",
+    "kind": "xã"
+  },
+  {
+    "code": "01246",
+    "name": "Xã Bằng Lang",
+    "kind": "xã"
+  },
+  {
+    "code": "01255",
+    "name": "Xã Xuân Giang",
+    "kind": "xã"
+  },
+  {
+    "code": "01261",
+    "name": "Xã Tiên Yên",
+    "kind": "xã"
+  },
+  {
+    "code": "02221",
+    "name": "Xã Nà Hang",
+    "kind": "xã"
+  },
+  {
+    "code": "02239",
+    "name": "Xã Thượng Nông",
+    "kind": "xã"
+  },
+  {
+    "code": "02245",
+    "name": "Xã Côn Lôn",
+    "kind": "xã"
+  },
+  {
+    "code": "02248",
+    "name": "Xã Yên Hoa",
+    "kind": "xã"
+  },
+  {
+    "code": "02260",
+    "name": "Xã Hồng Thái",
+    "kind": "xã"
+  },
+  {
+    "code": "02266",
+    "name": "Xã Lâm Bình",
+    "kind": "xã"
+  },
+  {
+    "code": "02269",
+    "name": "Xã Thượng Lâm",
+    "kind": "xã"
+  },
+  {
+    "code": "02287",
+    "name": "Xã Chiêm Hóa",
+    "kind": "xã"
+  },
+  {
+    "code": "02296",
+    "name": "Xã Bình An",
+    "kind": "xã"
+  },
+  {
+    "code": "02302",
+    "name": "Xã Minh Quang",
+    "kind": "xã"
+  },
+  {
+    "code": "02305",
+    "name": "Xã Trung Hà",
+    "kind": "xã"
+  },
+  {
+    "code": "02308",
+    "name": "Xã Tân Mỹ",
+    "kind": "xã"
+  },
+  {
+    "code": "02317",
+    "name": "Xã Yên Lập",
+    "kind": "xã"
+  },
+  {
+    "code": "02320",
+    "name": "Xã Tân An",
+    "kind": "xã"
+  },
+  {
+    "code": "02332",
+    "name": "Xã Kiên Đài",
+    "kind": "xã"
+  },
+  {
+    "code": "02350",
+    "name": "Xã Kim Bình",
+    "kind": "xã"
+  },
+  {
+    "code": "02353",
+    "name": "Xã Hòa An",
+    "kind": "xã"
+  },
+  {
+    "code": "02359",
+    "name": "Xã Tri Phú",
+    "kind": "xã"
+  },
+  {
+    "code": "02365",
+    "name": "Xã Yên Nguyên",
+    "kind": "xã"
+  },
+  {
+    "code": "02374",
+    "name": "Xã Hàm Yên",
+    "kind": "xã"
+  },
+  {
+    "code": "02380",
+    "name": "Xã Bạch Xa",
+    "kind": "xã"
+  },
+  {
+    "code": "02392",
+    "name": "Xã Phù Lưu",
+    "kind": "xã"
+  },
+  {
+    "code": "02398",
+    "name": "Xã Yên Phú",
+    "kind": "xã"
+  },
+  {
+    "code": "02404",
+    "name": "Xã Bình Xa",
+    "kind": "xã"
+  },
+  {
+    "code": "02407",
+    "name": "Xã Thái Sơn",
+    "kind": "xã"
+  },
+  {
+    "code": "02419",
+    "name": "Xã Thái Hòa",
+    "kind": "xã"
+  },
+  {
+    "code": "02425",
+    "name": "Xã Hùng Đức",
+    "kind": "xã"
+  },
+  {
+    "code": "02434",
+    "name": "Xã Lực Hành",
+    "kind": "xã"
+  },
+  {
+    "code": "02437",
+    "name": "Xã Kiến Thiết",
+    "kind": "xã"
+  },
+  {
+    "code": "02449",
+    "name": "Xã Xuân Vân",
+    "kind": "xã"
+  },
+  {
+    "code": "02455",
+    "name": "Xã Hùng Lợi",
+    "kind": "xã"
+  },
+  {
+    "code": "02458",
+    "name": "Xã Trung Sơn",
+    "kind": "xã"
+  },
+  {
+    "code": "02470",
+    "name": "Xã Tân Long",
+    "kind": "xã"
+  },
+  {
+    "code": "02473",
+    "name": "Xã Yên Sơn",
+    "kind": "xã"
+  },
+  {
+    "code": "02494",
+    "name": "Xã Thái Bình",
+    "kind": "xã"
+  },
+  {
+    "code": "02530",
+    "name": "Xã Nhữ Khê",
+    "kind": "xã"
+  },
+  {
+    "code": "02536",
+    "name": "Xã Sơn Dương",
+    "kind": "xã"
+  },
+  {
+    "code": "02545",
+    "name": "Xã Tân Trào",
+    "kind": "xã"
+  },
+  {
+    "code": "02548",
+    "name": "Xã Bình Ca",
+    "kind": "xã"
+  },
+  {
+    "code": "02554",
+    "name": "Xã Minh Thanh",
+    "kind": "xã"
+  },
+  {
+    "code": "02572",
+    "name": "Xã Đông Thọ",
+    "kind": "xã"
+  },
+  {
+    "code": "02578",
+    "name": "Xã Tân Thanh",
+    "kind": "xã"
+  },
+  {
+    "code": "02608",
+    "name": "Xã Hồng Sơn",
+    "kind": "xã"
+  },
+  {
+    "code": "02611",
+    "name": "Xã Phú Lương",
+    "kind": "xã"
+  },
+  {
+    "code": "02620",
+    "name": "Xã Sơn Thủy",
+    "kind": "xã"
+  },
+  {
+    "code": "02623",
+    "name": "Xã Trường Sinh",
+    "kind": "xã"
+  }
+]
+

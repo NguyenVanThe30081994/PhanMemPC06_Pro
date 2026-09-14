@@ -2,6 +2,8 @@
 import re
 import unicodedata
 
+from flask import g, has_request_context
+
 from models import CategoryGroup, CategoryItem, CategoryItemAlias, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding, db
 
 CATEGORY_GROUP_ALIASES = {
@@ -199,6 +201,25 @@ def module_category_options(module_code, field_code, *fallback_names):
 
 
 def category_resolver(category_options):
+    cache_key = tuple(
+        (
+            item.get('id'),
+            item.get('code'),
+            item.get('value'),
+            item.get('stable_value'),
+            item.get('name'),
+            item.get('slug'),
+        )
+        for item in (category_options or [])
+    )
+    if has_request_context():
+        cache = getattr(g, '_category_resolver_cache', None)
+        if cache is None:
+            cache = {}
+            g._category_resolver_cache = cache
+        if cache_key in cache:
+            return cache[cache_key]
+
     mapping = {}
     item_ids = [item.get('id') for item in category_options or [] if item.get('id') is not None]
     alias_rows = CategoryItemAlias.query.filter(CategoryItemAlias.item_id.in_(item_ids)).all() if item_ids else []
@@ -227,6 +248,8 @@ def category_resolver(category_options):
             }:
                 if key:
                     mapping[str(key).strip().lower()] = item
+    if has_request_context():
+        g._category_resolver_cache[cache_key] = mapping
     return mapping
 
 
