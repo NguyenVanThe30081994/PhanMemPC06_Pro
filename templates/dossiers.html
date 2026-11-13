@@ -1,0 +1,498 @@
+{% extends "base.html" %}
+
+{% block title %}Sổ Theo Dõi Thời Hạn Hồ Sơ — PC06 Pro{% endblock %}
+
+{% block extra_head %}
+<style>
+  .dossier-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .dossier-stat-card {
+    background: var(--pc-card-bg, #FFFFFF);
+    border-radius: 14px;
+    padding: 18px 20px;
+    border: 1px solid var(--pc-border, #E2E8F0);
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .dossier-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.08);
+  }
+  .dossier-stat-card.stat-danger {
+    border-left: 5px solid #E53E3E;
+    background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
+  }
+  [data-theme="dark"] .dossier-stat-card.stat-danger {
+    background: linear-gradient(135deg, rgba(229, 62, 62, 0.15) 0%, #1A202C 100%);
+    border-left-color: #FC8181;
+  }
+  .dossier-stat-card.stat-warning {
+    border-left: 5px solid #D69E2E;
+    background: linear-gradient(135deg, #FFFFF0 0%, #FFFFFF 100%);
+  }
+  [data-theme="dark"] .dossier-stat-card.stat-warning {
+    background: linear-gradient(135deg, rgba(214, 158, 46, 0.15) 0%, #1A202C 100%);
+    border-left-color: #F6E05E;
+  }
+  .dossier-stat-card.stat-info {
+    border-left: 5px solid #3182CE;
+    background: linear-gradient(135deg, #EBF8FF 0%, #FFFFFF 100%);
+  }
+  [data-theme="dark"] .dossier-stat-card.stat-info {
+    background: linear-gradient(135deg, rgba(49, 130, 206, 0.15) 0%, #1A202C 100%);
+    border-left-color: #63B3ED;
+  }
+  .dossier-stat-card.stat-success {
+    border-left: 5px solid #38A169;
+    background: linear-gradient(135deg, #F0FFF4 0%, #FFFFFF 100%);
+  }
+  [data-theme="dark"] .dossier-stat-card.stat-success {
+    background: linear-gradient(135deg, rgba(56, 161, 105, 0.15) 0%, #1A202C 100%);
+    border-left-color: #68D391;
+  }
+  .stat-num {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+  .stat-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--pc-text-muted, #718096);
+  }
+  .badge-state-overdue {
+    background: #FED7D7;
+    color: #9B2C2C;
+    border: 1px solid #FEB2B2;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  [data-theme="dark"] .badge-state-overdue {
+    background: rgba(229, 62, 62, 0.25);
+    color: #FEB2B2;
+    border-color: #E53E3E;
+  }
+  .badge-state-soon {
+    background: #FEFCBF;
+    color: #744210;
+    border: 1px solid #F6E05E;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  [data-theme="dark"] .badge-state-soon {
+    background: rgba(214, 158, 46, 0.25);
+    color: #FAF089;
+    border-color: #D69E2E;
+  }
+  .badge-state-pending {
+    background: #EBF8FF;
+    color: #2B6CB0;
+    border: 1px solid #BEE3F8;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  [data-theme="dark"] .badge-state-pending {
+    background: rgba(49, 130, 206, 0.25);
+    color: #90CDF4;
+    border-color: #3182CE;
+  }
+  .badge-state-done {
+    background: #E2E8F0;
+    color: #4A5568;
+    border: 1px solid #CBD5E0;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  [data-theme="dark"] .badge-state-done {
+    background: #2D3748;
+    color: #A0AEC0;
+    border-color: #4A5568;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-4 py-3">
+
+  <!-- HEADER -->
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+      <h2 class="fw-bold mb-0" style="color: var(--text-main, #1A365D);">
+        <i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i>Sổ Theo Dõi Thời Hạn Hồ Sơ
+      </h2>
+    </div>
+    <div>
+      <button type="button" class="pc-btn pc-btn-primary btn-lg px-4 shadow-sm" onclick="openCreateDossierModal()">
+        <i class="fa-solid fa-plus me-2"></i>Nhập hồ sơ mới
+      </button>
+    </div>
+  </div>
+
+  <!-- 4 THẺ THỐNG KÊ TRỰC QUAN -->
+  <div class="dossier-stat-grid">
+    <div class="dossier-stat-card stat-danger">
+      <div>
+        <div class="stat-num text-danger" id="countOverdue">0</div>
+        <div class="stat-label">Hồ sơ quá hạn</div>
+      </div>
+      <div class="fs-1 text-danger opacity-50"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    </div>
+    <div class="dossier-stat-card stat-warning">
+      <div>
+        <div class="stat-num text-warning" id="countSoon">0</div>
+        <div class="stat-label">Sắp đến hạn (&le; 2 ngày)</div>
+      </div>
+      <div class="fs-1 text-warning opacity-50"><i class="fa-solid fa-bell"></i></div>
+    </div>
+    <div class="dossier-stat-card stat-info">
+      <div>
+        <div class="stat-num text-primary" id="countPending">0</div>
+        <div class="stat-label">Còn trong hạn</div>
+      </div>
+      <div class="fs-1 text-primary opacity-50"><i class="fa-solid fa-hourglass-half"></i></div>
+    </div>
+    <div class="dossier-stat-card stat-success">
+      <div>
+        <div class="stat-num text-success" id="countDone">0</div>
+        <div class="stat-label">Đã trả kết quả</div>
+      </div>
+      <div class="fs-1 text-success opacity-50"><i class="fa-solid fa-circle-check"></i></div>
+    </div>
+  </div>
+
+  <!-- BỘ LỌC TÌM KIẾM NHANH -->
+  <div class="pc-card p-3 shadow-sm mb-3">
+    <div class="row g-2 align-items-center">
+      <div class="col-md-5">
+        <input type="text" id="searchInput" class="form-control" placeholder="Tìm kiếm theo mã hồ sơ, ghi chú...">
+      </div>
+      <div class="col-md-3">
+        <select id="loaiSelect" class="form-select">
+          <option value="">Tất cả loại hồ sơ</option>
+          <option value="can-cuoc">Căn cước</option>
+          <option value="cu-tru">Cư trú</option>
+          <option value="dinh-danh">Định danh VNeID</option>
+          <option value="xac-thuc">Xác thực ĐA06</option>
+          <option value="khac">Khác</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select id="statusSelect" class="form-select">
+          <option value="">Tất cả trạng thái</option>
+          <option value="dang_xu_ly" selected>Đang xử lý (Chưa trả)</option>
+          <option value="da_tra">Đã trả kết quả</option>
+        </select>
+      </div>
+      <div class="col-md-1 text-end">
+        <button type="button" class="pc-btn pc-btn-secondary w-100" id="btnRefresh" title="Làm mới">
+          <i class="fa-solid fa-arrows-rotate"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BẢNG DANH SÁCH HỒ SƠ -->
+  <div class="pc-card p-0 shadow-sm border overflow-hidden mb-4" style="border-radius: 12px;">
+    <div class="table-responsive">
+      <table class="table pc-table align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 50px;" class="text-center">#</th>
+            <th style="min-width: 280px;">Mã / Tên hồ sơ</th>
+            <th style="width: 150px;">Loại hồ sơ</th>
+            <th style="width: 180px;">Hạn trả kết quả</th>
+            <th style="width: 150px;" class="text-center">Tình trạng</th>
+            <th style="width: 200px;" class="text-center">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody id="dossierTableBody">
+          <tr>
+            <td colspan="7" class="text-center py-4 text-muted">Đang tải danh sách hồ sơ...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL NHẬP / SỬA HỒ SƠ -->
+<div class="modal fade" id="dossierModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 14px;">
+      <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
+        <h5 class="modal-title fw-bold text-primary fs-5" id="dossierModalTitle">Nhập Hồ Sơ Mới</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form id="dossierForm">
+          <input type="hidden" id="dossierId">
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Mã hoặc tên hồ sơ <span class="text-danger">*</span></label>
+            <input type="text" id="inputMaHoSo" class="form-control" placeholder="Ví dụ: HS-2026-00125 hoặc Nguyễn Văn A..." required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Loại hồ sơ</label>
+            <select id="inputLoai" class="form-select">
+              <option value="can-cuoc">Căn cước</option>
+              <option value="cu-tru">Cư trú</option>
+              <option value="dinh-danh">Định danh VNeID</option>
+              <option value="xac-thuc">Xác thực ĐA06</option>
+              <option value="khac">Khác</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Hạn trả kết quả <span class="text-danger">*</span></label>
+            <input type="date" id="inputHanTra" class="form-control" required>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label small fw-bold">Ghi chú</label>
+            <textarea id="inputGhiChu" class="form-control" rows="2" placeholder="Ghi chú thêm nếu cần..."></textarea>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2">
+            <button type="button" class="pc-btn pc-btn-secondary" data-bs-dismiss="modal">Hủy</button>
+            <button type="submit" class="pc-btn pc-btn-primary px-4" id="btnSaveDossier">Lưu hồ sơ</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const CSRF = "{{ csrf_token_value }}";
+  let cachedDossiers = [];
+
+  function loadDossiers() {
+    const q = document.getElementById('searchInput').value.trim();
+    const loai = document.getElementById('loaiSelect').value;
+    const tt = document.getElementById('statusSelect').value;
+
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (loai) params.set('loai', loai);
+    if (tt) params.set('trang_thai', tt);
+
+    fetch('/api/dossiers?' + params.toString(), {
+      headers: { 'X-CSRF-Token': CSRF }
+    })
+    .then(r => r.json())
+    .then(data => {
+      cachedDossiers = data.dossiers || [];
+      renderStats(data.counts || {});
+      renderTable(cachedDossiers);
+    })
+    .catch(err => {
+      console.error('Lỗi tải sổ hồ sơ:', err);
+    });
+  }
+
+  function renderStats(counts) {
+    document.getElementById('countOverdue').textContent = counts.overdue || 0;
+    document.getElementById('countSoon').textContent = counts.soon || 0;
+    document.getElementById('countPending').textContent = counts.pending || 0;
+    document.getElementById('countDone').textContent = counts.done || 0;
+  }
+
+  function renderTable(list) {
+    const tbody = document.getElementById('dossierTableBody');
+    if (!list || list.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center py-5 text-muted">
+            <i class="fa-solid fa-folder-open fs-2 mb-2 d-block opacity-50"></i>
+            Chưa có hồ sơ nào theo tiêu chí tìm kiếm.
+          </td>
+        </tr>`;
+      return;
+    }
+
+    tbody.innerHTML = list.map((d, index) => {
+      let stateBadge = '';
+      let dateBadge = '';
+      if (d.trang_thai === 'da_tra') {
+        stateBadge = '<span class="badge-state-done"><i class="fa-solid fa-check me-1"></i>Đã trả</span>';
+        dateBadge = `<span class="text-muted">${formatDateVN(d.han_tra)}</span>`;
+      } else if (d.state === 'overdue') {
+        const lateDays = Math.abs(d.days_left);
+        stateBadge = `<span class="badge-state-overdue"><i class="fa-solid fa-circle-exclamation me-1"></i>Quá hạn ${lateDays} ngày</span>`;
+        dateBadge = `<span class="text-danger fw-bold">${formatDateVN(d.han_tra)}</span>`;
+      } else if (d.state === 'soon') {
+        const soonDays = d.days_left;
+        const text = soonDays === 0 ? 'Hôm nay đến hạn' : `Còn ${soonDays} ngày`;
+        stateBadge = `<span class="badge-state-soon"><i class="fa-solid fa-bell me-1"></i>${text}</span>`;
+        dateBadge = `<span class="text-warning fw-bold">${formatDateVN(d.han_tra)}</span>`;
+      } else {
+        stateBadge = '<span class="badge-state-pending">Trong hạn</span>';
+        dateBadge = `<span class="text-dark">${formatDateVN(d.han_tra)}</span>`;
+      }
+
+      return `
+        <tr>
+          <td class="text-center text-muted fw-bold">${index + 1}</td>
+          <td>
+            <div class="fw-bold text-primary fs-6">${escapeHtml(d.ma_ho_so)}</div>
+            ${d.ghi_chu ? `<small class="text-muted d-block">${escapeHtml(d.ghi_chu)}</small>` : ''}
+            ${d.da_tra_at ? `<small class="text-success d-block"><i class="fa-solid fa-circle-check me-1"></i>Đã trả lúc ${d.da_tra_at}</small>` : ''}
+          </td>
+          <td>
+            <span class="badge bg-secondary-subtle text-secondary border">${escapeHtml(d.loai_label)}</span>
+          </td>
+          <td>
+            ${dateBadge}
+          </td>
+          <td class="text-center">
+            ${stateBadge}
+          </td>
+          <td class="text-center">
+            <div class="d-inline-flex gap-1">
+              ${d.trang_thai === 'da_tra' 
+                ? `<button type="button" class="pc-btn pc-btn-secondary btn-sm" onclick="setStatus(${d.id}, 'dang_xu_ly')" title="Đưa về đang xử lý"><i class="fa-solid fa-rotate-left me-1"></i>Mở lại</button>`
+                : `<button type="button" class="btn btn-sm btn-success fw-bold" onclick="setStatus(${d.id}, 'da_tra')" title="Đánh dấu đã trả kết quả"><i class="fa-solid fa-check me-1"></i>Đã trả</button>`}
+              <button type="button" class="pc-btn pc-btn-secondary btn-sm" onclick="openEditDossierModal(${d.id})" title="Sửa"><i class="fa-solid fa-pen"></i></button>
+              <button type="button" class="pc-btn pc-btn-secondary btn-sm text-danger" onclick="deleteDossier(${d.id})" title="Xóa"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  function formatDateVN(isoStr) {
+    if (!isoStr) return '--';
+    const parts = isoStr.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return isoStr;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  window.openCreateDossierModal = function() {
+    document.getElementById('dossierModalTitle').textContent = 'Nhập Hồ Sơ Mới';
+    document.getElementById('dossierId').value = '';
+    document.getElementById('inputMaHoSo').value = '';
+    document.getElementById('inputLoai').value = 'can-cuoc';
+    document.getElementById('inputHanTra').value = '';
+    document.getElementById('inputGhiChu').value = '';
+
+    const modal = new bootstrap.Modal(document.getElementById('dossierModal'));
+    modal.show();
+  };
+
+  window.openEditDossierModal = function(id) {
+    const d = cachedDossiers.find(x => x.id === id);
+    if (!d) return;
+
+    document.getElementById('dossierModalTitle').textContent = 'Chỉnh Sửa Hồ Sơ';
+    document.getElementById('dossierId').value = d.id;
+    document.getElementById('inputMaHoSo').value = d.ma_ho_so;
+    document.getElementById('inputLoai').value = d.loai;
+    document.getElementById('inputHanTra').value = d.han_tra || '';
+    document.getElementById('inputGhiChu').value = d.ghi_chu || '';
+
+    const modal = new bootstrap.Modal(document.getElementById('dossierModal'));
+    modal.show();
+  };
+
+  document.getElementById('dossierForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const id = document.getElementById('dossierId').value;
+    const payload = {
+      ma_ho_so: document.getElementById('inputMaHoSo').value.trim(),
+      loai: document.getElementById('inputLoai').value,
+      han_tra: document.getElementById('inputHanTra').value,
+      ghi_chu: document.getElementById('inputGhiChu').value.trim()
+    };
+
+    const url = id ? `/api/dossiers/${id}` : '/api/dossiers';
+    const method = id ? 'PUT' : 'POST';
+
+    fetch(url, {
+      method: method,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': CSRF
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(res => {
+      if (res.error) throw new Error(res.error);
+      const modalEl = document.getElementById('dossierModal');
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      if (modal) modal.hide();
+      loadDossiers();
+    })
+    .catch(err => {
+      alert(err.message || 'Lỗi khi lưu hồ sơ');
+    });
+  });
+
+  window.setStatus = function(id, trang_thai) {
+    fetch(`/api/dossiers/${id}/status`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': CSRF
+      },
+      body: JSON.stringify({ trang_thai: trang_thai })
+    })
+    .then(r => r.json())
+    .then(res => {
+      if (res.error) throw new Error(res.error);
+      loadDossiers();
+    })
+    .catch(err => {
+      alert(err.message || 'Lỗi khi cập nhật trạng thái');
+    });
+  };
+
+  window.deleteDossier = function(id) {
+    if (!confirm('Bạn có chắc chắn muốn xóa hồ sơ này khỏi sổ theo dõi?')) return;
+    fetch(`/api/dossiers/${id}`, {
+      method: 'DELETE',
+      headers: { 'X-CSRF-Token': CSRF }
+    })
+    .then(r => r.json())
+    .then(res => {
+      if (res.error) throw new Error(res.error);
+      loadDossiers();
+    })
+    .catch(err => {
+      alert(err.message || 'Lỗi khi xóa hồ sơ');
+    });
+  };
+
+  let searchTimeout = null;
+  document.getElementById('searchInput').addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(loadDossiers, 300);
+  });
+  document.getElementById('loaiSelect').addEventListener('change', loadDossiers);
+  document.getElementById('statusSelect').addEventListener('change', loadDossiers);
+  document.getElementById('btnRefresh').addEventListener('click', loadDossiers);
+
+  loadDossiers();
+})();
+</script>
+{% endblock %}

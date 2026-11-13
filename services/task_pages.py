@@ -11,6 +11,7 @@ Tách từ routes/tasks.py (Pha 2). routes/tasks.py re-export các tên còn dù
 
 import io
 import json
+import re
 from datetime import datetime
 
 from flask import flash, redirect, request, send_file, session, url_for
@@ -171,6 +172,7 @@ from services.task_scope import (
 from services.task_units import _task_assignee_unit_name
 from services.task_workspace_helpers import (
     _build_rebuilt_task_summary,
+    _collapse_logical_task_assignments,
     _filter_assignment_rows_for_executor_scope,
     _filter_outline_groups_for_executor_scope,
     _store_uploaded_task_file,
@@ -180,6 +182,7 @@ from services.task_workspace_helpers import (
     _task_is_submitted,
 )
 from services.task_workspace_views import (
+    _assignment_return_reason,
     _build_file_task_rows,
     _build_form_task_rows,
     _build_outline_group_rows,
@@ -198,6 +201,7 @@ from services.task_workspace_views import (
     _task_form_field_views_for_user,
     _task_form_value_is_empty,
     _task_item_synthesis_text,
+    _task_return_comments,
 )
 
 
@@ -599,7 +603,20 @@ def _tasks_page_v2():
 
     visible_tasks = []
     for task in candidate_tasks:
-        is_executor = TaskAssignment.query.filter_by(task_id=task.id, user_id=session["uid"]).first() is not None
+        executor_cond = TaskAssignment.user_id == session["uid"]
+        if getattr(current_user, "unit_id", None):
+            executor_cond = db.or_(
+                executor_cond,
+                db.and_(
+                    TaskAssignment.assignee_type == "unit",
+                    TaskAssignment.user_id.is_(None),
+                    TaskAssignment.unit_id == current_user.unit_id,
+                ),
+            )
+        is_executor = (
+            TaskAssignment.query.filter(TaskAssignment.task_id == task.id, executor_cond).first()
+            is not None
+        )
         is_manager = _can_manage_task(task, user=current_user)
         is_viewer = _can_watch_task(task, user=current_user)
         if not task_visible_for_user(
@@ -667,6 +684,12 @@ def _tasks_page_v2():
         },
     ])
     if is_lead or is_admin:
+        sidebar_submenu_items.insert(0, {
+            "label": "Giao theo Đề cương văn bản",
+            "href": "/outline-giao-viec",
+            "count": None,
+            "active": False,
+        })
         sidebar_submenu_items.append({
             "label": "Báo cáo định kỳ",
             "href": url_for("tasks_bp.report_dashboard"),
@@ -709,8 +732,21 @@ def _task_detail_v2(tid):
     is_lead = _can_process_task_module(perms)
     is_admin = bool(current_is_admin())
     current_user = db.session.get(User, session["uid"])
-    is_executor = TaskAssignment.query.filter_by(task_id=task.id, user_id=session["uid"]).first() is not None
-    can_manage_task_view = bool(is_admin or is_lead or _can_edit_task(task) or _can_manage_task(task, user=current_user))
+    executor_cond = TaskAssignment.user_id == session["uid"]
+    if getattr(current_user, "unit_id", None):
+        executor_cond = db.or_(
+            executor_cond,
+            db.and_(
+                TaskAssignment.assignee_type == "unit",
+                TaskAssignment.user_id.is_(None),
+                TaskAssignment.unit_id == current_user.unit_id,
+            ),
+        )
+    is_executor = (
+        TaskAssignment.query.filter(TaskAssignment.task_id == task.id, executor_cond).first()
+        is not None
+    )
+    can_manage_task_view = bool(is_admin or _can_edit_task(task) or _can_manage_task(task, user=current_user))
     can_watch_task_view = bool(_can_watch_task(task, user=current_user))
 
     if not (can_view_all_tasks or can_manage_task_view or can_watch_task_view or is_executor or task.author_id == session["uid"]):
@@ -1335,13 +1371,100 @@ def _export_form_task_v2(tid):
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
+def _outline_matrix_display_title(item, content_text):
+    """Trả về tên/nội dung đầy đủ của đầu mục, tránh bị cắt cụt ở mốc 255 ký tự."""
+    raw_title = str(getattr(item, "title", "") or "").strip()
+    clean_content = re.sub(r"\s+", " ", str(content_text or "")).strip()
+    if not clean_content or clean_content.startswith("{") or clean_content.startswith("["):
+        return raw_title
+    prefix_match = re.match(r"^(\[[^\]]+\]\s*)(.*)$", raw_title)
+    prefix = prefix_match.group(1) if prefix_match else ""
+    title_body = (prefix_match.group(2) if prefix_match else raw_title).strip()
+    if title_body and len(clean_content) > len(title_body) and (
+        clean_content.startswith(title_body) or len(raw_title) >= 245
+    ):
+        return f"{prefix}{clean_content}" if prefix and not clean_content.startswith(prefix.strip()) else clean_content
+    return raw_title
+
+
+def _outline_assignment_report_entry(assignment, submission, item, content_text, number_fields, user, return_reason=""):
+    """Chuẩn hóa nội dung báo cáo và tệp đính kèm của một lượt giao cho ma trận & ngăn kéo duyệt."""
+    submitter_name = (
+        getattr(user, "fullname", None)
+        or getattr(user, "username", None)
+        or "Cán bộ"
+    )
+    submitted_dt = (
+        getattr(submission, "submitted_at", None)
+        or getattr(submission, "updated_at", None)
+        or getattr(submission, "created_at", None)
+        if submission
+        else None
+    )
+    submitted_at = submitted_dt.strftime("%d/%m/%Y %H:%M") if submitted_dt else ""
+    narrative_text = str(getattr(submission, "narrative_content", "") or "").strip() if submission else ""
+    numeric_text = (
+        ("%g" % submission.numeric_value)
+        if submission and getattr(submission, "numeric_value", None) is not None
+        else ""
+    )
+    merged_text = ""
+    if getattr(item, "report_kind", None) == "number" and number_fields and submission:
+        values = _outline_submission_values(submission)
+        merged_text = _outline_merged_content(content_text, number_fields, values).strip()
+    report_text = merged_text or narrative_text or (f"Số liệu báo cáo: {numeric_text}" if numeric_text else "")
+    files = [
+        {
+            "id": file.id,
+            "name": file.original_name or file.stored_name or f"Tệp #{file.id}",
+        }
+        for file in (getattr(submission, "files", None) or [])
+    ]
+    assignment_id = getattr(assignment, "id", None)
+    assignment_status = getattr(assignment, "status", "")
+    return {
+        "assignment": assignment,
+        "assignment_id": assignment_id,
+        "status": assignment_status,
+        "status_label": _task_assignment_status_label(assignment_status),
+        "status_class": _task_assignment_status_class(assignment_status),
+        "submitted": _task_is_submitted(assignment),
+        "submission": submission,
+        "submitter_name": submitter_name,
+        "submitted_at": submitted_at,
+        "report_text": report_text,
+        "numeric_text": numeric_text,
+        "files": files,
+        "return_reason": return_reason or str(getattr(assignment, "return_reason", "") or "").strip(),
+    }
+
+
 def _build_outline_progress_matrix(task, current_uid):
     """Ma trận tiến độ: hàng = đầu mục, cột = đơn vị nhận việc."""
     rows = _parse_outline_item_rows(task, current_uid)
+    return_comments = _task_return_comments(task)
+    user_cache = {}
     unit_name_cache = {}
 
+    missing_uids = set()
+    for row in rows:
+        for assignment in row["assignments"]:
+            uid = getattr(assignment, "user_id", None)
+            attached_user = getattr(assignment, "user", None)
+            if attached_user is not None and uid:
+                user_cache[uid] = attached_user
+            elif uid and uid not in user_cache:
+                missing_uids.add(uid)
+    if missing_uids:
+        for fetched_user in User.query.filter(User.id.in_(missing_uids)).all():
+            user_cache[fetched_user.id] = fetched_user
+
+    def assignment_user(assignment):
+        uid = getattr(assignment, "user_id", None)
+        return getattr(assignment, "user", None) or user_cache.get(uid)
+
     def assignment_unit_name(assignment):
-        user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
+        user = assignment_user(assignment)
         cache_key = getattr(user, "id", None) or ("object", id(user))
         if cache_key not in unit_name_cache:
             unit_name_cache[cache_key] = _task_assignee_unit_name(user)
@@ -1356,20 +1479,26 @@ def _build_outline_progress_matrix(task, current_uid):
     unit_names.sort(key=lambda name: remove_accents(name).lower())
 
     matrix_rows = []
-    for row in rows:
+    for idx, row in enumerate(rows, start=1):
         item = row["item"]
+        content_text = str(getattr(item, "content", "") or "")
+        number_fields = row.get("number_fields") or []
+        display_title = _outline_matrix_display_title(item, content_text)
         cells = []
         item_submitted = 0
-        item_total = len(row["assignments"])
+        item_total = 0
         assignments_by_unit = {}
         for assignment in row["assignments"]:
             assignments_by_unit.setdefault(assignment_unit_name(assignment), []).append(assignment)
         for unit_name in unit_names:
             unit_assignments = assignments_by_unit.get(unit_name, [])
-            unit_submitted = sum(1 for assignment in unit_assignments if _task_is_submitted(assignment))
+            logical_unit_assignments = _collapse_logical_task_assignments(unit_assignments)
+            unit_submitted = sum(1 for assignment in logical_unit_assignments if _task_is_submitted(assignment))
+            unit_total = len(logical_unit_assignments)
             item_submitted += unit_submitted
+            item_total += unit_total
             cell_numbers = []
-            for assignment in unit_assignments:
+            for assignment in logical_unit_assignments:
                 submission = row["latest_submissions"].get(assignment.id)
                 if not submission or item.report_kind != "number":
                     continue
@@ -1384,24 +1513,26 @@ def _build_outline_progress_matrix(task, current_uid):
                         "submitted": _task_is_submitted(assignment),
                     }
                 )
+            assignment_entries = [
+                _outline_assignment_report_entry(
+                    assignment,
+                    row["latest_submissions"].get(assignment.id),
+                    item,
+                    content_text,
+                    number_fields,
+                    assignment_user(assignment),
+                    return_reason=_assignment_return_reason(assignment, return_comments),
+                )
+                for assignment in logical_unit_assignments
+            ]
             cells.append(
                 {
                     "unit_name": unit_name,
                     "submitted_count": unit_submitted,
-                    "total_count": len(unit_assignments),
-                    "done": bool(unit_assignments) and unit_submitted >= len(unit_assignments),
+                    "total_count": unit_total,
+                    "done": bool(logical_unit_assignments) and unit_submitted >= unit_total,
                     "numbers": cell_numbers,
-                    "assignments": [
-                        {
-                            "assignment": assignment,
-                            "status": assignment.status,
-                            "status_label": _task_assignment_status_label(assignment.status),
-                            "status_class": _task_assignment_status_class(assignment.status),
-                            "submitted": _task_is_submitted(assignment),
-                            "submission": row["latest_submissions"].get(assignment.id),
-                        }
-                        for assignment in unit_assignments
-                    ],
+                    "assignments": assignment_entries,
                 }
             )
         aggregate_total = None
@@ -1415,16 +1546,55 @@ def _build_outline_progress_matrix(task, current_uid):
             aggregate_count = len(numeric_values)
             if numeric_values:
                 aggregate_total = sum(numeric_values)
+        assigned_cells = [cell for cell in cells if cell["total_count"] > 0]
+        percent = round(item_submitted / item_total * 100) if item_total else 0
         matrix_rows.append(
             {
                 "item": item,
+                "display_title": display_title,
+                "secondary_text": row.get("secondary_text") or "",
+                "table_render_html": row.get("table_render_html") or "",
                 "cells": cells,
+                "assigned_cells": assigned_cells,
                 "submitted_count": item_submitted,
                 "total_count": item_total,
                 "done": item_total > 0 and item_submitted >= item_total,
-                "percent": round(item_submitted / item_total * 100) if item_total else 0,
+                "percent": percent,
                 "aggregate_total": aggregate_total,
                 "aggregate_count": aggregate_count,
+                "review_payload": {
+                    "item_id": getattr(item, "id", None),
+                    "index": idx,
+                    "item_title": display_title,
+                    "secondary_text": row.get("secondary_text") or "",
+                    "submitted_count": item_submitted,
+                    "total_count": item_total,
+                    "percent": percent,
+                    "aggregate_total": aggregate_total,
+                    "units": [
+                        {
+                            "unit_name": cell["unit_name"],
+                            "done": cell["done"],
+                            "submitted_count": cell["submitted_count"],
+                            "total_count": cell["total_count"],
+                            "entries": [
+                                {
+                                    "assignment_id": entry["assignment_id"],
+                                    "submitter_name": entry["submitter_name"],
+                                    "status": entry["status"],
+                                    "status_label": entry["status_label"],
+                                    "submitted": entry["submitted"],
+                                    "submitted_at": entry["submitted_at"],
+                                    "report_text": entry["report_text"],
+                                    "return_reason": entry["return_reason"],
+                                    "files": entry["files"],
+                                }
+                                for entry in cell["assignments"]
+                            ],
+                        }
+                        for cell in assigned_cells
+                    ],
+                },
             }
         )
 
@@ -1432,6 +1602,7 @@ def _build_outline_progress_matrix(task, current_uid):
     total_count = sum(matrix_row["total_count"] for matrix_row in matrix_rows)
     return {
         "unit_names": unit_names,
+        "unit_count": len(unit_names),
         "rows": matrix_rows,
         "total_submitted": total_submitted,
         "total_count": total_count,
@@ -1509,9 +1680,10 @@ def _export_outline_word_v2(tid):
         synthesis = _task_item_synthesis_text(item)
         if synthesis:
             document.add_paragraph(synthesis)
+        logical_assignments = _collapse_logical_task_assignments(row["assignments"])
         number_fields = _outline_item_number_fields(item)
         submitted_with_values = []
-        for assignment in row["assignments"]:
+        for assignment in logical_assignments:
             submission = row["latest_submissions"].get(assignment.id)
             if not submission:
                 continue
@@ -1544,7 +1716,7 @@ def _export_outline_word_v2(tid):
         # Đã có văn bản tổng hợp của quản trị -> không lặp lại nội dung từng đơn vị.
         if synthesis:
             continue
-        for assignment in row["assignments"]:
+        for assignment in logical_assignments:
             user = getattr(assignment, "user", None) or db.session.get(User, getattr(assignment, "user_id", None))
             unit_name = _task_assignee_unit_name(user)
             user_name = getattr(user, "fullname", None) or getattr(user, "username", None) or "Cán bộ"

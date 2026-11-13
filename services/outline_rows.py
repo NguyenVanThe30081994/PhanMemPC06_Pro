@@ -438,7 +438,7 @@ def _table_rows_to_outline_rows(document, catalog=None):
     return rows
 
 
-def _parse_outline_docx_rows(file_storage):
+def _parse_outline_docx_rows(file_storage, group_by_heading=False):
     """Parse Word docx với hierarchy awareness (đoạn văn + bảng nhiệm vụ)."""
     if DocxDocument is None:
         raise ValueError("Máy chủ chưa cài thư viện đọc file Word (.docx).")
@@ -453,7 +453,7 @@ def _parse_outline_docx_rows(file_storage):
     catalog = _task_assignment_catalog()
     paragraphs = list(document.paragraphs)
     hierarchy_items = _parse_outline_with_hierarchy(paragraphs, is_docx=True)
-    rows = _flatten_hierarchy_to_rows(hierarchy_items, catalog=catalog)
+    rows = _flatten_hierarchy_to_rows(hierarchy_items, catalog=catalog, group_by_heading=group_by_heading)
     # Gộp thêm các dòng từ BẢNG nhiệm vụ (nếu file Word có bảng)
     if getattr(document, "tables", None):
         table_rows = _table_rows_to_outline_rows(document, catalog=catalog)
@@ -461,7 +461,7 @@ def _parse_outline_docx_rows(file_storage):
     return rows
 
 
-def _parse_outline_pdf_rows(file_storage):
+def _parse_outline_pdf_rows(file_storage, group_by_heading=False):
     """Parse PDF: ưu tiên bảng cấu trúc, fallback text khi PDF không có bảng."""
     lines, error = _parse_outline_pdf_text(file_storage)
     if error:
@@ -479,7 +479,7 @@ def _parse_outline_pdf_rows(file_storage):
         pass
 
     hierarchy_items = _parse_outline_with_hierarchy(lines, is_docx=False)
-    return _flatten_hierarchy_to_rows(hierarchy_items, catalog=catalog)
+    return _flatten_hierarchy_to_rows(hierarchy_items, catalog=catalog, group_by_heading=group_by_heading)
 
 
 def _blocks_to_outline_rows(blocks):
@@ -532,7 +532,7 @@ def _blocks_to_outline_rows(blocks):
         )
     return rows
 
-def _parse_outline_text_rows(file_storage):
+def _parse_outline_text_rows(file_storage, group_by_heading=False):
     """Parse text file với hierarchy awareness."""
     try:
         file_storage.stream.seek(0)
@@ -554,10 +554,10 @@ def _parse_outline_text_rows(file_storage):
     # Parse với hierarchy
     hierarchy_items = _parse_outline_with_hierarchy(lines, is_docx=False)
     catalog = _task_assignment_catalog()
-    return _flatten_hierarchy_to_rows(hierarchy_items, catalog=catalog)
+    return _flatten_hierarchy_to_rows(hierarchy_items, catalog=catalog, group_by_heading=group_by_heading)
 
-def _parse_outline_upload_rows(file_storage):
-    """Đọc đề cương (.docx/.txt) -> đầu mục kèm người nhận được tự nhận diện."""
+def _parse_outline_upload_rows(file_storage, group_by_heading=False):
+    """Đọc đề cương (.docx/.txt/.pdf) -> đầu mục kèm người nhận được tự nhận diện."""
     if not file_storage or not getattr(file_storage, "filename", ""):
         return []
 
@@ -566,10 +566,10 @@ def _parse_outline_upload_rows(file_storage):
         raise ValueError("Chỉ hỗ trợ đề cương dạng .docx, .txt hoặc .pdf.")
 
     if extension == ".docx":
-        return _parse_outline_docx_rows(file_storage)
+        return _parse_outline_docx_rows(file_storage, group_by_heading=group_by_heading)
     if extension == ".pdf":
-        return _parse_outline_pdf_rows(file_storage)
-    return _parse_outline_text_rows(file_storage)
+        return _parse_outline_pdf_rows(file_storage, group_by_heading=group_by_heading)
+    return _parse_outline_text_rows(file_storage, group_by_heading=group_by_heading)
 
 
 def _parse_outline_file_for_create():
@@ -586,6 +586,11 @@ def _parse_outline_file_for_create():
     if not (bool(current_is_admin()) or _can_process_task_module(perms)):
         return jsonify({"ok": False, "error": "Bạn không có quyền tạo công việc."}), 403
 
+    group_by_heading = (
+        request.form.get("group_by_heading") in ("1", "true", "True")
+        or request.args.get("group_by_heading") in ("1", "true", "True")
+    )
+
     outline_files = request.files.getlist("outline_file")
     outline_files = [file for file in outline_files if file and file.filename]
     if not outline_files:
@@ -593,7 +598,7 @@ def _parse_outline_file_for_create():
     try:
         parsed_groups = []
         for outline_file in outline_files:
-            rows = _parse_outline_upload_rows(outline_file)
+            rows = _parse_outline_upload_rows(outline_file, group_by_heading=group_by_heading)
             parsed_groups.append((outline_file.filename, rows))
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400

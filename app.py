@@ -67,6 +67,7 @@ app = Flask(__name__,
             root_path=basedir, 
             template_folder=TEMPLATE_DIR, 
             static_folder=STATIC_DIR)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 # Import config
 try:
@@ -104,6 +105,7 @@ try:
         ADMIN_DB_BACKUP_ENABLED,
         WEB_SYSTEM_UPDATE_ENABLED,
         WEB_GIT_PULL_ENABLED,
+        CHECKIN_MAX_DUPLICATE_ATTEMPTS,
     )
 except ImportError:
     SECRET_KEY = (os.environ.get('SECRET_KEY') or '').strip()
@@ -138,6 +140,7 @@ except ImportError:
     ADMIN_DB_BACKUP_ENABLED = False
     WEB_SYSTEM_UPDATE_ENABLED = False
     WEB_GIT_PULL_ENABLED = False
+    CHECKIN_MAX_DUPLICATE_ATTEMPTS = 5
 
 SECRET_KEY = ensure_persistent_secret_key(storage_layout['data_root'], SECRET_KEY)
 app.secret_key = SECRET_KEY
@@ -196,6 +199,7 @@ app.config['ADMIN_DB_RESET_ENABLED'] = ADMIN_DB_RESET_ENABLED
 app.config['ADMIN_DB_BACKUP_ENABLED'] = ADMIN_DB_BACKUP_ENABLED
 app.config['WEB_SYSTEM_UPDATE_ENABLED'] = WEB_SYSTEM_UPDATE_ENABLED
 app.config['WEB_GIT_PULL_ENABLED'] = WEB_GIT_PULL_ENABLED
+app.config['CHECKIN_MAX_DUPLICATE_ATTEMPTS'] = CHECKIN_MAX_DUPLICATE_ATTEMPTS
 
 # CSRF Protection
 app.config['WTF_CSRF_ENABLED'] = True
@@ -342,8 +346,8 @@ def add_security_headers(response):
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
-    if (request.args.get('clear_storage') or '').strip().lower() == 'true':
-        response.headers['Clear-Site-Data'] = '"cache", "cookies", "storage"'
+    if request.method in {'GET', 'HEAD'} and (request.args.get('clear_storage') or '').strip().lower() == 'true':
+        response.headers['Clear-Site-Data'] = '"cache", "storage"'
     return response
 
 # Rate limiting storage: {(ip, scope): [timestamp, ...]}
@@ -399,6 +403,7 @@ from routes.shortlink import shortlink_bp
 from routes.health import health_bp
 from routes.outline import outline_bp
 from routes.google_auth import google_auth_bp
+from routes.dossier import dossier_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
@@ -409,6 +414,7 @@ app.register_blueprint(shortlink_bp)
 app.register_blueprint(health_bp)
 app.register_blueprint(outline_bp)
 app.register_blueprint(google_auth_bp)
+app.register_blueprint(dossier_bp)
 
 # Nối deadline watchdog nền (APScheduler) khi app khởi động. Có cờ tắt
 # PC06_TASK_SCHEDULER=0; mọi lỗi được log, không làm hỏng quá trình khởi động.
@@ -446,6 +452,8 @@ def check_auth():
         'api_bp.resolve_maps_url',
         'shortlink_bp.redirect_short_link',
         'shortlink_bp.get_qr',
+        'shortlink_bp.public_create_qr',
+        'shortlink_bp.public_qr_page',
         'health_bp.health_check',
         'health_bp.ping',
         'google_auth_bp.google_login',
@@ -592,6 +600,11 @@ def enforce_csrf_protection():
 
     expected_token = session.get('csrf_token')
     if not expected_token or not token or not secrets.compare_digest(str(token), str(expected_token)):
+        if request.endpoint == 'auth_bp.login' and token:
+            session['csrf_token'] = secrets.token_urlsafe(32)
+            session.modified = True
+            flash('Phiên trang đăng nhập đã được làm mới. Vui lòng đăng nhập lại.', 'warning')
+            return redirect(url_for('auth_bp.login'))
         if request.endpoint and request.endpoint.startswith('api_bp.'):
             return jsonify({'error': 'CSRF validation failed.'}), 400
         return ('Yêu cầu không hợp lệ hoặc phiên làm việc đã hết hạn.', 400)

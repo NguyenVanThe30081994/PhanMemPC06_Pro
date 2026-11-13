@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort, send_file, current_app
+from flask import (Blueprint, render_template, request, redirect, url_for,
+                   flash, session, abort, send_file, current_app, jsonify)
 from utils import render_auto_template, apply_migrations
 from models import db, ShortLink, User
 from category_helpers import canonicalize_category_value, module_category_options, stable_form_category_options, sync_record_categories
@@ -265,3 +266,64 @@ def redirect_short_link(code):
     db.session.commit()
     
     return redirect(link.original_url)
+
+
+@shortlink_bp.route('/api/public/create-qr', methods=['POST'])
+def public_create_qr():
+    """Tạo mã QR & liên kết rút gọn công khai ngay ngoài màn hình đăng nhập, không cần tài khoản."""
+    _ensure_shortlink_schema()
+
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+    else:
+        data = request.form
+
+    raw_url = (data.get('original_url') or '').strip()
+    custom_name = (data.get('custom_name') or '').strip()
+    custom_code = (data.get('custom_code') or '').strip()
+
+    original_url = _normalize_target_url(raw_url)
+    if not original_url:
+        return jsonify({'error': 'Đường dẫn liên kết không hợp lệ. Vui lòng nhập link đầy đủ (ví dụ: https://...)'}), 400
+
+    if custom_code:
+        if not re.fullmatch(r'[a-zA-Z0-9_-]{1,50}', custom_code):
+            return jsonify({'error': 'Mã rút gọn chỉ được chứa chữ cái, số, gạch ngang (-) hoặc gạch dưới (_).'}), 400
+        existing = ShortLink.query.filter_by(short_code=custom_code).first()
+        if existing:
+            return jsonify({'error': f'Mã rút gọn "{custom_code}" đã tồn tại. Vui lòng chọn mã khác!'}), 400
+        code = custom_code
+    else:
+        code = generate_short_code()
+
+    uid = session.get('uid')
+
+    new_link = ShortLink(
+        short_code=code,
+        original_url=original_url,
+        custom_name=custom_name or 'Liên kết công khai',
+        info='Tạo công khai ngoài màn hình đăng nhập',
+        created_by=uid
+    )
+    db.session.add(new_link)
+    db.session.commit()
+
+    host_url = request.host_url.rstrip('/')
+    short_url = f"{host_url}/s/{code}"
+    qr_download_url = f"{host_url}/download-qr/{code}"
+
+    return jsonify({
+        'success': True,
+        'short_code': code,
+        'short_url': short_url,
+        'original_url': original_url,
+        'qr_download_url': qr_download_url,
+        'message': 'Đã tạo mã QR & liên kết rút gọn thành công!'
+    })
+
+
+@shortlink_bp.route('/public/qr')
+def public_qr_page():
+    """Giao diện tiện ích tạo mã QR & liên kết rút gọn công khai."""
+    return render_template('public_qr.html')
+

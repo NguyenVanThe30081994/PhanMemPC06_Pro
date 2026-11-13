@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime, timedelta
+import re
 import time
 import unittest
 
@@ -419,6 +420,79 @@ class AuthSecurityTests(unittest.TestCase):
         )
         self.assertEqual(protected_response.status_code, 302)
         self.assertIn('/login', protected_response.headers.get('Location', ''))
+
+    def test_logout_then_login_following_clear_storage_redirect_succeeds(self):
+        self.client.get('/login')
+        with self.client.session_transaction() as sess:
+            csrf_token = sess.get('csrf_token')
+        login_res = self.client.post(
+            '/login',
+            data={
+                'username': 'auth_security_test',
+                'password': 'StrongPass1!',
+                'csrf_token': csrf_token,
+            },
+            headers={'User-Agent': 'LogoutFlow/1.0'},
+            follow_redirects=False,
+        )
+        self.assertEqual(login_res.status_code, 302)
+
+        logout_page = self.client.get('/logout', headers={'User-Agent': 'LogoutFlow/1.0'}, follow_redirects=True)
+        self.assertEqual(logout_page.status_code, 200)
+        clear_site_data = logout_page.headers.get('Clear-Site-Data', '')
+        self.assertIn('storage', clear_site_data)
+        self.assertNotIn('cookies', clear_site_data)
+
+        html_body = logout_page.get_data(as_text=True)
+        match = re.search(r'<input[^>]+name="csrf_token"[^>]+value="([^"]+)"', html_body)
+        self.assertIsNotNone(match, 'Login form must embed CSRF token after logout redirect')
+        rendered_csrf_token = match.group(1)
+
+        relogin_res = self.client.post(
+            '/login?clear_storage=true',
+            data={
+                'username': 'auth_security_test',
+                'password': 'StrongPass1!',
+                'csrf_token': rendered_csrf_token,
+            },
+            headers={'User-Agent': 'LogoutFlow/1.0'},
+            follow_redirects=False,
+        )
+        self.assertEqual(relogin_res.status_code, 302)
+        self.assertNotIn('/login', relogin_res.headers.get('Location', ''))
+
+    def test_login_post_with_stale_csrf_token_recovers_gracefully(self):
+        self.client.get('/login')
+        with self.client.session_transaction() as sess:
+            original_token = sess.get('csrf_token')
+
+        stale_res = self.client.post(
+            '/login',
+            data={
+                'username': 'auth_security_test',
+                'password': 'StrongPass1!',
+                'csrf_token': 'stale-expired-token-from-old-tab',
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(stale_res.status_code, 302)
+        self.assertIn('/login', stale_res.headers.get('Location', ''))
+
+        with self.client.session_transaction() as sess:
+            refreshed_token = sess.get('csrf_token')
+        self.assertTrue(refreshed_token)
+        self.assertNotEqual(refreshed_token, original_token)
+
+        retry_res = self.client.post(
+            '/login',
+            data={
+                'username': 'auth_security_test',
+                'password': 'StrongPass1!',
+                'csrf_token': refreshed_token,
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(retry_res.status_code, 302)
 
 
 if __name__ == '__main__':

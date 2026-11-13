@@ -388,6 +388,11 @@ def _build_login_session(user, client_ip, csrf_rotate=True):
 def login():
     if session.get('uid'):
         return redirect(url_for('admin_bp.index'))
+
+    if not session.get('csrf_token'):
+        session['csrf_token'] = secrets.token_urlsafe(32)
+    if (request.args.get('clear_storage') or '').strip().lower() == 'true':
+        session.modified = True
         
     if request.method == 'POST':
         username = (request.form.get('username') or '').strip()

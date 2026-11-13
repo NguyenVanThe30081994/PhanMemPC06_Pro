@@ -1,0 +1,535 @@
+﻿cap,khoi,don_vi,vai_tro,username,password,trang_thai
+Cấp Tỉnh,"Sở, Ban, Ngành",Văn phòng UBND tỉnh,Quản trị đơn vị,admin_vpubnd,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Văn phòng UBND tỉnh,Cán bộ báo cáo,bc_vpubnd,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Thông tin và Truyền thông,Quản trị đơn vị,admin_sotttt,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Thông tin và Truyền thông,Cán bộ báo cáo,bc_sotttt,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Công an tỉnh Tuyên Quang,Quản trị đơn vị,admin_catinh,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Công an tỉnh Tuyên Quang,Cán bộ báo cáo,bc_catinh,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Tư pháp,Quản trị đơn vị,admin_sotuphap,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Tư pháp,Cán bộ báo cáo,bc_sotuphap,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Y tế,Quản trị đơn vị,admin_soyte,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Y tế,Cán bộ báo cáo,bc_soyte,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Giáo dục và Đào tạo,Quản trị đơn vị,admin_sogddt,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Giáo dục và Đào tạo,Cán bộ báo cáo,bc_sogddt,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Nội vụ,Quản trị đơn vị,admin_sonoivu,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Nội vụ,Cán bộ báo cáo,bc_sonoivu,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Tài chính,Quản trị đơn vị,admin_sotaichinh,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Tài chính,Cán bộ báo cáo,bc_sotaichinh,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Kế hoạch và Đầu tư,Quản trị đơn vị,admin_sokhdt,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Kế hoạch và Đầu tư,Cán bộ báo cáo,bc_sokhdt,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Lao động - Thương binh và Xã hội,Quản trị đơn vị,admin_soldtbxh,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Lao động - Thương binh và Xã hội,Cán bộ báo cáo,bc_soldtbxh,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Tài nguyên và Môi trường,Quản trị đơn vị,admin_sotnmt,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Tài nguyên và Môi trường,Cán bộ báo cáo,bc_sotnmt,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Giao thông vận tải,Quản trị đơn vị,admin_sogtvt,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Giao thông vận tải,Cán bộ báo cáo,bc_sogtvt,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Nông nghiệp và Phát triển nông thôn,Quản trị đơn vị,admin_sonnptnt,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Nông nghiệp và Phát triển nông thôn,Cán bộ báo cáo,bc_sonnptnt,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Công Thương,Quản trị đơn vị,admin_socongthuong,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Công Thương,Cán bộ báo cáo,bc_socongthuong,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Xây dựng,Quản trị đơn vị,admin_soxaydung,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Xây dựng,Cán bộ báo cáo,bc_soxaydung,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành","Sở Văn hóa, Thể thao và Du lịch",Quản trị đơn vị,admin_sovhttdl,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành","Sở Văn hóa, Thể thao và Du lịch",Cán bộ báo cáo,bc_sovhttdl,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Khoa học và Công nghệ,Quản trị đơn vị,admin_sokhcn,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Sở Khoa học và Công nghệ,Cán bộ báo cáo,bc_sokhcn,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Thanh tra tỉnh,Quản trị đơn vị,admin_thanhtratinh,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Thanh tra tỉnh,Cán bộ báo cáo,bc_thanhtratinh,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Ban Quản lý các Khu công nghiệp tỉnh,Quản trị đơn vị,admin_bqlkcn,TuyenQuang@2026,Mới tạo
+Cấp Tỉnh,"Sở, Ban, Ngành",Ban Quản lý các Khu công nghiệp tỉnh,Cán bộ báo cáo,bc_bqlkcn,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Phường Hà Giang 2,Quản trị đơn vị,admin_ubnd_00691,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Phường Hà Giang 2,Cán bộ báo cáo,bc_ubnd_00691,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Phường Hà Giang 2,Quản trị đơn vị,admin_cax_00691,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Phường Hà Giang 2,Cán bộ báo cáo,bc_cax_00691,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Phường Hà Giang 1,Quản trị đơn vị,admin_ubnd_00694,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Phường Hà Giang 1,Cán bộ báo cáo,bc_ubnd_00694,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Phường Hà Giang 1,Quản trị đơn vị,admin_cax_00694,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Phường Hà Giang 1,Cán bộ báo cáo,bc_cax_00694,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Phường Nông Tiến,Quản trị đơn vị,admin_ubnd_02212,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Phường Nông Tiến,Cán bộ báo cáo,bc_ubnd_02212,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Phường Nông Tiến,Quản trị đơn vị,admin_cax_02212,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Phường Nông Tiến,Cán bộ báo cáo,bc_cax_02212,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Phường Minh Xuân,Quản trị đơn vị,admin_ubnd_02215,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Phường Minh Xuân,Cán bộ báo cáo,bc_ubnd_02215,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Phường Minh Xuân,Quản trị đơn vị,admin_cax_02215,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Phường Minh Xuân,Cán bộ báo cáo,bc_cax_02215,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Phường Mỹ Lâm,Quản trị đơn vị,admin_ubnd_02509,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Phường Mỹ Lâm,Cán bộ báo cáo,bc_ubnd_02509,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Phường Mỹ Lâm,Quản trị đơn vị,admin_cax_02509,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Phường Mỹ Lâm,Cán bộ báo cáo,bc_cax_02509,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Phường An Tường,Quản trị đơn vị,admin_ubnd_02512,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Phường An Tường,Cán bộ báo cáo,bc_ubnd_02512,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Phường An Tường,Quản trị đơn vị,admin_cax_02512,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Phường An Tường,Cán bộ báo cáo,bc_cax_02512,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Phường Bình Thuận,Quản trị đơn vị,admin_ubnd_02524,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Phường Bình Thuận,Cán bộ báo cáo,bc_ubnd_02524,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Phường Bình Thuận,Quản trị đơn vị,admin_cax_02524,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Phường Bình Thuận,Cán bộ báo cáo,bc_cax_02524,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Ngọc Đường,Quản trị đơn vị,admin_ubnd_00700,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Ngọc Đường,Cán bộ báo cáo,bc_ubnd_00700,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Ngọc Đường,Quản trị đơn vị,admin_cax_00700,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Ngọc Đường,Cán bộ báo cáo,bc_cax_00700,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Phú Linh,Quản trị đơn vị,admin_ubnd_00706,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Phú Linh,Cán bộ báo cáo,bc_ubnd_00706,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Phú Linh,Quản trị đơn vị,admin_cax_00706,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Phú Linh,Cán bộ báo cáo,bc_cax_00706,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Lũng Cú,Quản trị đơn vị,admin_ubnd_00715,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Lũng Cú,Cán bộ báo cáo,bc_ubnd_00715,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Lũng Cú,Quản trị đơn vị,admin_cax_00715,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Lũng Cú,Cán bộ báo cáo,bc_cax_00715,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Đồng Văn,Quản trị đơn vị,admin_ubnd_00721,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Đồng Văn,Cán bộ báo cáo,bc_ubnd_00721,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Đồng Văn,Quản trị đơn vị,admin_cax_00721,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Đồng Văn,Cán bộ báo cáo,bc_cax_00721,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Sà Phìn,Quản trị đơn vị,admin_ubnd_00733,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Sà Phìn,Cán bộ báo cáo,bc_ubnd_00733,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Sà Phìn,Quản trị đơn vị,admin_cax_00733,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Sà Phìn,Cán bộ báo cáo,bc_cax_00733,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Phố Bảng,Quản trị đơn vị,admin_ubnd_00745,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Phố Bảng,Cán bộ báo cáo,bc_ubnd_00745,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Phố Bảng,Quản trị đơn vị,admin_cax_00745,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Phố Bảng,Cán bộ báo cáo,bc_cax_00745,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Lũng Phìn,Quản trị đơn vị,admin_ubnd_00763,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Lũng Phìn,Cán bộ báo cáo,bc_ubnd_00763,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Lũng Phìn,Quản trị đơn vị,admin_cax_00763,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Lũng Phìn,Cán bộ báo cáo,bc_cax_00763,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Mèo Vạc,Quản trị đơn vị,admin_ubnd_00769,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Mèo Vạc,Cán bộ báo cáo,bc_ubnd_00769,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Mèo Vạc,Quản trị đơn vị,admin_cax_00769,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Mèo Vạc,Cán bộ báo cáo,bc_cax_00769,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Sơn Vĩ,Quản trị đơn vị,admin_ubnd_00778,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Sơn Vĩ,Cán bộ báo cáo,bc_ubnd_00778,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Sơn Vĩ,Quản trị đơn vị,admin_cax_00778,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Sơn Vĩ,Cán bộ báo cáo,bc_cax_00778,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Sủng Máng,Quản trị đơn vị,admin_ubnd_00787,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Sủng Máng,Cán bộ báo cáo,bc_ubnd_00787,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Sủng Máng,Quản trị đơn vị,admin_cax_00787,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Sủng Máng,Cán bộ báo cáo,bc_cax_00787,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Khâu Vai,Quản trị đơn vị,admin_ubnd_00802,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Khâu Vai,Cán bộ báo cáo,bc_ubnd_00802,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Khâu Vai,Quản trị đơn vị,admin_cax_00802,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Khâu Vai,Cán bộ báo cáo,bc_cax_00802,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tát Ngà,Quản trị đơn vị,admin_ubnd_00808,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tát Ngà,Cán bộ báo cáo,bc_ubnd_00808,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tát Ngà,Quản trị đơn vị,admin_cax_00808,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tát Ngà,Cán bộ báo cáo,bc_cax_00808,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Niêm Sơn,Quản trị đơn vị,admin_ubnd_00817,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Niêm Sơn,Cán bộ báo cáo,bc_ubnd_00817,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Niêm Sơn,Quản trị đơn vị,admin_cax_00817,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Niêm Sơn,Cán bộ báo cáo,bc_cax_00817,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Yên Minh,Quản trị đơn vị,admin_ubnd_00820,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Yên Minh,Cán bộ báo cáo,bc_ubnd_00820,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Yên Minh,Quản trị đơn vị,admin_cax_00820,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Yên Minh,Cán bộ báo cáo,bc_cax_00820,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thắng Mố,Quản trị đơn vị,admin_ubnd_00829,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thắng Mố,Cán bộ báo cáo,bc_ubnd_00829,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thắng Mố,Quản trị đơn vị,admin_cax_00829,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thắng Mố,Cán bộ báo cáo,bc_cax_00829,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bạch Đích,Quản trị đơn vị,admin_ubnd_00832,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bạch Đích,Cán bộ báo cáo,bc_ubnd_00832,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bạch Đích,Quản trị đơn vị,admin_cax_00832,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bạch Đích,Cán bộ báo cáo,bc_cax_00832,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Mậu Duệ,Quản trị đơn vị,admin_ubnd_00847,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Mậu Duệ,Cán bộ báo cáo,bc_ubnd_00847,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Mậu Duệ,Quản trị đơn vị,admin_cax_00847,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Mậu Duệ,Cán bộ báo cáo,bc_cax_00847,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Ngọc Long,Quản trị đơn vị,admin_ubnd_00859,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Ngọc Long,Cán bộ báo cáo,bc_ubnd_00859,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Ngọc Long,Quản trị đơn vị,admin_cax_00859,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Ngọc Long,Cán bộ báo cáo,bc_cax_00859,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Đường Thượng,Quản trị đơn vị,admin_ubnd_00865,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Đường Thượng,Cán bộ báo cáo,bc_ubnd_00865,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Đường Thượng,Quản trị đơn vị,admin_cax_00865,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Đường Thượng,Cán bộ báo cáo,bc_cax_00865,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Du Già,Quản trị đơn vị,admin_ubnd_00871,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Du Già,Cán bộ báo cáo,bc_ubnd_00871,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Du Già,Quản trị đơn vị,admin_cax_00871,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Du Già,Cán bộ báo cáo,bc_cax_00871,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Quản Bạ,Quản trị đơn vị,admin_ubnd_00874,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Quản Bạ,Cán bộ báo cáo,bc_ubnd_00874,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Quản Bạ,Quản trị đơn vị,admin_cax_00874,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Quản Bạ,Cán bộ báo cáo,bc_cax_00874,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Cán Tỷ,Quản trị đơn vị,admin_ubnd_00883,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Cán Tỷ,Cán bộ báo cáo,bc_ubnd_00883,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Cán Tỷ,Quản trị đơn vị,admin_cax_00883,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Cán Tỷ,Cán bộ báo cáo,bc_cax_00883,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Nghĩa Thuận,Quản trị đơn vị,admin_ubnd_00889,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Nghĩa Thuận,Cán bộ báo cáo,bc_ubnd_00889,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Nghĩa Thuận,Quản trị đơn vị,admin_cax_00889,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Nghĩa Thuận,Cán bộ báo cáo,bc_cax_00889,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tùng Vài,Quản trị đơn vị,admin_ubnd_00892,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tùng Vài,Cán bộ báo cáo,bc_ubnd_00892,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tùng Vài,Quản trị đơn vị,admin_cax_00892,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tùng Vài,Cán bộ báo cáo,bc_cax_00892,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Lùng Tám,Quản trị đơn vị,admin_ubnd_00901,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Lùng Tám,Cán bộ báo cáo,bc_ubnd_00901,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Lùng Tám,Quản trị đơn vị,admin_cax_00901,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Lùng Tám,Cán bộ báo cáo,bc_cax_00901,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Vị Xuyên,Quản trị đơn vị,admin_ubnd_00913,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Vị Xuyên,Cán bộ báo cáo,bc_ubnd_00913,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Vị Xuyên,Quản trị đơn vị,admin_cax_00913,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Vị Xuyên,Cán bộ báo cáo,bc_cax_00913,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Minh Tân,Quản trị đơn vị,admin_ubnd_00919,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Minh Tân,Cán bộ báo cáo,bc_ubnd_00919,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Minh Tân,Quản trị đơn vị,admin_cax_00919,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Minh Tân,Cán bộ báo cáo,bc_cax_00919,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thuận Hòa,Quản trị đơn vị,admin_ubnd_00922,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thuận Hòa,Cán bộ báo cáo,bc_ubnd_00922,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thuận Hòa,Quản trị đơn vị,admin_cax_00922,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thuận Hòa,Cán bộ báo cáo,bc_cax_00922,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tùng Bá,Quản trị đơn vị,admin_ubnd_00925,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tùng Bá,Cán bộ báo cáo,bc_ubnd_00925,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tùng Bá,Quản trị đơn vị,admin_cax_00925,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tùng Bá,Cán bộ báo cáo,bc_cax_00925,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thanh Thủy,Quản trị đơn vị,admin_ubnd_00928,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thanh Thủy,Cán bộ báo cáo,bc_ubnd_00928,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thanh Thủy,Quản trị đơn vị,admin_cax_00928,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thanh Thủy,Cán bộ báo cáo,bc_cax_00928,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Lao Chải,Quản trị đơn vị,admin_ubnd_00937,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Lao Chải,Cán bộ báo cáo,bc_ubnd_00937,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Lao Chải,Quản trị đơn vị,admin_cax_00937,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Lao Chải,Cán bộ báo cáo,bc_cax_00937,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Cao Bồ,Quản trị đơn vị,admin_ubnd_00952,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Cao Bồ,Cán bộ báo cáo,bc_ubnd_00952,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Cao Bồ,Quản trị đơn vị,admin_cax_00952,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Cao Bồ,Cán bộ báo cáo,bc_cax_00952,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thượng Sơn,Quản trị đơn vị,admin_ubnd_00958,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thượng Sơn,Cán bộ báo cáo,bc_ubnd_00958,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thượng Sơn,Quản trị đơn vị,admin_cax_00958,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thượng Sơn,Cán bộ báo cáo,bc_cax_00958,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Việt Lâm,Quản trị đơn vị,admin_ubnd_00967,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Việt Lâm,Cán bộ báo cáo,bc_ubnd_00967,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Việt Lâm,Quản trị đơn vị,admin_cax_00967,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Việt Lâm,Cán bộ báo cáo,bc_cax_00967,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Linh Hồ,Quản trị đơn vị,admin_ubnd_00970,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Linh Hồ,Cán bộ báo cáo,bc_ubnd_00970,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Linh Hồ,Quản trị đơn vị,admin_cax_00970,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Linh Hồ,Cán bộ báo cáo,bc_cax_00970,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bạch Ngọc,Quản trị đơn vị,admin_ubnd_00976,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bạch Ngọc,Cán bộ báo cáo,bc_ubnd_00976,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bạch Ngọc,Quản trị đơn vị,admin_cax_00976,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bạch Ngọc,Cán bộ báo cáo,bc_cax_00976,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Minh Sơn,Quản trị đơn vị,admin_ubnd_00982,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Minh Sơn,Cán bộ báo cáo,bc_ubnd_00982,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Minh Sơn,Quản trị đơn vị,admin_cax_00982,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Minh Sơn,Cán bộ báo cáo,bc_cax_00982,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Giáp Trung,Quản trị đơn vị,admin_ubnd_00985,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Giáp Trung,Cán bộ báo cáo,bc_ubnd_00985,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Giáp Trung,Quản trị đơn vị,admin_cax_00985,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Giáp Trung,Cán bộ báo cáo,bc_cax_00985,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bắc Mê,Quản trị đơn vị,admin_ubnd_00991,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bắc Mê,Cán bộ báo cáo,bc_ubnd_00991,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bắc Mê,Quản trị đơn vị,admin_cax_00991,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bắc Mê,Cán bộ báo cáo,bc_cax_00991,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Minh Ngọc,Quản trị đơn vị,admin_ubnd_00994,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Minh Ngọc,Cán bộ báo cáo,bc_ubnd_00994,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Minh Ngọc,Quản trị đơn vị,admin_cax_00994,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Minh Ngọc,Cán bộ báo cáo,bc_cax_00994,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Yên Cường,Quản trị đơn vị,admin_ubnd_01006,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Yên Cường,Cán bộ báo cáo,bc_ubnd_01006,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Yên Cường,Quản trị đơn vị,admin_cax_01006,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Yên Cường,Cán bộ báo cáo,bc_cax_01006,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Đường Hồng,Quản trị đơn vị,admin_ubnd_01012,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Đường Hồng,Cán bộ báo cáo,bc_ubnd_01012,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Đường Hồng,Quản trị đơn vị,admin_cax_01012,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Đường Hồng,Cán bộ báo cáo,bc_cax_01012,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hoàng Su Phì,Quản trị đơn vị,admin_ubnd_01021,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hoàng Su Phì,Cán bộ báo cáo,bc_ubnd_01021,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hoàng Su Phì,Quản trị đơn vị,admin_cax_01021,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hoàng Su Phì,Cán bộ báo cáo,bc_cax_01021,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bản Máy,Quản trị đơn vị,admin_ubnd_01024,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bản Máy,Cán bộ báo cáo,bc_ubnd_01024,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bản Máy,Quản trị đơn vị,admin_cax_01024,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bản Máy,Cán bộ báo cáo,bc_cax_01024,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thàng Tín,Quản trị đơn vị,admin_ubnd_01033,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thàng Tín,Cán bộ báo cáo,bc_ubnd_01033,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thàng Tín,Quản trị đơn vị,admin_cax_01033,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thàng Tín,Cán bộ báo cáo,bc_cax_01033,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tân Tiến,Quản trị đơn vị,admin_ubnd_01051,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tân Tiến,Cán bộ báo cáo,bc_ubnd_01051,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tân Tiến,Quản trị đơn vị,admin_cax_01051,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tân Tiến,Cán bộ báo cáo,bc_cax_01051,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Pờ Ly Ngài,Quản trị đơn vị,admin_ubnd_01057,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Pờ Ly Ngài,Cán bộ báo cáo,bc_ubnd_01057,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Pờ Ly Ngài,Quản trị đơn vị,admin_cax_01057,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Pờ Ly Ngài,Cán bộ báo cáo,bc_cax_01057,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Nậm Dịch,Quản trị đơn vị,admin_ubnd_01075,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Nậm Dịch,Cán bộ báo cáo,bc_ubnd_01075,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Nậm Dịch,Quản trị đơn vị,admin_cax_01075,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Nậm Dịch,Cán bộ báo cáo,bc_cax_01075,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hồ Thầu,Quản trị đơn vị,admin_ubnd_01084,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hồ Thầu,Cán bộ báo cáo,bc_ubnd_01084,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hồ Thầu,Quản trị đơn vị,admin_cax_01084,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hồ Thầu,Cán bộ báo cáo,bc_cax_01084,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thông Nguyên,Quản trị đơn vị,admin_ubnd_01090,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thông Nguyên,Cán bộ báo cáo,bc_ubnd_01090,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thông Nguyên,Quản trị đơn vị,admin_cax_01090,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thông Nguyên,Cán bộ báo cáo,bc_cax_01090,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Pà Vầy Sủ,Quản trị đơn vị,admin_ubnd_01096,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Pà Vầy Sủ,Cán bộ báo cáo,bc_ubnd_01096,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Pà Vầy Sủ,Quản trị đơn vị,admin_cax_01096,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Pà Vầy Sủ,Cán bộ báo cáo,bc_cax_01096,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Xín Mần,Quản trị đơn vị,admin_ubnd_01108,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Xín Mần,Cán bộ báo cáo,bc_ubnd_01108,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Xín Mần,Quản trị đơn vị,admin_cax_01108,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Xín Mần,Cán bộ báo cáo,bc_cax_01108,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Trung Thịnh,Quản trị đơn vị,admin_ubnd_01117,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Trung Thịnh,Cán bộ báo cáo,bc_ubnd_01117,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Trung Thịnh,Quản trị đơn vị,admin_cax_01117,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Trung Thịnh,Cán bộ báo cáo,bc_cax_01117,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Nấm Dẩn,Quản trị đơn vị,admin_ubnd_01141,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Nấm Dẩn,Cán bộ báo cáo,bc_ubnd_01141,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Nấm Dẩn,Quản trị đơn vị,admin_cax_01141,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Nấm Dẩn,Cán bộ báo cáo,bc_cax_01141,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Quảng Nguyên,Quản trị đơn vị,admin_ubnd_01144,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Quảng Nguyên,Cán bộ báo cáo,bc_ubnd_01144,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Quảng Nguyên,Quản trị đơn vị,admin_cax_01144,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Quảng Nguyên,Cán bộ báo cáo,bc_cax_01144,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Khuôn Lùng,Quản trị đơn vị,admin_ubnd_01147,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Khuôn Lùng,Cán bộ báo cáo,bc_ubnd_01147,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Khuôn Lùng,Quản trị đơn vị,admin_cax_01147,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Khuôn Lùng,Cán bộ báo cáo,bc_cax_01147,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bắc Quang,Quản trị đơn vị,admin_ubnd_01153,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bắc Quang,Cán bộ báo cáo,bc_ubnd_01153,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bắc Quang,Quản trị đơn vị,admin_cax_01153,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bắc Quang,Cán bộ báo cáo,bc_cax_01153,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Vĩnh Tuy,Quản trị đơn vị,admin_ubnd_01156,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Vĩnh Tuy,Cán bộ báo cáo,bc_ubnd_01156,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Vĩnh Tuy,Quản trị đơn vị,admin_cax_01156,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Vĩnh Tuy,Cán bộ báo cáo,bc_cax_01156,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Đồng Tâm,Quản trị đơn vị,admin_ubnd_01165,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Đồng Tâm,Cán bộ báo cáo,bc_ubnd_01165,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Đồng Tâm,Quản trị đơn vị,admin_cax_01165,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Đồng Tâm,Cán bộ báo cáo,bc_cax_01165,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tân Quang,Quản trị đơn vị,admin_ubnd_01171,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tân Quang,Cán bộ báo cáo,bc_ubnd_01171,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tân Quang,Quản trị đơn vị,admin_cax_01171,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tân Quang,Cán bộ báo cáo,bc_cax_01171,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bằng Hành,Quản trị đơn vị,admin_ubnd_01180,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bằng Hành,Cán bộ báo cáo,bc_ubnd_01180,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bằng Hành,Quản trị đơn vị,admin_cax_01180,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bằng Hành,Cán bộ báo cáo,bc_cax_01180,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Liên Hiệp,Quản trị đơn vị,admin_ubnd_01192,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Liên Hiệp,Cán bộ báo cáo,bc_ubnd_01192,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Liên Hiệp,Quản trị đơn vị,admin_cax_01192,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Liên Hiệp,Cán bộ báo cáo,bc_cax_01192,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hùng An,Quản trị đơn vị,admin_ubnd_01201,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hùng An,Cán bộ báo cáo,bc_ubnd_01201,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hùng An,Quản trị đơn vị,admin_cax_01201,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hùng An,Cán bộ báo cáo,bc_cax_01201,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Đồng Yên,Quản trị đơn vị,admin_ubnd_01216,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Đồng Yên,Cán bộ báo cáo,bc_ubnd_01216,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Đồng Yên,Quản trị đơn vị,admin_cax_01216,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Đồng Yên,Cán bộ báo cáo,bc_cax_01216,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tiên Nguyên,Quản trị đơn vị,admin_ubnd_01225,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tiên Nguyên,Cán bộ báo cáo,bc_ubnd_01225,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tiên Nguyên,Quản trị đơn vị,admin_cax_01225,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tiên Nguyên,Cán bộ báo cáo,bc_cax_01225,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Yên Thành,Quản trị đơn vị,admin_ubnd_01234,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Yên Thành,Cán bộ báo cáo,bc_ubnd_01234,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Yên Thành,Quản trị đơn vị,admin_cax_01234,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Yên Thành,Cán bộ báo cáo,bc_cax_01234,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Quang Bình,Quản trị đơn vị,admin_ubnd_01237,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Quang Bình,Cán bộ báo cáo,bc_ubnd_01237,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Quang Bình,Quản trị đơn vị,admin_cax_01237,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Quang Bình,Cán bộ báo cáo,bc_cax_01237,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tân Trịnh,Quản trị đơn vị,admin_ubnd_01243,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tân Trịnh,Cán bộ báo cáo,bc_ubnd_01243,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tân Trịnh,Quản trị đơn vị,admin_cax_01243,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tân Trịnh,Cán bộ báo cáo,bc_cax_01243,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bằng Lang,Quản trị đơn vị,admin_ubnd_01246,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bằng Lang,Cán bộ báo cáo,bc_ubnd_01246,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bằng Lang,Quản trị đơn vị,admin_cax_01246,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bằng Lang,Cán bộ báo cáo,bc_cax_01246,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Xuân Giang,Quản trị đơn vị,admin_ubnd_01255,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Xuân Giang,Cán bộ báo cáo,bc_ubnd_01255,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Xuân Giang,Quản trị đơn vị,admin_cax_01255,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Xuân Giang,Cán bộ báo cáo,bc_cax_01255,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tiên Yên,Quản trị đơn vị,admin_ubnd_01261,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tiên Yên,Cán bộ báo cáo,bc_ubnd_01261,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tiên Yên,Quản trị đơn vị,admin_cax_01261,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tiên Yên,Cán bộ báo cáo,bc_cax_01261,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Nà Hang,Quản trị đơn vị,admin_ubnd_02221,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Nà Hang,Cán bộ báo cáo,bc_ubnd_02221,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Nà Hang,Quản trị đơn vị,admin_cax_02221,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Nà Hang,Cán bộ báo cáo,bc_cax_02221,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thượng Nông,Quản trị đơn vị,admin_ubnd_02239,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thượng Nông,Cán bộ báo cáo,bc_ubnd_02239,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thượng Nông,Quản trị đơn vị,admin_cax_02239,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thượng Nông,Cán bộ báo cáo,bc_cax_02239,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Côn Lôn,Quản trị đơn vị,admin_ubnd_02245,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Côn Lôn,Cán bộ báo cáo,bc_ubnd_02245,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Côn Lôn,Quản trị đơn vị,admin_cax_02245,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Côn Lôn,Cán bộ báo cáo,bc_cax_02245,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Yên Hoa,Quản trị đơn vị,admin_ubnd_02248,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Yên Hoa,Cán bộ báo cáo,bc_ubnd_02248,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Yên Hoa,Quản trị đơn vị,admin_cax_02248,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Yên Hoa,Cán bộ báo cáo,bc_cax_02248,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hồng Thái,Quản trị đơn vị,admin_ubnd_02260,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hồng Thái,Cán bộ báo cáo,bc_ubnd_02260,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hồng Thái,Quản trị đơn vị,admin_cax_02260,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hồng Thái,Cán bộ báo cáo,bc_cax_02260,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Lâm Bình,Quản trị đơn vị,admin_ubnd_02266,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Lâm Bình,Cán bộ báo cáo,bc_ubnd_02266,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Lâm Bình,Quản trị đơn vị,admin_cax_02266,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Lâm Bình,Cán bộ báo cáo,bc_cax_02266,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thượng Lâm,Quản trị đơn vị,admin_ubnd_02269,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thượng Lâm,Cán bộ báo cáo,bc_ubnd_02269,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thượng Lâm,Quản trị đơn vị,admin_cax_02269,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thượng Lâm,Cán bộ báo cáo,bc_cax_02269,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Chiêm Hóa,Quản trị đơn vị,admin_ubnd_02287,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Chiêm Hóa,Cán bộ báo cáo,bc_ubnd_02287,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Chiêm Hóa,Quản trị đơn vị,admin_cax_02287,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Chiêm Hóa,Cán bộ báo cáo,bc_cax_02287,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bình An,Quản trị đơn vị,admin_ubnd_02296,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bình An,Cán bộ báo cáo,bc_ubnd_02296,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bình An,Quản trị đơn vị,admin_cax_02296,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bình An,Cán bộ báo cáo,bc_cax_02296,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Minh Quang,Quản trị đơn vị,admin_ubnd_02302,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Minh Quang,Cán bộ báo cáo,bc_ubnd_02302,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Minh Quang,Quản trị đơn vị,admin_cax_02302,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Minh Quang,Cán bộ báo cáo,bc_cax_02302,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Trung Hà,Quản trị đơn vị,admin_ubnd_02305,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Trung Hà,Cán bộ báo cáo,bc_ubnd_02305,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Trung Hà,Quản trị đơn vị,admin_cax_02305,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Trung Hà,Cán bộ báo cáo,bc_cax_02305,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tân Mỹ,Quản trị đơn vị,admin_ubnd_02308,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tân Mỹ,Cán bộ báo cáo,bc_ubnd_02308,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tân Mỹ,Quản trị đơn vị,admin_cax_02308,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tân Mỹ,Cán bộ báo cáo,bc_cax_02308,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Yên Lập,Quản trị đơn vị,admin_ubnd_02317,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Yên Lập,Cán bộ báo cáo,bc_ubnd_02317,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Yên Lập,Quản trị đơn vị,admin_cax_02317,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Yên Lập,Cán bộ báo cáo,bc_cax_02317,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tân An,Quản trị đơn vị,admin_ubnd_02320,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tân An,Cán bộ báo cáo,bc_ubnd_02320,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tân An,Quản trị đơn vị,admin_cax_02320,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tân An,Cán bộ báo cáo,bc_cax_02320,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Kiên Đài,Quản trị đơn vị,admin_ubnd_02332,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Kiên Đài,Cán bộ báo cáo,bc_ubnd_02332,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Kiên Đài,Quản trị đơn vị,admin_cax_02332,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Kiên Đài,Cán bộ báo cáo,bc_cax_02332,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Kim Bình,Quản trị đơn vị,admin_ubnd_02350,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Kim Bình,Cán bộ báo cáo,bc_ubnd_02350,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Kim Bình,Quản trị đơn vị,admin_cax_02350,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Kim Bình,Cán bộ báo cáo,bc_cax_02350,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hòa An,Quản trị đơn vị,admin_ubnd_02353,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hòa An,Cán bộ báo cáo,bc_ubnd_02353,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hòa An,Quản trị đơn vị,admin_cax_02353,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hòa An,Cán bộ báo cáo,bc_cax_02353,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tri Phú,Quản trị đơn vị,admin_ubnd_02359,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tri Phú,Cán bộ báo cáo,bc_ubnd_02359,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tri Phú,Quản trị đơn vị,admin_cax_02359,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tri Phú,Cán bộ báo cáo,bc_cax_02359,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Yên Nguyên,Quản trị đơn vị,admin_ubnd_02365,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Yên Nguyên,Cán bộ báo cáo,bc_ubnd_02365,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Yên Nguyên,Quản trị đơn vị,admin_cax_02365,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Yên Nguyên,Cán bộ báo cáo,bc_cax_02365,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hàm Yên,Quản trị đơn vị,admin_ubnd_02374,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hàm Yên,Cán bộ báo cáo,bc_ubnd_02374,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hàm Yên,Quản trị đơn vị,admin_cax_02374,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hàm Yên,Cán bộ báo cáo,bc_cax_02374,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bạch Xa,Quản trị đơn vị,admin_ubnd_02380,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bạch Xa,Cán bộ báo cáo,bc_ubnd_02380,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bạch Xa,Quản trị đơn vị,admin_cax_02380,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bạch Xa,Cán bộ báo cáo,bc_cax_02380,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Phù Lưu,Quản trị đơn vị,admin_ubnd_02392,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Phù Lưu,Cán bộ báo cáo,bc_ubnd_02392,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Phù Lưu,Quản trị đơn vị,admin_cax_02392,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Phù Lưu,Cán bộ báo cáo,bc_cax_02392,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Yên Phú,Quản trị đơn vị,admin_ubnd_02398,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Yên Phú,Cán bộ báo cáo,bc_ubnd_02398,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Yên Phú,Quản trị đơn vị,admin_cax_02398,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Yên Phú,Cán bộ báo cáo,bc_cax_02398,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bình Xa,Quản trị đơn vị,admin_ubnd_02404,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bình Xa,Cán bộ báo cáo,bc_ubnd_02404,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bình Xa,Quản trị đơn vị,admin_cax_02404,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bình Xa,Cán bộ báo cáo,bc_cax_02404,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thái Sơn,Quản trị đơn vị,admin_ubnd_02407,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thái Sơn,Cán bộ báo cáo,bc_ubnd_02407,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thái Sơn,Quản trị đơn vị,admin_cax_02407,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thái Sơn,Cán bộ báo cáo,bc_cax_02407,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thái Hòa,Quản trị đơn vị,admin_ubnd_02419,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thái Hòa,Cán bộ báo cáo,bc_ubnd_02419,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thái Hòa,Quản trị đơn vị,admin_cax_02419,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thái Hòa,Cán bộ báo cáo,bc_cax_02419,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hùng Đức,Quản trị đơn vị,admin_ubnd_02425,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hùng Đức,Cán bộ báo cáo,bc_ubnd_02425,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hùng Đức,Quản trị đơn vị,admin_cax_02425,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hùng Đức,Cán bộ báo cáo,bc_cax_02425,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Lực Hành,Quản trị đơn vị,admin_ubnd_02434,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Lực Hành,Cán bộ báo cáo,bc_ubnd_02434,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Lực Hành,Quản trị đơn vị,admin_cax_02434,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Lực Hành,Cán bộ báo cáo,bc_cax_02434,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Kiến Thiết,Quản trị đơn vị,admin_ubnd_02437,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Kiến Thiết,Cán bộ báo cáo,bc_ubnd_02437,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Kiến Thiết,Quản trị đơn vị,admin_cax_02437,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Kiến Thiết,Cán bộ báo cáo,bc_cax_02437,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Xuân Vân,Quản trị đơn vị,admin_ubnd_02449,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Xuân Vân,Cán bộ báo cáo,bc_ubnd_02449,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Xuân Vân,Quản trị đơn vị,admin_cax_02449,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Xuân Vân,Cán bộ báo cáo,bc_cax_02449,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hùng Lợi,Quản trị đơn vị,admin_ubnd_02455,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hùng Lợi,Cán bộ báo cáo,bc_ubnd_02455,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hùng Lợi,Quản trị đơn vị,admin_cax_02455,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hùng Lợi,Cán bộ báo cáo,bc_cax_02455,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Trung Sơn,Quản trị đơn vị,admin_ubnd_02458,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Trung Sơn,Cán bộ báo cáo,bc_ubnd_02458,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Trung Sơn,Quản trị đơn vị,admin_cax_02458,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Trung Sơn,Cán bộ báo cáo,bc_cax_02458,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tân Long,Quản trị đơn vị,admin_ubnd_02470,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tân Long,Cán bộ báo cáo,bc_ubnd_02470,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tân Long,Quản trị đơn vị,admin_cax_02470,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tân Long,Cán bộ báo cáo,bc_cax_02470,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Yên Sơn,Quản trị đơn vị,admin_ubnd_02473,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Yên Sơn,Cán bộ báo cáo,bc_ubnd_02473,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Yên Sơn,Quản trị đơn vị,admin_cax_02473,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Yên Sơn,Cán bộ báo cáo,bc_cax_02473,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thái Bình,Quản trị đơn vị,admin_ubnd_02494,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Thái Bình,Cán bộ báo cáo,bc_ubnd_02494,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thái Bình,Quản trị đơn vị,admin_cax_02494,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Thái Bình,Cán bộ báo cáo,bc_cax_02494,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Nhữ Khê,Quản trị đơn vị,admin_ubnd_02530,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Nhữ Khê,Cán bộ báo cáo,bc_ubnd_02530,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Nhữ Khê,Quản trị đơn vị,admin_cax_02530,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Nhữ Khê,Cán bộ báo cáo,bc_cax_02530,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Sơn Dương,Quản trị đơn vị,admin_ubnd_02536,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Sơn Dương,Cán bộ báo cáo,bc_ubnd_02536,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Sơn Dương,Quản trị đơn vị,admin_cax_02536,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Sơn Dương,Cán bộ báo cáo,bc_cax_02536,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tân Trào,Quản trị đơn vị,admin_ubnd_02545,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tân Trào,Cán bộ báo cáo,bc_ubnd_02545,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tân Trào,Quản trị đơn vị,admin_cax_02545,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tân Trào,Cán bộ báo cáo,bc_cax_02545,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bình Ca,Quản trị đơn vị,admin_ubnd_02548,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Bình Ca,Cán bộ báo cáo,bc_ubnd_02548,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bình Ca,Quản trị đơn vị,admin_cax_02548,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Bình Ca,Cán bộ báo cáo,bc_cax_02548,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Minh Thanh,Quản trị đơn vị,admin_ubnd_02554,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Minh Thanh,Cán bộ báo cáo,bc_ubnd_02554,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Minh Thanh,Quản trị đơn vị,admin_cax_02554,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Minh Thanh,Cán bộ báo cáo,bc_cax_02554,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Đông Thọ,Quản trị đơn vị,admin_ubnd_02572,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Đông Thọ,Cán bộ báo cáo,bc_ubnd_02572,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Đông Thọ,Quản trị đơn vị,admin_cax_02572,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Đông Thọ,Cán bộ báo cáo,bc_cax_02572,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tân Thanh,Quản trị đơn vị,admin_ubnd_02578,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Tân Thanh,Cán bộ báo cáo,bc_ubnd_02578,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tân Thanh,Quản trị đơn vị,admin_cax_02578,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Tân Thanh,Cán bộ báo cáo,bc_cax_02578,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hồng Sơn,Quản trị đơn vị,admin_ubnd_02608,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Hồng Sơn,Cán bộ báo cáo,bc_ubnd_02608,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hồng Sơn,Quản trị đơn vị,admin_cax_02608,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Hồng Sơn,Cán bộ báo cáo,bc_cax_02608,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Phú Lương,Quản trị đơn vị,admin_ubnd_02611,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Phú Lương,Cán bộ báo cáo,bc_ubnd_02611,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Phú Lương,Quản trị đơn vị,admin_cax_02611,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Phú Lương,Cán bộ báo cáo,bc_cax_02611,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Sơn Thủy,Quản trị đơn vị,admin_ubnd_02620,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Sơn Thủy,Cán bộ báo cáo,bc_ubnd_02620,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Sơn Thủy,Quản trị đơn vị,admin_cax_02620,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Sơn Thủy,Cán bộ báo cáo,bc_cax_02620,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Trường Sinh,Quản trị đơn vị,admin_ubnd_02623,TuyenQuang@2026,Mới tạo
+Cấp Xã,"UBND Xã, Phường",UBND Xã Trường Sinh,Cán bộ báo cáo,bc_ubnd_02623,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Trường Sinh,Quản trị đơn vị,admin_cax_02623,TuyenQuang@2026,Mới tạo
+Cấp Xã,"Công an Xã, Phường",Công an Xã Trường Sinh,Cán bộ báo cáo,bc_cax_02623,TuyenQuang@2026,Mới tạo

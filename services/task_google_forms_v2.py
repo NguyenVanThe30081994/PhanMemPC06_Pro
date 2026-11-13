@@ -63,7 +63,10 @@ from services.task_modes import _task_mode
 from services.task_permissions import _can_process_task_module, _current_perms
 from services.task_runtime_sync import _task_assignment_records
 from services.task_units import _dedupe_users
-from services.task_workspace_helpers import _sync_assignment_group_submission
+from services.task_workspace_helpers import (
+    _sync_assignment_group_submission,
+    _task_assignment_group_members,
+)
 
 def _return_task_assignment_v2(tid, assignment_id):
     task = Task.query.filter_by(id=tid).first()
@@ -88,15 +91,22 @@ def _return_task_assignment_v2(tid, assignment_id):
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
 
     reason = (request.form.get("return_reason") or "").strip()[:500]
-    assignment.status = "returned"
-    assignment.returned_at = datetime.now()
-    assignment.updated_at = datetime.now()
+    now = datetime.now()
+    peers = _task_assignment_group_members(task, assignment) or [assignment]
+    if assignment not in peers:
+        peers.append(assignment)
+    for peer in peers:
+        peer.status = "returned"
+        peer.returned_at = now
+        peer.updated_at = now
     db.session.add(
         TaskComment(
             task_id=task.id,
             user_id=session["uid"],
+            assignee_id=assignment.user_id or 0,
             user_name=session.get("fullname", "Quản trị"),
             content=f"[TRẢ LẠI] {reason or 'Yêu cầu bổ sung nội dung'}",
+            created_at=now,
         )
     )
     db.session.commit()

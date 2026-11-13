@@ -19,7 +19,7 @@ from services.task_permissions import _can_process_task_module, _current_perms
 from services.outline_submission import _outline_merged_content, _outline_submission_values
 from services.task_runtime_sync import _latest_assignment_submission, _submission_has_report_content
 from services.task_units import _task_assignee_unit_name
-from services.task_workspace_helpers import _task_assignments_query
+from services.task_workspace_helpers import _collapse_logical_task_assignments, _task_assignments_query
 from services.task_workspace_views import _outline_item_number_fields, _task_item_synthesis_text
 
 
@@ -79,7 +79,8 @@ def _task_item_synthesis_data(tid, item_id):
 
     number_fields = _outline_item_number_fields(item)
     content = str(getattr(item, "content", "") or "")
-    assignments = _task_assignments_query(task, task_item_id=item.id).all()
+    raw_assignments = _task_assignments_query(task, task_item_id=item.id).all()
+    assignments = _collapse_logical_task_assignments(raw_assignments)
     submissions = []
     for assignment in assignments:
         submission = _latest_assignment_submission(assignment)

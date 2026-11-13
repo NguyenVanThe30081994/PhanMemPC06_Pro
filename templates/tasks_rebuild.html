@@ -45,152 +45,229 @@
 
 {% block content %}
 <div class="task-workspace-shell">
-    <!-- Header with Stats and Actions -->
-    <section class="task-header-bar">
-        <div class="task-stats-compact">
-            <div class="task-stat-item danger">
-                <i class="fa-solid fa-exclamation-circle"></i>
-                <span>{{ stats.attention }}</span>
-                <small>Cần xử lý</small>
-            </div>
-            <div class="task-stat-item primary">
-                <i class="fa-solid fa-user"></i>
-                <span>{{ stats.my }}</span>
-                <small>Việc tôi nhận</small>
-            </div>
-            <div class="task-stat-item warning">
-                <i class="fa-solid fa-users"></i>
-                <span>{{ stats.managed }}</span>
-                <small>Tôi giao</small>
-            </div>
-            <div class="task-stat-item success">
-                <i class="fa-solid fa-check-circle"></i>
-                <span>{{ stats.completed }}</span>
-                <small>Hoàn tất</small>
-            </div>
+    <!-- Header with 1 Single Action Button: Tạo công việc mới -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--text-main, #1A365D);">
+                <i class="fa-solid fa-list-check me-2 text-primary"></i>Quản Lý Công Việc & Báo Cáo
+            </h2>
         </div>
-    </section>
-
-    <!-- Unified Button Row: Actions + Filters -->
-    <section class="task-filter-bar d-flex flex-wrap align-items-center gap-2 mb-4">
         {% if is_lead or is_admin %}
-        <button class="pc-btn pc-btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
-            <i class="fa-solid fa-plus me-2"></i>Tạo công việc
-        </button>
-        <a class="pc-btn pc-btn-secondary" href="{{ url_for('tasks_bp.task_import_drafts') }}">
-            <i class="fa-solid fa-file-import me-2"></i>Nhập tài liệu
-        </a>
-        {% endif %}
-        <button class="pc-btn {% if stats.attention > 0 %}pc-btn-primary{% else %}pc-btn-secondary{% endif %}" 
-                id="filter-attention" type="button" onclick="switchTaskTab('attention')">
-            <i class="fa-solid fa-exclamation-circle me-2"></i>Cần xử lý ngay
-            {% if stats.attention > 0 %}<span class="ms-1">({{ stats.attention }})</span>{% endif %}
-        </button>
-        <button class="pc-btn {% if stats.attention == 0 and stats.my > 0 %}pc-btn-primary{% else %}pc-btn-secondary{% endif %}" 
-                id="filter-my" type="button" onclick="switchTaskTab('my')">
-            <i class="fa-solid fa-user me-2"></i>Việc của tôi
-            {% if stats.my > 0 %}<span class="ms-1">({{ stats.my }})</span>{% endif %}
-        </button>
-        <button class="pc-btn pc-btn-secondary" id="filter-managed" type="button" onclick="switchTaskTab('managed')">
-            <i class="fa-solid fa-users me-2"></i>Tôi giao
-            {% if stats.managed > 0 %}<span class="ms-1">({{ stats.managed }})</span>{% endif %}
-        </button>
-        {% if watch_tasks|length > 0 %}
-        <button class="pc-btn pc-btn-secondary" id="filter-watch" type="button" onclick="switchTaskTab('watch')">
-            <i class="fa-solid fa-eye me-2"></i>Chỉ xem
-            <span class="ms-1">({{ watch_tasks|length }})</span>
-        </button>
-        {% endif %}
-    </section>
-
-    <script>
-    function switchTaskTab(tabName) {
-        // Update button active states
-        document.querySelectorAll('.task-filter-bar .pc-btn').forEach(btn => {
-            btn.classList.remove('pc-btn-primary');
-            btn.classList.add('pc-btn-secondary');
-        });
-        var activeBtn = document.getElementById('filter-' + tabName);
-        if (activeBtn) {
-            activeBtn.classList.remove('pc-btn-secondary');
-            activeBtn.classList.add('pc-btn-primary');
-        }
-        // Switch visible tab panes directly
-        document.querySelectorAll('.task-tab-content .tab-pane').forEach(pane => {
-            pane.classList.remove('show', 'active');
-        });
-        var targetPane = document.getElementById(tabName + '-pane');
-        if (targetPane) {
-            targetPane.classList.add('show', 'active');
-        }
-    }
-    </script>
-
-    <!-- Tab Content Sections -->
-    <section class="task-tab-content">
-        <!-- Attention Tasks Tab -->
-        <div class="tab-pane fade {% if stats.attention > 0 %}show active{% elif stats.my > 0 %}{% else %}show active{% endif %}" 
-             id="attention-pane" role="tabpanel">
-            {% if attention_tasks %}
-            <div class="task-list-grid">
-                {% for task in attention_tasks %}
-                {{ task_card(task) }}
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="pc-empty">
-                <div class="pc-empty-icon"><i class="fa-solid fa-check-circle"></i></div>
-                <div class="pc-empty-title">Không có công việc cần xử lý ngay.</div>
-            </div>
-            {% endif %}
+        <div>
+            <button class="pc-btn pc-btn-primary btn-lg px-4 shadow-sm" type="button" data-bs-toggle="modal" data-bs-target="#chooseTaskTypeModal">
+                <i class="fa-solid fa-plus me-2"></i>Tạo công việc mới
+            </button>
         </div>
+        {% endif %}
+    </div>
 
-        <!-- My Tasks Tab -->
-            <div class="tab-pane fade {% if stats.attention == 0 and stats.my > 0 %}show active{% endif %}" 
-                 id="my-pane" role="tabpanel">
-                {% if my_tasks %}
-                <div class="task-list-grid">
-                    {% for task in my_tasks %}
-                    {{ task_card(task) }}
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="pc-empty">
-                    <div class="pc-empty-icon"><i class="fa-solid fa-inbox"></i></div>
-                    <div class="pc-empty-title">Hiện chưa có việc nào được giao trực tiếp cho bạn.</div>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- Managed Tasks Tab -->
-            <div class="tab-pane fade" id="managed-pane" role="tabpanel">
-                {% if managed_tasks %}
-                <div class="task-list-grid">
-                    {% for task in managed_tasks %}
-                    {{ task_card(task, show_actions=True) }}
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="pc-empty">
-                    <div class="pc-empty-icon"><i class="fa-solid fa-folder-open"></i></div>
-                    <div class="pc-empty-title">Chưa có công việc nào thuộc nhóm bạn điều phối hoặc theo dõi.</div>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- Watch Tasks Tab -->
-            {% if watch_tasks|length > 0 %}
-            <div class="tab-pane fade" id="watch-pane" role="tabpanel">
-                <div class="task-list-grid">
-                    {% for task in watch_tasks %}
-                    {{ task_card(task) }}
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
+    <!-- Thanh tìm kiếm nhanh -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 420px;">
+            <input type="text" id="taskSearchInput" class="form-control form-control-sm" placeholder="Tìm kiếm công việc, đơn vị...">
         </div>
-    </section>
+        <div class="text-muted small">
+            Tổng số: <strong id="taskTotalCount">{{ tasks|length }}</strong> công việc
+        </div>
+    </div>
+
+    <!-- Bảng danh sách công việc chính -->
+    {% if tasks and tasks|length > 0 %}
+    <div class="pc-card p-0 shadow-sm border overflow-hidden mb-4" style="border-radius: 12px;">
+        <div class="table-responsive">
+            <table class="table pc-table align-middle mb-0" id="taskMainTable">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 50px;" class="text-center">#</th>
+                        <th style="min-width: 280px;">Tên việc</th>
+                        <th style="width: 180px;">Đơn vị giao</th>
+                        <th style="width: 140px;">Thời gian giao</th>
+                        <th style="width: 160px;">Thời hạn báo cáo</th>
+                        <th style="width: 160px;">Kiểu báo cáo</th>
+                        <th style="width: 140px;" class="text-center">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="taskTableBody">
+                    {% for task in tasks %}
+                    <tr class="task-row-item" data-title="{{ task.title|lower }}" data-author="{{ (task.author_name or '')|lower }}">
+                        <td class="text-center text-muted fw-bold">{{ loop.index }}</td>
+                        <td>
+                            <a href="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" class="fw-bold text-decoration-none text-primary fs-6 d-block mb-1">
+                                {{ task.title }}
+                            </a>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-{{ task.workspace_tone }}-subtle text-{{ task.workspace_tone }} border border-{{ task.workspace_tone }}-subtle">
+                                    {{ task.workspace_status_text }}
+                                </span>
+                                <small class="text-muted">
+                                    <i class="fa-solid fa-chart-pie me-1"></i>{{ task.submitted_assignments }}/{{ task.assignee_count }} đơn vị nộp ({{ task.progress_percent }}%)
+                                </small>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="fa-solid fa-building text-muted"></i>
+                                <span class="fw-semibold">{{ task.author_name or task.domain_display or 'Cơ quan chỉ đạo' }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <small class="text-muted">
+                                <i class="fa-regular fa-calendar-days me-1"></i>
+                                {% if task.created_at %}
+                                    {{ task.created_at.strftime('%d/%m/%Y') }}
+                                {% else %}
+                                    --
+                                {% endif %}
+                            </small>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-1">
+                                <i class="fa-regular fa-clock {% if task.is_overdue %}text-danger{% else %}text-muted{% endif %}"></i>
+                                <span class="{% if task.is_overdue %}text-danger fw-bold{% else %}text-dark{% endif %}">
+                                    {{ task.workspace_deadline_text or 'Không có hạn' }}
+                                </span>
+                            </div>
+                        </td>
+                        <td>
+                            {% if task.task_mode == 'OUTLINE' %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                    <i class="fa-solid fa-file-contract me-1"></i>Đề cương văn bản
+                                </span>
+                            {% elif task.task_mode == 'FORM' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="fa-solid fa-table-cells me-1"></i>Biểu mẫu số liệu
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary">
+                                    {{ task.task_mode_label or 'Báo cáo' }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="d-inline-flex gap-1">
+                                <a href="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" class="pc-btn pc-btn-secondary btn-sm" title="Xem chi tiết & Báo cáo">
+                                    <i class="fa-solid fa-eye me-1"></i>Xem
+                                </a>
+                                {% if task.can_edit %}
+                                <button class="pc-btn pc-btn-secondary btn-sm" type="button" onclick="openEditConfigModal({{ task.id }})" title="Sửa cấu hình">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                                {% endif %}
+                                {% if task.can_delete %}
+                                <button class="pc-btn pc-btn-secondary btn-sm text-danger" type="button" onclick="openDeleteConfirmModal({{ task.id }})" title="Xóa">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="pc-card pc-empty py-5 text-center my-4">
+        <div class="pc-empty-icon mb-3"><i class="fa-solid fa-inbox text-muted" style="font-size: 3rem;"></i></div>
+        <div class="pc-empty-title fs-5 fw-bold mb-2">Chưa có công việc nào</div>
+        <p class="text-muted small mb-0">Hiện tại chưa có công việc báo cáo nào được tạo trong hệ thống.</p>
+    </div>
+    {% endif %}
 </div>
+
+<!-- MODAL CHỌN HÌNH THỨC TẠO VIỆC (2 HƯỚNG DUY NHẤT) -->
+{% if is_lead or is_admin %}
+<div class="modal fade" id="chooseTaskTypeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 14px;">
+      <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
+        <div>
+          <h5 class="modal-title fw-bold text-primary fs-4">Chọn Hình Thức Giao Việc</h5>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="row g-3">
+          <!-- Hướng 1: Phân công theo đề cương văn bản -->
+          <div class="col-md-6">
+            <a href="/outline-giao-viec" class="card h-100 p-4 text-decoration-none border-2 task-choice-card shadow-sm" style="border-radius: 12px; border-color: #CBD5E0; transition: all 0.2s;">
+              <div class="d-flex align-items-center mb-4">
+                <div class="choice-icon bg-primary-subtle text-primary p-3 rounded-circle me-3">
+                  <i class="fa-solid fa-file-contract fs-2"></i>
+                </div>
+                <div>
+                  <h6 class="fw-bold mb-0 text-dark fs-5">Giao theo đề cương</h6>
+                </div>
+              </div>
+              <div class="mt-auto">
+                <span class="btn btn-outline-primary btn-sm w-100 fw-bold py-2">
+                  Bắt đầu <i class="fa-solid fa-arrow-right ms-1"></i>
+                </span>
+              </div>
+            </a>
+          </div>
+
+          <!-- Hướng 2: Giao theo biểu mẫu số liệu Excel -->
+          <div class="col-md-6">
+            <a href="javascript:void(0)" onclick="openCreateFormWizard()" class="card h-100 p-4 text-decoration-none border-2 task-choice-card shadow-sm" style="border-radius: 12px; border-color: #CBD5E0; transition: all 0.2s;">
+              <div class="d-flex align-items-center mb-4">
+                <div class="choice-icon bg-success-subtle text-success p-3 rounded-circle me-3">
+                  <i class="fa-solid fa-table-cells fs-2"></i>
+                </div>
+                <div>
+                  <h6 class="fw-bold mb-0 text-dark fs-5">Giao theo biểu mẫu</h6>
+                </div>
+              </div>
+              <div class="mt-auto">
+                <span class="btn btn-outline-success btn-sm w-100 fw-bold py-2">
+                  Bắt đầu <i class="fa-solid fa-arrow-right ms-1"></i>
+                </span>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function openCreateFormWizard() {
+    var chooseModalEl = document.getElementById('chooseTaskTypeModal');
+    var chooseModal = bootstrap.Modal.getInstance(chooseModalEl);
+    if (chooseModal) chooseModal.hide();
+    
+    var createModalEl = document.getElementById('createTaskModal');
+    if (createModalEl) {
+        var createModal = new bootstrap.Modal(createModalEl);
+        createModal.show();
+        var formCard = document.querySelector('[data-task-type="FORM"]');
+        if (formCard) formCard.click();
+    }
+}
+</script>
+{% endif %}
+
+<script>
+// Tìm kiếm nhanh trên bảng công việc (áp dụng cho mọi vai trò)
+document.getElementById('taskSearchInput')?.addEventListener('input', function() {
+    var query = this.value.toLowerCase().trim();
+    var rows = document.querySelectorAll('#taskTableBody .task-row-item');
+    var visibleCount = 0;
+    rows.forEach(function(row) {
+        var title = row.getAttribute('data-title') || '';
+        var author = row.getAttribute('data-author') || '';
+        if (title.includes(query) || author.includes(query)) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    var countEl = document.getElementById('taskTotalCount');
+    if (countEl) countEl.textContent = visibleCount;
+});
+</script>
 
 <style>
     .wizard-outline-group {
@@ -261,8 +338,16 @@
     }
 
     .task-workspace-shell {
-        display: grid;
-        gap: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .task-workspace-shell > * {
+        min-width: 0;
     }
 
     .task-panel,
@@ -1232,46 +1317,40 @@
                     <textarea class="d-none" name="google_form_builder_json" id="wizardGoogleBuilderJson"></textarea>
 
                     <div data-wizard-pane="1">
-                        <div class="fw-bold mb-3">Chọn loại công việc bạn muốn giao</div>
+                        <div class="fw-bold mb-3">Chọn hình thức công việc / báo cáo bạn muốn giao</div>
                         <div class="row g-3">
-                            <div class="col-lg-4">
-                                <button type="button" class="card w-100 h-100 text-start p-3 border-2 task-type-card is-selected" data-task-type="OUTLINE">
-                                    <div class="fs-3"><i class="fa-solid fa-list-check" aria-hidden="true"></i></div>
-                                    <div class="fw-bold mt-2">Theo đề cương</div>
-                                    <div class="small text-muted mt-1">Tải đề cương Word → hệ thống gom nội dung theo từng mục → quản trị gán mục đó cho đơn vị và chọn hình thức báo cáo.</div>
-                                </button>
+                            <div class="col-lg-6">
+                                <a href="/outline-giao-viec" class="card w-100 h-100 text-start p-3 border-2 task-type-card text-decoration-none is-selected" data-task-type="OUTLINE">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="fs-3 text-primary"><i class="fa-solid fa-file-contract" aria-hidden="true"></i></div>
+                                        <span class="badge bg-primary text-white">Đề cương văn bản</span>
+                                    </div>
+                                    <div class="fw-bold mt-2 fs-5 text-primary">Theo đề cương văn bản</div>
+                                    <div class="small text-muted mt-1">Tải văn bản chỉ đạo, bóc tách nhiệm vụ và phân công cơ quan thực hiện.</div>
+                                </a>
                             </div>
-                            <div class="col-lg-4">
-                                <button type="button" class="card w-100 h-100 text-start p-3 border-2 task-type-card" data-task-type="FILE">
-                                    <div class="fs-3"><i class="fa-solid fa-file-lines" aria-hidden="true"></i></div>
-                                    <div class="fw-bold mt-2">Nộp file / văn bản</div>
-                                    <div class="small text-muted mt-1">Giao việc trực tiếp; người nhận nộp nội dung tóm tắt + file minh chứng, công văn, văn bản tổng hợp.</div>
-                                </button>
-                            </div>
-                            <div class="col-lg-4">
+                            <div class="col-lg-6">
                                 <button type="button" class="card w-100 h-100 text-start p-3 border-2 task-type-card" data-task-type="FORM">
-                                    <div class="fs-3"><i class="fa-solid fa-table-cells" aria-hidden="true"></i></div>
-                                    <div class="fw-bold mt-2">Biểu mẫu / bảng số</div>
-                                    <div class="small text-muted mt-1">Điền như Google Form hoặc bảng Excel; xuất tổng hợp dữ liệu ra file Excel.</div>
+                                    <div class="fs-3 text-success"><i class="fa-solid fa-table-cells" aria-hidden="true"></i></div>
+                                    <div class="fw-bold mt-2 fs-5">Biểu mẫu số liệu / Excel</div>
+                                    <div class="small text-muted mt-1">Thiết lập các trường/cột chỉ tiêu số liệu → các đơn vị nhập liệu trực tiếp → hệ thống tự động cộng dồn, tổng hợp số liệu realtime và xuất bảng tính Excel.</div>
                                 </button>
                             </div>
+                            <!-- Đã bỏ hình thức Nộp file tự do theo định hướng chuẩn hóa GovTech Đề án 06 -->
                         </div>
                     </div>
 
                     <div data-wizard-pane="2" class="d-none">
                         <div data-wizard-source="OUTLINE" class="d-none">
-                            <div class="border rounded-3 p-3 bg-light-subtle">
-                                <div class="fw-bold mb-1">Tải đề cương</div>
-                                <p class="small text-muted mb-3">Chọn file chính + các file phụ (.docx / .txt / .pdf). Nội dung trùng nhau giữa các file sẽ được gộp thành 1 đầu mục và đánh dấu "Báo cáo phụ" — đơn vị chỉ báo cáo 1 lần, hệ thống tự điền vào tất cả các file. Có thể bỏ tích để tách riêng.</p>
-                                <div class="d-flex flex-wrap gap-2 align-items-center mb-2" id="wizardOutlineFileList">
-                                    <div class="d-flex gap-2 align-items-center" data-wz-outline-file-row>
-                                        <span class="small fw-semibold text-muted" style="min-width: 80px;">File chính</span>
-                                        <input class="form-control form-control-sm outline-file-input" type="file" accept=".docx,.txt,.pdf" data-wz-outline-file>
-                                    </div>
-                                    <button class="btn btn-sm btn-outline-secondary" type="button" id="wizardAddOutlineFileBtn">+ Thêm file phụ</button>
-                                    <button class="btn btn-sm btn-primary" type="button" id="wizardOutlineParseBtn">Phân tích đề cương</button>
-                                </div>
-                                <div class="small mt-2" id="wizardOutlineStatus">Chưa phân tích. Nếu không tải file, bấm Tiếp tục để nhập tay từng mục.</div>
+                            <div class="border rounded-3 p-4 bg-light-subtle text-center">
+                                <div class="fs-1 text-primary mb-2"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                                <h5 class="fw-bold text-primary mb-2">Phân Công Nhiệm Vụ Theo Đề Cương Văn Bản</h5>
+                                <p class="text-muted mb-3 mx-auto" style="max-width: 580px;">
+                                    Hệ thống bóc tách tự động các mục tiêu, nhiệm vụ từ văn bản chỉ đạo của tỉnh (Word, PDF) và hỗ trợ phân công cơ quan chủ trì, phối hợp nhanh chóng, chính xác.
+                                </p>
+                                <a href="/outline-giao-viec" class="btn btn-primary btn-lg px-4 shadow-sm">
+                                    <i class="fa-solid fa-arrow-right-to-bracket me-2"></i>Mở Phân Công Theo Đề Cương
+                                </a>
                             </div>
                         </div>
                         <div data-wizard-source="FILE" class="d-none">
@@ -1967,17 +2046,19 @@
 
     // ---------- step 1: type cards ----------
     document.querySelectorAll('[data-task-type]').forEach((card) => {
-        card.addEventListener('click', () => {
+        card.addEventListener('click', (e) => {
             wizardMode = card.dataset.taskType;
+            if (wizardMode === 'OUTLINE') {
+                e.preventDefault();
+                window.location.href = '/outline-giao-viec';
+                return;
+            }
             document.querySelectorAll('[data-task-type]').forEach((other) => {
                 other.classList.toggle('is-selected', other === card);
                 other.classList.toggle('border-primary', other === card);
                 other.classList.toggle('bg-primary-subtle', other === card);
             });
             if (modeSelect) modeSelect.value = wizardMode;
-            if (wizardMode === 'OUTLINE' && !outlineRowsBox?.querySelector('[data-wz-row]')) {
-                addWizardOutlineRow({});
-            }
             if (wizardMode === 'FORM' && !formFieldList?.querySelector('.form-field-item')) {
                 addFormField();
             }
@@ -1986,8 +2067,9 @@
     });
 
     wizardNextBtn?.addEventListener('click', () => {
-        if (currentStep === 2 && wizardMode === 'OUTLINE' && !outlineRowsBox?.querySelector('[data-wz-row]')) {
-            addWizardOutlineRow({});
+        if (wizardMode === 'OUTLINE') {
+            window.location.href = '/outline-giao-viec';
+            return;
         }
         if (currentStep === 2 && wizardMode === 'FORM' && !formFieldList?.querySelector('.form-field-item')) {
             addFormField();

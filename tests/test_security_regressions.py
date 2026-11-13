@@ -174,7 +174,10 @@ class SecurityRegressionTests(unittest.TestCase):
     def test_login_redirect_with_clear_storage_sets_clear_site_data_header(self):
         response = self.client.get('/login?clear_storage=true')
         self.assertEqual(response.status_code, 200)
-        self.assertIn('cookies', response.headers.get('Clear-Site-Data', ''))
+        clear_site_data = response.headers.get('Clear-Site-Data', '')
+        self.assertIn('cache', clear_site_data)
+        self.assertIn('storage', clear_site_data)
+        self.assertNotIn('cookies', clear_site_data)
 
 
 if __name__ == '__main__':

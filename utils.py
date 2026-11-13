@@ -990,7 +990,7 @@ DEFAULT_ROLE_MODULE_CODES = (
 STANDARD_SYSTEM_ROLES = (
     {
         "name": "Quản trị hệ thống",
-        "aliases": ("admin_system", "admin", "quản trị"),
+        "aliases": ("admin_system", "admin", "superadmin"),
         "level": "system",
         "description": "Toàn quyền hệ thống: cấu hình, tài khoản, mọi nghiệp vụ.",
         "perms": {
@@ -1058,6 +1058,46 @@ STANDARD_SYSTEM_ROLES = (
             "link": ("view", "process"),
         },
     },
+    {
+        "name": "Lãnh đạo đơn vị",
+        "aliases": ("lãnh đạo", "giám đốc sở", "chủ tịch xã", "trưởng cax", "thủ trưởng đơn vị"),
+        "level": "unit",
+        "description": "Lãnh đạo Đơn vị (Sở, Xã): Thẩm quyền tạo việc, giao việc, duyệt báo cáo.",
+        "perms": {
+            "dash": ("view",),
+            "task": ("view", "process"),
+            "notify": ("view", "process"),
+            "contact": ("view", "process"),
+            "link": ("view", "process"),
+        },
+    },
+    {
+        "name": "Quản trị đơn vị",
+        "aliases": ("admin đơn vị", "admin_unit"),
+        "level": "unit",
+        "description": "Quản trị viên nội bộ đơn vị: Quản trị tài khoản, phân vai trò trong đơn vị.",
+        "perms": {
+            "dash": ("view", "process"),
+            "task": ("view", "process"),
+            "notify": ("view", "process"),
+            "contact": ("view", "process"),
+            "link": ("view", "process"),
+            "user": ("view", "process"),
+        },
+    },
+    {
+        "name": "Cán bộ báo cáo",
+        "aliases": ("cán bộ thực hiện", "chuyên viên"),
+        "level": "unit",
+        "description": "Cán bộ chuyên môn / Báo cáo: Tiếp nhận, thực hiện và nộp báo cáo.",
+        "perms": {
+            "dash": ("view",),
+            "task": ("view", "exec"),
+            "notify": ("view",),
+            "contact": ("view",),
+            "link": ("view",),
+        },
+    },
 )
 
 
@@ -1069,14 +1109,18 @@ def match_standard_role(role_name):
     key = _role_name_key(role_name)
     if not key:
         return None
+    # 1. Khớp chính xác trước trên toàn bộ danh mục vai trò
     for role_def in STANDARD_SYSTEM_ROLES:
         names = {_role_name_key(role_def["name"])}
         names.update(_role_name_key(alias) for alias in role_def.get("aliases") or ())
         if key in names:
             return role_def
-        # Khớp gần: chứa đủ cụm chính trong tên vai trò
+    # 2. Khớp gần: chứa cụm chính (chỉ khi từ khóa dài >= 5 ký tự)
+    for role_def in STANDARD_SYSTEM_ROLES:
+        names = {_role_name_key(role_def["name"])}
+        names.update(_role_name_key(alias) for alias in role_def.get("aliases") or ())
         for candidate in names:
-            if candidate and candidate in key:
+            if candidate and len(candidate) >= 5 and candidate in key:
                 return role_def
     return None
 

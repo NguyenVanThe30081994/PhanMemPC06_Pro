@@ -1,20 +1,124 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="overview-shell">
-    <section class="overview-metric-grid">
+<div class="launchpad-clean-shell">
+
+    <!-- ── 1. DẢI KPI CHỈ SỐ NHANH (MỎNG GỌN, TRỰC QUAN) ── -->
+    <section class="kpi-strip mb-4">
         {% for metric in overview_metrics %}
-        <a href="{{ metric.href }}" class="overview-metric-card accent-{{ metric.accent_class }}">
-            <span>{{ metric.title }}</span>
-            <strong>{{ metric.value }}</strong>
+        <a href="{{ metric.href }}" class="kpi-item kpi-accent-{{ metric.accent_class }}">
+            <div class="kpi-info">
+                <span class="kpi-label">{{ metric.title }}</span>
+                <strong class="kpi-value">{{ metric.value }}</strong>
+            </div>
+            {% if metric.icon %}
+            <div class="kpi-icon-bubble">
+                <i class="{{ metric.icon }}"></i>
+            </div>
+            {% endif %}
         </a>
         {% endfor %}
     </section>
 
-    <section class="overview-chart-grid">
+    <!-- ── 2. LƯỚI ỨNG DỤNG ĐIỀU HÀNH & CÔNG VỤ (APP LAUNCHPAD GRID) ── -->
+    <div class="mb-2 d-flex align-items-center justify-content-between">
+        <h2 class="fs-6 fw-bold text-uppercase text-muted mb-0 tracking-wider">
+            <i class="fa-solid fa-grip me-2 text-primary"></i>Bàn Làm Việc Chức Năng
+        </h2>
+        <span class="badge bg-primary-subtle text-primary border px-2 py-1 small">
+            <i class="fa-regular fa-calendar-check me-1"></i>{{ now_str }}
+        </span>
+    </div>
+
+    <div class="app-launchpad-grid mb-4">
+
+        <!-- 1. GIAO VIỆC THEO ĐỀ CƯƠNG (CHỈ KHI CÓ QUYỀN GIAO/XỬ LÝ VIỆC) -->
+        {% if is_admin or can_module('task', 'process') %}
+        <a href="/outline-giao-viec" class="app-tile tile-primary">
+            <div class="tile-icon-box bg-blue-subtle text-primary">
+                <i class="fa-solid fa-file-contract"></i>
+            </div>
+            <div class="tile-title">Giao việc theo đề cương</div>
+            <div class="tile-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+        </a>
+        {% endif %}
+
+        <!-- 2. CÔNG VIỆC / GIAO VIỆC THEO BIỂU MẪU -->
+        {% if is_admin or can_module('task', 'view') %}
+        <a href="/tasks" class="app-tile tile-emerald">
+            <div class="tile-icon-box bg-emerald-subtle text-emerald">
+                <i class="fa-solid fa-table-list"></i>
+            </div>
+            <div class="tile-title">{% if is_admin or can_module('task', 'process') %}Giao việc theo biểu mẫu{% else %}Công việc được giao{% endif %}</div>
+            <div class="tile-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+        </a>
+        {% endif %}
+
+        <!-- 3. THEO DÕI THỜI HẠN HỒ SƠ -->
+        <a href="/dossiers" class="app-tile tile-rose position-relative">
+            <div class="tile-icon-box bg-rose-subtle text-rose">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+            </div>
+            <div class="tile-title">Theo dõi thời hạn hồ sơ</div>
+            {% if dossier_urgent_count > 0 %}
+            <span class="tile-urgent-badge bg-danger text-white">
+                {{ dossier_urgent_count }} sát hạn
+            </span>
+            {% endif %}
+            <div class="tile-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+        </a>
+
+        <!-- 4. BẢNG TIN & THƯ VIỆN SỐ -->
+        <a href="/thong-bao" class="app-tile tile-amber">
+            <div class="tile-icon-box bg-amber-subtle text-amber">
+                <i class="fa-solid fa-bullhorn"></i>
+            </div>
+            <div class="tile-title">Bảng tin & Thư viện</div>
+            <div class="tile-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+        </a>
+
+        <!-- 5. TẠO MÃ QR & LINK RÚT GỌN -->
+        <a href="/links" class="app-tile tile-teal">
+            <div class="tile-icon-box bg-teal-subtle text-teal">
+                <i class="fa-solid fa-qrcode"></i>
+            </div>
+            <div class="tile-title">Mã QR & Link rút gọn</div>
+            <div class="tile-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+        </a>
+
+        <!-- 6. DANH BẠ CƠ QUAN -->
+        <a href="/contacts" class="app-tile tile-sky">
+            <div class="tile-icon-box bg-sky-subtle text-sky">
+                <i class="fa-solid fa-address-book"></i>
+            </div>
+            <div class="tile-title">Danh bạ cơ quan</div>
+            <div class="tile-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+        </a>
+
+        <!-- 7. QUẢN TRỊ HỆ THỐNG (NẾU ADMIN / QUẢN TRỊ) -->
+        {% if is_admin or can_module('user', 'view') or can_module('sys', 'view') %}
+        <a href="/admin/system-center" class="app-tile tile-slate">
+            <div class="tile-icon-box bg-slate-subtle text-slate">
+                <i class="fa-solid fa-gears"></i>
+            </div>
+            <div class="tile-title">Quản trị hệ thống</div>
+            <div class="tile-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+        </a>
+        {% endif %}
+
+    </div>
+
+    <!-- ── 3. BIỂU ĐỒ GIÁM SÁT TIẾN ĐỘ THU GỌN ── -->
+    <div class="mb-2">
+        <h2 class="fs-6 fw-bold text-uppercase text-muted mb-0 tracking-wider">
+            <i class="fa-solid fa-chart-pie me-2 text-primary"></i>Tổng Hợp Số Liệu Báo Cáo
+        </h2>
+    </div>
+
+    <section class="overview-chart-grid mb-3">
         <article class="overview-panel">
             <div class="overview-panel-head">
-                <h2>Tổng hợp</h2>
+                <h3 class="fs-6 fw-bold mb-0 text-primary">Số liệu công việc</h3>
             </div>
             <div class="overview-canvas-wrap">
                 <canvas id="overviewBarChart"></canvas>
@@ -23,146 +127,200 @@
 
         <article class="overview-panel">
             <div class="overview-panel-head">
-                <h2>Tỷ lệ đơn vị</h2>
+                <h3 class="fs-6 fw-bold mb-0 text-primary">Tỷ lệ đơn vị báo cáo</h3>
             </div>
             <div class="overview-canvas-wrap">
                 <canvas id="overviewDonutChart"></canvas>
             </div>
         </article>
     </section>
+
 </div>
 
 <style>
-    .overview-shell {
-        display: grid;
-        gap: 16px;
+    /* ── STYLES LAUNCHPAD HUB GOVTECH TINH GỌN ── */
+    .launchpad-clean-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
     }
 
-    .overview-panel,
-    .overview-metric-card {
-        background: var(--pc-bg-card);
-        border: 1px solid var(--pc-border);
-        border-radius: var(--pc-radius-xl);
-        box-shadow: var(--pc-shadow-md);
-    }
-
-    .overview-panel-head h2 {
-        margin: 0;
-        color: var(--text-main);
-        font-weight: 800;
-    }
-
-    .overview-metric-grid {
+    /* ── 1. DẢI KPI MỎNG NHẸ ── */
+    .kpi-strip {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: var(--pc-space-4);
+        gap: 14px;
     }
-
-    .overview-metric-card {
-        display: grid;
-        gap: var(--pc-space-2);
-        min-height: 152px;
-        padding: var(--pc-space-5) var(--pc-space-6) var(--pc-space-4);
+    .kpi-item {
+        background: var(--pc-card-bg, #FFFFFF);
+        border: 1px solid var(--pc-border, #E2E8F0);
+        border-radius: 14px;
+        padding: 14px 18px;
         text-decoration: none;
-        color: var(--text-main);
-        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-    }
-
-    .overview-metric-card:hover {
-        transform: translateY(-2px);
-        color: var(--text-main);
-        box-shadow: var(--pc-shadow-lg);
-    }
-
-    .overview-metric-card span {
-        color: var(--text-muted);
-        font-size: 0.8rem;
-        font-weight: 700;
-        line-height: 1.35;
-        max-width: 16ch;
-    }
-
-    .overview-metric-card strong {
-        font-size: clamp(2rem, 2.7vw, 2.9rem);
-        line-height: 0.95;
-        font-weight: 800;
-        align-self: end;
-    }
-
-    .overview-metric-card.accent-primary {
-        border-top: 5px solid var(--pc-primary);
-    }
-
-    .overview-metric-card.accent-warning {
-        border-top: 5px solid var(--pc-warning);
-    }
-
-    .overview-metric-card.accent-success {
-        border-top: 5px solid var(--pc-success);
-    }
-
-    .overview-metric-card.accent-indigo {
-        border-top: 5px solid var(--pc-info);
-    }
-
-    .overview-chart-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.8fr);
-        gap: var(--pc-space-4);
-    }
-
-    .overview-panel {
-        padding: var(--pc-space-5) var(--pc-space-6) var(--pc-space-5);
-    }
-
-    .overview-panel-head {
+        color: var(--pc-text, #1A202C);
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: var(--pc-space-3);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .kpi-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 14px rgba(0,0,0,0.07);
+        color: var(--pc-text, #1A202C);
+    }
+    .kpi-label {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--pc-text-muted, #64748B);
+        display: block;
+        margin-bottom: 2px;
+    }
+    .kpi-value {
+        font-size: 26px;
+        font-weight: 800;
+        line-height: 1.1;
+        display: block;
+    }
+    .kpi-icon-bubble {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 19px;
+        background: #F1F5F9;
+        color: #475569;
+    }
+    [data-theme="dark"] .kpi-icon-bubble {
+        background: #1E293B;
+        color: #94A3B8;
+    }
+    .kpi-accent-primary { border-left: 4px solid var(--pc-primary); }
+    .kpi-accent-warning { border-left: 4px solid var(--pc-warning); }
+    .kpi-accent-danger  { border-left: 4px solid var(--pc-danger); }
+    .kpi-accent-rose    { border-left: 4px solid #E11D48; }
+
+    /* ── 2. LƯỚI ỨNG DỤNG (APP LAUNCHPAD GRID) ── */
+    .app-launchpad-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 14px;
+    }
+    .app-tile {
+        background: var(--pc-card-bg, #FFFFFF);
+        border: 1px solid var(--pc-border, #E2E8F0);
+        border-radius: 14px;
+        padding: 16px 18px;
+        text-decoration: none;
+        color: var(--pc-text, #1A202C);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.04);
+        transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        position: relative;
+    }
+    .app-tile:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px -3px rgba(0,0,0,0.09);
+        border-color: #CBD5E1;
+        color: var(--pc-text, #1A202C);
+    }
+    [data-theme="dark"] .app-tile {
+        background: #1A202C;
+        border-color: #2D3748;
+    }
+    [data-theme="dark"] .app-tile:hover {
+        border-color: #4A5568;
+        box-shadow: 0 10px 20px -3px rgba(0,0,0,0.35);
     }
 
-    .overview-panel-head h2 {
-        font-size: clamp(1.7rem, 2.7vw, 2.35rem);
-        line-height: 1.05;
+    .tile-icon-box {
+        width: 46px;
+        height: 46px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+    .tile-title {
+        font-size: 14.5px;
+        font-weight: 700;
+        line-height: 1.3;
+        flex: 1;
+    }
+    .tile-arrow {
+        color: #94A3B8;
+        font-size: 13px;
+        transition: transform 0.15s ease;
+    }
+    .app-tile:hover .tile-arrow {
+        transform: translateX(3px);
+        color: var(--pc-primary);
+    }
+    .tile-urgent-badge {
+        position: absolute;
+        top: 8px;
+        right: 12px;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 999px;
     }
 
+    /* MÀU SẮC CHO TỪNG TILE */
+    .bg-blue-subtle    { background: #EBF8FF; color: #2B6CB0; }
+    .bg-emerald-subtle { background: #ECFDF5; color: #059669; }
+    .bg-indigo-subtle  { background: #EEF2FF; color: #4F46E5; }
+    .bg-rose-subtle    { background: #FFF1F2; color: #E11D48; }
+    .bg-amber-subtle   { background: #FFFBEB; color: #D97706; }
+    .bg-teal-subtle    { background: #F0FDFA; color: #0D9488; }
+    .bg-sky-subtle     { background: #F0F9FF; color: #0284C7; }
+    .bg-slate-subtle   { background: #F1F5F9; color: #475569; }
+    .bg-danger-subtle  { background: #FEF2F2; color: #DC2626; }
+
+    [data-theme="dark"] .bg-blue-subtle    { background: rgba(43, 108, 176, 0.2); color: #90CDF4; }
+    [data-theme="dark"] .bg-emerald-subtle { background: rgba(5, 150, 105, 0.2); color: #6EE7B7; }
+    [data-theme="dark"] .bg-indigo-subtle  { background: rgba(79, 70, 229, 0.2); color: #A5B4FC; }
+    [data-theme="dark"] .bg-rose-subtle    { background: rgba(225, 29, 72, 0.2); color: #FDA4AF; }
+    [data-theme="dark"] .bg-amber-subtle   { background: rgba(217, 119, 6, 0.2); color: #FCD34D; }
+    [data-theme="dark"] .bg-teal-subtle    { background: rgba(13, 148, 136, 0.2); color: #5EEAD4; }
+    [data-theme="dark"] .bg-sky-subtle     { background: rgba(2, 132, 199, 0.2); color: #7DD3FC; }
+    [data-theme="dark"] .bg-slate-subtle   { background: rgba(71, 85, 105, 0.3); color: #CBD5E1; }
+    [data-theme="dark"] .bg-danger-subtle  { background: rgba(220, 38, 38, 0.2); color: #FCA5A5; }
+
+    /* ── 3. BIỂU ĐỒ ── */
+    .overview-chart-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.8fr);
+        gap: 14px;
+    }
+    .overview-panel {
+        background: var(--pc-card-bg, #FFFFFF);
+        border: 1px solid var(--pc-border, #E2E8F0);
+        border-radius: 14px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        padding: 16px 20px;
+    }
     .overview-canvas-wrap {
         position: relative;
-        height: 300px;
+        height: 220px;
     }
 
-    @media (max-width: 1399.98px) {
-        .overview-metric-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .overview-chart-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
+    @media (max-width: 1199.98px) {
+        .kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .overview-chart-grid { grid-template-columns: 1fr; }
     }
-
-    @media (max-width: 991.98px) {
-        .overview-metric-grid,
-        .overview-chart-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-
     @media (max-width: 767.98px) {
-        .overview-panel,
-        .overview-metric-card {
-            padding: 16px;
-            border-radius: 22px;
-        }
-
-        .overview-metric-card {
-            min-height: 132px;
-        }
-
-        .overview-canvas-wrap {
-            height: 260px;
-        }
+        .kpi-strip { grid-template-columns: 1fr; }
+        .app-launchpad-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .app-tile { padding: 12px 14px; gap: 10px; }
+        .tile-icon-box { width: 38px; height: 38px; font-size: 16px; }
+        .tile-title { font-size: 13px; }
     }
 </style>
 {% endblock %}
@@ -191,36 +349,25 @@
                 labels: barLabels,
                 datasets: [{
                     data: barValues,
-                    backgroundColor: ['#2b5396', '#b45309', '#15803d', '#0369a1'],
-                    borderRadius: 14,
+                    backgroundColor: ['#2b5396', '#b45309', '#dc2626', '#e11d48'],
+                    borderRadius: 8,
                     borderSkipped: false,
-                    maxBarThickness: 72,
+                    maxBarThickness: 44,
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
+                plugins: { legend: { display: false } },
                 scales: {
                     x: {
-                        ticks: {
-                            color: axisColor,
-                            font: { weight: '700' }
-                        },
+                        ticks: { color: axisColor, font: { weight: '700', size: 11 } },
                         grid: { display: false }
                     },
                     y: {
                         beginAtZero: true,
-                        ticks: {
-                            precision: 0,
-                            color: axisColor,
-                            font: { weight: '700' }
-                        },
-                        grid: {
-                            color: gridColor
-                        }
+                        ticks: { precision: 0, color: axisColor, font: { weight: '700' } },
+                        grid: { color: gridColor }
                     }
                 }
             }
@@ -232,15 +379,15 @@
                 labels: donutLabels,
                 datasets: [{
                     data: donutValues,
-                    backgroundColor: ['#2b5396', '#3f6db3', '#15803d', '#0369a1'],
+                    backgroundColor: ['#15803d', '#dc2626'],
                     borderWidth: 0,
-                    hoverOffset: 8,
+                    hoverOffset: 6,
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                cutout: '62%',
+                cutout: '68%',
                 plugins: {
                     legend: {
                         position: 'bottom',
@@ -248,9 +395,9 @@
                             color: axisColor,
                             usePointStyle: true,
                             pointStyle: 'circle',
-                            boxWidth: 10,
-                            padding: 18,
-                            font: { weight: '700' }
+                            boxWidth: 8,
+                            padding: 12,
+                            font: { weight: '700', size: 11 }
                         }
                     }
                 }

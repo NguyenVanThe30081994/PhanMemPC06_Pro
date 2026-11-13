@@ -94,6 +94,9 @@ ADMIN_DB_BACKUP_ENABLED = os.environ.get('ADMIN_DB_BACKUP_ENABLED', 'false').low
 WEB_SYSTEM_UPDATE_ENABLED = os.environ.get('WEB_SYSTEM_UPDATE_ENABLED', 'false').lower() == 'true'
 WEB_GIT_PULL_ENABLED = os.environ.get('WEB_GIT_PULL_ENABLED', 'false').lower() == 'true'
 
+# Điểm danh công khai (người không có tài khoản bấm nút, chống trùng theo thiết bị + IP)
+CHECKIN_MAX_DUPLICATE_ATTEMPTS = int(os.environ.get('CHECKIN_MAX_DUPLICATE_ATTEMPTS', '5'))
+
 # Logging
 LOG_DIR = 'logs'
 LOG_MAX_BYTES = 10 * 1024 * 1024  # 10MB

@@ -59,8 +59,13 @@ DEFAULT_CATEGORIES = {
         "aliases": ["Don vi"],
         "bindings": [{"module": "contacts", "field": "unit_name", "label": "Đơn vị", "required": True}],
         "items": [
-            "Phòng PC06", "Công an huyện", "Công an thị xã", "Công an thành phố", "Công an xã",
-            "Công an phường", "Công an thị trấn", "UBND xã", "UBND phường", "UBND thị trấn", "Ban Công an xã"
+            "Văn phòng UBND tỉnh", "Trung tâm Phục vụ hành chính công", "Công an tỉnh Tuyên Quang",
+            "Sở Tư pháp", "Sở Y tế", "Sở Giáo dục và Đào tạo", "Sở Nội vụ", "Sở Tài chính",
+            "Bảo hiểm xã hội tỉnh", "Thuế tỉnh", "Sở Nông nghiệp và Môi trường",
+            "Ngân hàng Nhà nước chi nhánh khu vực 4", "Sở Dân tộc và Tôn giáo", "Sở Công Thương",
+            "Sở Xây dựng", "Sở Văn hóa, Thể thao và Du lịch", "Sở Khoa học và Công nghệ",
+            "Thanh tra tỉnh", "Ban Quản lý các Khu công nghiệp tỉnh",
+            "Ủy ban nhân dân xã, phường", "Công an xã, phường"
         ]
     },
     "Đội nghiệp vụ": {

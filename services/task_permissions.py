@@ -6,11 +6,21 @@ Tách từ routes/tasks.py (Pha 2). Dùng session + g cache như bản gốc;
 is_admin luôn tính từ DB (permissions.current_is_admin), KHÔNG tin session.
 """
 
+import re
+
 from flask import g, has_request_context, session
 
 from models import db, AppRole
 from permissions import current_is_admin
-from utils import has_module_permission, normalize_permission_payload
+from utils import has_module_permission, normalize_permission_payload, remove_accents
+
+_PROVINCE_OVERSIGHT_ROLE_KEYS = {
+    "quan tri he thong",
+    "lanh dao - chi huy cat",
+    "lanh dao chi huy cat",
+    "can bo cat",
+    "chi huy pc06",
+}
 
 
 def _current_perms():
@@ -48,7 +58,24 @@ def _can_process_task_module(perms=None):
 
 def _can_view_all_tasks(perms=None):
     perms = perms or _current_perms()
-    return has_module_permission(perms, "task", "view", is_admin=current_is_admin())
+    if current_is_admin():
+        return True
+    if not has_module_permission(perms, "task", "view", is_admin=False):
+        return False
+    if has_module_permission(perms, "sys", "view", is_admin=False):
+        return True
+
+    role = db.session.get(AppRole, session.get("role_id")) if session.get("role_id") else None
+    if role:
+        role_key = re.sub(r"\s+", " ", remove_accents(role.name or "")).strip().lower()
+        if role_key in _PROVINCE_OVERSIGHT_ROLE_KEYS:
+            return True
+
+    # Tài khoản đơn vị có p_task_exec / p_task_process được tự động cấp p_task_view
+    # để mở module Công việc, KHÔNG đồng nghĩa quyền xem toàn bộ công việc toàn tỉnh.
+    has_exec = has_module_permission(perms, "task", "exec", is_admin=False)
+    has_process = has_module_permission(perms, "task", "process", is_admin=False)
+    return not has_exec and not has_process
 
 
 def _can_execute_task_module(perms=None):

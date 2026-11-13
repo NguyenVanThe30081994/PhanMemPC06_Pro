@@ -1,5 +1,49 @@
 # CHANGELOG / TIMELINE
 
+## 2026-10-08 (Điểm danh công khai — không cần tài khoản, chống trùng theo thiết bị + IP)
+Theo yêu cầu "thêm chức năng Điểm danh, công khai không cần tài khoản, ghi nhớ theo địa chỉ IP
+và báo trùng khi có người cố tình điểm danh nhiều lần":
+- **Module mới `routes/checkin.py` (`checkin_bp`)** + 2 bảng trong `models.py`:
+  `check_in_session` (đợt: `name`, `code` unique, `is_open`, `start_at`/`end_at`, `note`) và
+  `check_in` (`UniqueConstraint(session_id, device_token)`, `device_kind`, `ip`, `ip_network`,
+  `user_agent`, `duplicate_attempts`, `last_attempt_at`, `last_ip`). Bảng tự tạo qua
+  `db.create_all()` trong `init_db` — dùng được cả SQLite dev lẫn MariaDB prod.
+- **Trang public** `/diem-danh` (liệt kê đợt đang mở) và `/diem-danh/<code>` (1 đợt, để in QR
+  / dán link). 3 endpoint đưa vào `public_endpoints` (`app.py`) nhưng **không** vào
+  `csrf_exempt_endpoints`: vẫn bắt buộc CSRF, token do chính trang cấp, và response gắn
+  `Cache-Control: no-store` (trang công khai mặc định được cache → token cũ → form hỏng).
+- **Chống trùng theo "đợt + thiết bị"**: trình duyệt sinh UUID (`crypto.randomUUID`, lưu
+  `localStorage.pc06_checkin_device`) gửi lên `device_token`, server kiểm
+  `[A-Za-z0-9_-]{8,64}`; nếu trình duyệt chặn localStorage thì suy khóa
+  `HMAC(secret, ip|user-agent)` (`device_kind='ip_fallback'`). Cách này để **hai người thật
+  dùng chung IP mạng cơ quan vẫn điểm danh được**, chỉ đúng thiết bị bấm lại mới báo trùng.
+  Hai tab bấm cùng lúc → `IntegrityError` rollback rồi xử lý như bấm trùng.
+- **Báo trùng**: lần bấm thừa trả "Bạn đã điểm danh lúc HH:MM ngày …/…/…. Mỗi đợt chỉ được
+  điểm danh 1 lần (lần bấm thừa thứ N/5)", cộng dồn `duplicate_attempts`, ghi `last_ip` để thấy
+  người bấm lại có đổi IP hay không, `log_security_event('checkin_duplicate')`. Vượt
+  `CHECKIN_MAX_DUPLICATE_ATTEMPTS` (config mới, env, mặc định 5) thì **chặn ghi** +
+  `checkin_duplicate_blocked`. Đợt chưa tới giờ / đã khóa cũng từ chối ghi.
+- **Trang quản trị** `/admin/diem-danh` theo `permissions.require_perm('sys','view'|'process')`:
+  tạo đợt (tên, ghi chú, giờ mở/khóa `datetime-local`, mở ngay), sinh mã public, mở/khóa, xóa
+  (cascade lượt), `log_action` module "Điểm danh"; trang kết quả `/admin/diem-danh/<id>` hiện
+  badge "Chung IP: N lượt" + số lần bấm trùng + "Đã chặn (bấm quá 5 lần)" và xuất
+  `<id>/export.csv` (`utf-8-sig` cho Excel). Menu "Điểm danh" thêm vào sidebar desktop +
+  offcanvas (`base.html`) và drawer (`base_mobile.html`).
+- **Giao diện** theo `docs/THIET_KE_TONG_GIAO_DIEN_2026.md`: template public standalone
+  `templates/checkin.html` theo mẫu `login.html` (chỉ `pc-card`/`pc-btn`/`pc-alert-*`/`pc-badge`
+  + token `--pc-*`, không `alert alert-*`, không `Swal.fire` thô); `admin_checkin.html` và
+  `admin_checkin_detail.html` dùng `pc-page-header`/`pc-table`/`pc-empty`/`pc-modal`.
+- Test mới `tests/test_checkin_public.py` (21 case: public không cần đăng nhập, ghi lượt + lưu IP,
+  báo trùng, chặn sau ngưỡng, 2 thiết bị 1 IP đều được, fallback HMAC, token rác bị loại, đợt
+  khóa/chưa mở, yêu cầu đăng nhập + quyền sys, badge chung IP, xuất CSV, toggle/xóa) và 4 contract
+  test design system. ✅ `run_tests.py` (env cô lập `~/.workbuddy-ai/binaries/python/envs/pc06`):
+  **325 test, chỉ còn 2 fail nền cũ** (`test_task_synthesis`, không liên quan). Đã verify trình
+  duyệt thật luồng khách (bấm → thành công → bấm lại → báo trùng, đếm 1 lượt) và luồng quản trị
+  (tạo đợt qua form, trạng thái "Chưa tới giờ", kết quả hiện IP + 1 lượt + 1 bấm trùng).
+- **Bối cảnh lịch sử:** module `attendance` cũ (xóa 06/08/2026, rà soát bảo mật B1 — ghi ẩn danh
+  không CSRF) KHÔNG được khôi phục; bản này giữ CSRF, giới hạn theo đợt do admin phát hành,
+  chịu rate limit nền và chỉ ghi thời điểm + IP + UA.
+
 ## 2026-09-10 (QR và liên kết — Sửa file nguồn không đổi mã QR / link rút gọn)
 Theo yêu cầu "gửi sai file nguồn thì sửa lại được mà không thay đổi mã QR và link rút gọn":
 - **Khóa `short_code` khi sửa**: `edit_link` (`routes/shortlink.py`) không còn nhận/ghi mã

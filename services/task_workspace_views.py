@@ -16,7 +16,7 @@ from sqlalchemy.orm import joinedload
 from werkzeug.datastructures import MultiDict
 from werkzeug.utils import secure_filename
 
-from models import TaskSubmission
+from models import TaskComment, TaskSubmission
 
 from task_read_models import (
     build_file_task_rows,
@@ -55,6 +55,7 @@ from services.task_runtime_sync import _latest_assignment_submission
 from services.task_scope import _requested_role_ids, _requested_unit_domains
 from services.task_units import _task_assignee_unit_name
 from services.task_workspace_helpers import (
+    _collapse_logical_task_assignments,
     _task_assignments_query,
     _task_is_submitted,
     _task_items_for_task,
@@ -138,9 +139,68 @@ def _render_outline_table_html(schema_map, cells, fallback_content=""):
     )
 
 
+def _task_return_comments(task):
+    """Lấy danh sách nhận xét trả lại của công việc (theo thứ tự mới nhất trước)."""
+    task_id = getattr(task, "id", None)
+    if not task_id:
+        return []
+    return (
+        TaskComment.query.filter(
+            TaskComment.task_id == task_id,
+            TaskComment.content.like("[TRẢ LẠI]%"),
+        )
+        .order_by(TaskComment.created_at.desc(), TaskComment.id.desc())
+        .all()
+    )
+
+
+def _assignment_return_reason(assignment, return_comments):
+    """Tìm lý do trả lại phù hợp nhất cho lượt giao có trạng thái returned."""
+    if not assignment:
+        return ""
+    explicit = str(getattr(assignment, "return_reason", "") or "").strip()
+    if explicit:
+        return explicit
+    if (getattr(assignment, "status", "") or "").strip().lower() != "returned":
+        return ""
+    returned_at = getattr(assignment, "returned_at", None)
+    uid = getattr(assignment, "user_id", None)
+    matched = None
+    if returned_at:
+        for comment in return_comments:
+            created_at = getattr(comment, "created_at", None)
+            if created_at and created_at == returned_at:
+                matched = comment
+                break
+        if not matched:
+            for comment in return_comments:
+                created_at = getattr(comment, "created_at", None)
+                assignee_id = getattr(comment, "assignee_id", 0) or 0
+                if created_at and abs((created_at - returned_at).total_seconds()) <= 2:
+                    if not assignee_id or assignee_id == uid:
+                        matched = comment
+                        break
+    if not matched:
+        for comment in return_comments:
+            assignee_id = getattr(comment, "assignee_id", 0) or 0
+            if uid and assignee_id == uid:
+                matched = comment
+                break
+    if not matched:
+        for comment in return_comments:
+            if not (getattr(comment, "assignee_id", 0) or 0):
+                matched = comment
+                break
+    if not matched:
+        return ""
+    text = str(getattr(matched, "content", "") or "").strip()
+    return text[len("[TRẢ LẠI]"):].strip() if text.startswith("[TRẢ LẠI]") else text
+
+
 def _parse_outline_item_rows(task, current_uid):
     rows = []
     items = _task_items_for_task(task)
+    return_comments = _task_return_comments(task)
     item_assignments = []
     all_assignments = []
     for item in items:
@@ -197,17 +257,19 @@ def _parse_outline_item_rows(task, current_uid):
         if table_render_html:
             # Bảng đã tái hiện đầy đủ các cột -> không lặp lại nội dung gộp ở secondary_text
             secondary_text = ""
+        logical_assignments = _collapse_logical_task_assignments(assignments, preferred_uid=current_uid)
         rows.append(
             {
                 "item": item,
                 "assignments": assignments,
                 "my_assignment": my_assignment,
+                "my_return_reason": _assignment_return_reason(my_assignment, return_comments),
                 "my_submission": my_submission,
                 "my_submission_payload": my_submission_payload,
                 "number_fields": number_fields,
                 "blank_editor_html": _render_blank_editor_html(content, number_fields, values) if item.report_kind == "number" else "",
-                "submitted_count": sum(1 for assignment in assignments if _task_is_submitted(assignment)),
-                "total_count": len(assignments),
+                "submitted_count": sum(1 for assignment in logical_assignments if _task_is_submitted(assignment)),
+                "total_count": len(logical_assignments),
                 "latest_submissions": latest_submissions,
                 "secondary_text": secondary_text,
                 "table_render_html": table_render_html,

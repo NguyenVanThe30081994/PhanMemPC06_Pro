@@ -499,6 +499,10 @@
             <i class="fa-solid fa-list-check"></i>
             <span>NHIỆM VỤ</span>
         </a>
+        <a href="/dossiers" class="nav-item {% if request.endpoint == 'dossier_bp.list_dossiers_page' %}active{% endif %}">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <span>SỔ HỒ SƠ</span>
+        </a>
         <a href="/thong-bao" class="nav-item {% if request.endpoint == 'portal_bp.notifications_board' %}active{% endif %}">
             <i class="fa-solid fa-bullhorn"></i>
             <span>THÔNG BÁO</span>
@@ -581,6 +585,10 @@
                         <span class="sidebar-nav-text">Nhiệm vụ</span>
                     </a>
                     {% endif %}
+                    <a href="/dossiers" class="sidebar-nav-link pc-nav-item {% if request.endpoint == 'dossier_bp.list_dossiers_page' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                        <span class="sidebar-nav-text">Sổ hồ sơ</span>
+                    </a>
                     {% if can_module('notify', 'view') %}
                     <a href="/thong-bao" class="sidebar-nav-link pc-nav-item {% if request.endpoint == 'portal_bp.notifications_board' %}active{% endif %}">
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-bullhorn"></i></span>
@@ -616,6 +624,10 @@
                     <span>Quản trị</span>
                 </div>
                 <div class="sidebar-nav-list">
+                    <a href="/admin/system-center" class="sidebar-nav-link pc-nav-item {% if request.endpoint == 'admin_bp.system_center' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-gears"></i></span>
+                        <span class="sidebar-nav-text">Trung tâm quản trị</span>
+                    </a>
                     {% if can_module('user', 'view') %}
                     <a href="/roles" class="sidebar-nav-link pc-nav-item {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-user-shield"></i></span>
@@ -627,17 +639,17 @@
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-table-cells-large"></i></span>
                         <span class="sidebar-nav-text">Thiết lập danh mục</span>
                     </a>
+                    <a href="/admin/units" class="sidebar-nav-link pc-nav-item {% if request.endpoint == 'admin_bp.units' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-sitemap"></i></span>
+                        <span class="sidebar-nav-text">Đơn vị hành chính</span>
+                    </a>
                     <a href="/logs" class="sidebar-nav-link pc-nav-item {% if request.endpoint == 'admin_bp.logs' %}active{% endif %}">
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
-                        <span class="sidebar-nav-text">Nhật ký hệ thống</span>
-                    </a>
-                    <a href="/admin/system/update" class="sidebar-nav-link pc-nav-item {% if request.endpoint == 'admin_bp.system_update' %}active{% endif %}">
-                        <span class="sidebar-nav-icon"><i class="fa-solid fa-cloud-arrow-down"></i></span>
-                        <span class="sidebar-nav-text">Cập nhật hệ thống</span>
+                        <span class="sidebar-nav-text">Nhật ký hoạt động</span>
                     </a>
                     <a href="/admin/db-tool" class="sidebar-nav-link pc-nav-item {% if request.endpoint == 'admin_bp.db_tool' %}active{% endif %}">
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-database"></i></span>
-                        <span class="sidebar-nav-text">Công cụ Database</span>
+                        <span class="sidebar-nav-text">Sao lưu cơ sở dữ liệu</span>
                     </a>
                     {% endif %}
                 </div>

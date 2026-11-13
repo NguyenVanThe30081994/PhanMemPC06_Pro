@@ -361,6 +361,13 @@ def _task_assignment_submission_group_key(assignment):
     user = getattr(assignment, "user", None)
     if not user and getattr(assignment, "user_id", None):
         user = db.session.get(User, assignment.user_id)
+    unit_id = getattr(assignment, "unit_id", None) or getattr(user, "unit_id", None)
+    if unit_id:
+        if assignee_type == "role":
+            role_id = int(getattr(assignment, "role_id", None) or getattr(user, "role_id", None) or 0)
+            return f"role:{role_id}:unit:id:{int(unit_id)}"
+        if assignee_type == "unit":
+            return f"unit:id:{int(unit_id)}"
     if not user:
         return f"{assignee_type}:unknown"
 
@@ -428,9 +435,50 @@ def _task_items_for_task(task):
 def _task_is_submitted(assignment):
     return str(getattr(assignment, "status", "") or "").strip().lower() in {"submitted", "completed"}
 
+def _assignment_group_priority(assignment, preferred_uid=None):
+    status = str(getattr(assignment, "status", "") or "").strip().lower()
+    if status in {"submitted", "completed"}:
+        status_rank = 4
+    elif status in {"in_progress", "received"}:
+        status_rank = 3
+    elif status == "returned":
+        status_rank = 2
+    else:
+        status_rank = 1
+    has_submission = 1 if getattr(assignment, "last_submission_id", None) else 0
+    is_preferred = 1 if (preferred_uid and getattr(assignment, "user_id", None) == preferred_uid) else 0
+    return (status_rank, has_submission, is_preferred, -int(getattr(assignment, "id", 0) or 0))
+
+def _collapse_logical_task_assignments(assignments, preferred_uid=None):
+    """Gộp các lượt giao cùng đơn vị/vai trò trên một đầu mục thành 1 đơn vị nộp logic."""
+    grouped = {}
+    ordered_keys = []
+    for assignment in assignments or []:
+        assignee_type = str(getattr(assignment, "assignee_type", "") or "user").strip().lower()
+        item_key = int(getattr(assignment, "task_item_id", 0) or 0)
+        if assignee_type in {"unit", "role"}:
+            logical_key = (item_key, _task_assignment_submission_group_key(assignment))
+        else:
+            uid_or_row = int(getattr(assignment, "user_id", 0) or 0) or f"row:{id(assignment)}"
+            logical_key = (item_key, f"user:{uid_or_row}")
+        current = grouped.get(logical_key)
+        if current is None:
+            grouped[logical_key] = assignment
+            ordered_keys.append(logical_key)
+        elif _assignment_group_priority(assignment, preferred_uid) > _assignment_group_priority(current, preferred_uid):
+            grouped[logical_key] = assignment
+    return [grouped[key] for key in ordered_keys]
+
 def _build_rebuilt_task_summary(task, current_uid):
-    assignments = TaskAssignment.query.filter_by(task_id=task.id).all()
-    return summarize_task_assignments(assignments, current_uid, _task_is_submitted)
+    assignments = TaskAssignment.query.options(joinedload(TaskAssignment.user)).filter_by(task_id=task.id).all()
+    logical_assignments = _collapse_logical_task_assignments(assignments, preferred_uid=current_uid)
+    summary = summarize_task_assignments(logical_assignments, current_uid, _task_is_submitted)
+    if summary["current_assignment"] is None and current_uid:
+        my_assignment = next((a for a in assignments if getattr(a, "user_id", None) == current_uid), None)
+        if my_assignment is not None:
+            summary["current_assignment"] = my_assignment
+            summary["is_assigned_to_me"] = True
+    return summary
 
 def _task_deadline_display(deadline):
     return task_deadline_display(deadline)

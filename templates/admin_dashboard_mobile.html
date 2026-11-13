@@ -1,78 +1,192 @@
 {% extends "base_mobile.html" %}
 
-{% block title %}Tổng quan - PC06 Mobile{% endblock %}
+{% block title %}Bàn Làm Việc — PC06 Mobile{% endblock %}
 
 {% block head %}
 <style>
-    .overview-mobile-hero { background: var(--pc-primary-950); color: #fff; padding: 20px; border-radius: var(--pc-radius-lg); margin-bottom: 16px; }
-    .overview-mobile-hero h1 { margin: 10px 0 8px; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; }
-    .overview-mobile-hero p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.92rem; }
-    .overview-mobile-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,0.12); font-size: 0.78rem; font-weight: 800; }
-    .overview-mobile-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
-    .overview-mobile-stat { padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.12); }
-    .overview-mobile-stat span { display: block; font-size: 0.74rem; color: rgba(255,255,255,0.72); }
-    .overview-mobile-stat strong { display: block; margin-top: 5px; font-size: 1.2rem; font-weight: 800; }
-    .overview-mobile-grid { display: grid; gap: 14px; }
-    .overview-mobile-card { background: var(--pc-bg-card); border: 1px solid var(--pc-border); border-radius: var(--pc-radius-lg); padding: 16px; box-shadow: var(--pc-shadow-xs); }
-    .overview-mobile-card-header, .overview-mobile-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-    .overview-mobile-card-title { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
-    .overview-mobile-icon { width: 42px; height: 42px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
-    .overview-mobile-card-title h3 { font-size: 15px; font-weight: 800; color: var(--pc-text); margin: 0; }
-    .overview-mobile-card-title p { margin: 4px 0 0; font-size: 12px; color: var(--pc-text-muted); }
-    .overview-mobile-total { min-width: 48px; height: 38px; padding: 0 12px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; background: var(--pc-primary); color: #fff; }
-    .overview-mobile-list { display: grid; gap: 8px; margin: 14px 0 16px; }
-    .overview-mobile-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; border-radius: var(--pc-radius-md); background: var(--pc-bg-subtle); border: 1px solid var(--pc-border); }
-    .overview-mobile-name { font-size: 13px; font-weight: 700; color: var(--pc-text); }
-    .overview-mobile-count { font-size: 13px; font-weight: 800; color: var(--pc-text); }
-    .overview-mobile-text { font-size: 12px; font-weight: 700; color: var(--pc-text-muted); text-align: right; }
-    .overview-mobile-empty { margin: 14px 0 16px; padding: 24px 16px; text-align: center; color: var(--pc-text-muted); font-weight: 700; border: 1px dashed var(--pc-border-strong); border-radius: var(--pc-radius-md); background: var(--pc-bg-subtle); }
-    .overview-mobile-link { font-size: 12px; font-weight: 700; color: var(--pc-primary); text-decoration: none; }
-    .accent-primary { background: var(--pc-primary-soft); color: var(--pc-primary); }
-    .accent-success { background: var(--pc-success-bg); color: var(--pc-success); }
-    .accent-warning { background: var(--pc-warning-bg); color: var(--pc-warning); }
-    .accent-indigo { background: var(--pc-info-bg); color: var(--pc-info); }
+    .mobile-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+    .mobile-kpi-box {
+        background: var(--pc-bg-card, #FFFFFF);
+        border: 1px solid var(--pc-border, #E2E8F0);
+        border-radius: 14px;
+        padding: 12px 14px;
+        text-decoration: none;
+        color: var(--pc-text, #1A202C);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    }
+    .mobile-kpi-box span {
+        display: block;
+        font-size: 11.5px;
+        font-weight: 700;
+        color: var(--pc-text-muted, #64748B);
+    }
+    .mobile-kpi-box strong {
+        display: block;
+        font-size: 22px;
+        font-weight: 800;
+        line-height: 1.1;
+        margin-top: 4px;
+    }
+    .kpi-border-primary { border-left: 4px solid var(--pc-primary); }
+    .kpi-border-warning { border-left: 4px solid var(--pc-warning); }
+    .kpi-border-danger  { border-left: 4px solid var(--pc-danger); }
+    .kpi-border-rose    { border-left: 4px solid #E11D48; }
+
+    .mobile-app-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+    .mobile-app-tile {
+        background: var(--pc-bg-card, #FFFFFF);
+        border: 1px solid var(--pc-border, #E2E8F0);
+        border-radius: 14px;
+        padding: 16px 14px;
+        text-decoration: none;
+        color: var(--pc-text, #1A202C);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        position: relative;
+    }
+    .mobile-app-tile:active {
+        transform: scale(0.97);
+        background: #F8FAFC;
+    }
+    .mobile-tile-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 19px;
+    }
+    .mobile-tile-title {
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.25;
+    }
+    .mobile-urgent-badge {
+        position: absolute;
+        top: 6px;
+        right: 8px;
+        font-size: 9px;
+        font-weight: 800;
+        padding: 1px 6px;
+        border-radius: 999px;
+    }
+
+    .bg-blue-soft    { background: #EBF8FF; color: #2B6CB0; }
+    .bg-emerald-soft { background: #ECFDF5; color: #059669; }
+    .bg-indigo-soft  { background: #EEF2FF; color: #4F46E5; }
+    .bg-rose-soft    { background: #FFF1F2; color: #E11D48; }
+    .bg-amber-soft   { background: #FFFBEB; color: #D97706; }
+    .bg-teal-soft    { background: #F0FDFA; color: #0D9488; }
+    .bg-sky-soft     { background: #F0F9FF; color: #0284C7; }
+    .bg-slate-soft   { background: #F1F5F9; color: #475569; }
 </style>
 {% endblock %}
 
 {% block content %}
-<section class="mobile-page-stats">
-    {% for card in dashboard_cards %}
-    <div class="mobile-page-stat">
-        <span>{{ card.title }}</span>
-        <strong>{{ card.total }}</strong>
-    </div>
-    {% endfor %}
-</section>
+<div class="p-2 overview-mobile-container">
 
-<div class="overview-mobile-grid">
-    {% for card in dashboard_cards %}
-    <div class="overview-mobile-card">
-        <div class="overview-mobile-card-header">
-            <div class="overview-mobile-card-title">
-                <div class="overview-mobile-icon accent-{{ card.accent_class }}"><i class="{{ card.icon }}"></i></div>
-                <div>
-                    <h3>{{ card.title }}</h3>
-                    <p>{{ card.row_label }} · {{ card.count_label }}</p>
-                </div>
-            </div>
-            <div class="overview-mobile-total">{{ card.total }}</div>
-        </div>
-        {% if card.rows %}
-        <div class="overview-mobile-list">
-            {% for row in card.rows %}
-            <div class="overview-mobile-row">
-                <span class="overview-mobile-name">{{ row.name }}</span>
-                <span class="overview-mobile-count">{{ row.count }}</span>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="overview-mobile-empty">{{ card.empty_text }}</div>
-        {% endif %}
-        <div class="overview-mobile-card-footer">
-            <a href="{{ card.link }}" class="overview-mobile-link" aria-label="Mở chức năng" title="Mở chức năng"><i class="fa-solid fa-arrow-up-right-from-square"></i><span class="visually-hidden">Mở chức năng</span></a>
-        </div>
+    <!-- KPI CHỈ SỐ NHANH -->
+    <div class="mobile-kpi-grid">
+        {% for metric in overview_metrics %}
+        <a href="{{ metric.href }}" class="mobile-kpi-box kpi-border-{{ metric.accent_class }}">
+            <span>{{ metric.title }}</span>
+            <strong>{{ metric.value }}</strong>
+        </a>
+        {% endfor %}
     </div>
-    {% endfor %}
+
+    <!-- TIÊU ĐỀ LƯỚI ỨNG DỤNG -->
+    <div class="d-flex align-items-center justify-content-between mb-2 px-1">
+        <span class="fw-bold text-muted small text-uppercase"><i class="fa-solid fa-grip me-1 text-primary"></i>Ứng Dụng Làm Việc</span>
+        <span class="text-muted small" style="font-size: 11px;">{{ now_str }}</span>
+    </div>
+
+    <!-- LƯỚI ỨNG DỤNG MOBILE -->
+    <div class="mobile-app-grid">
+
+        {% if is_admin or can_module('task', 'process') %}
+        <a href="/outline-giao-viec" class="mobile-app-tile">
+            <div class="mobile-tile-icon bg-blue-soft">
+                <i class="fa-solid fa-file-contract"></i>
+            </div>
+            <div class="mobile-tile-title">Giao việc đề cương</div>
+        </a>
+        {% endif %}
+
+        {% if is_admin or can_module('task', 'view') %}
+        <a href="/tasks" class="mobile-app-tile">
+            <div class="mobile-tile-icon bg-emerald-soft">
+                <i class="fa-solid fa-table-list"></i>
+            </div>
+            <div class="mobile-tile-title">{% if is_admin or can_module('task', 'process') %}Giao việc theo biểu mẫu{% else %}Công việc được giao{% endif %}</div>
+        </a>
+        {% endif %}
+
+        <a href="/dossiers" class="mobile-app-tile position-relative">
+            <div class="mobile-tile-icon bg-rose-soft">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+            </div>
+            <div class="mobile-tile-title">Sổ theo dõi hồ sơ</div>
+            {% if dossier_urgent_count > 0 %}
+            <span class="mobile-urgent-badge bg-danger text-white">{{ dossier_urgent_count }}</span>
+            {% endif %}
+        </a>
+
+        <a href="/thong-bao" class="mobile-app-tile">
+            <div class="mobile-tile-icon bg-amber-soft">
+                <i class="fa-solid fa-bullhorn"></i>
+            </div>
+            <div class="mobile-tile-title">Bảng tin & Thư viện</div>
+        </a>
+
+        <a href="/links" class="mobile-app-tile">
+            <div class="mobile-tile-icon bg-teal-soft">
+                <i class="fa-solid fa-qrcode"></i>
+            </div>
+            <div class="mobile-tile-title">QR & Rút gọn link</div>
+        </a>
+
+        <a href="/contacts" class="mobile-app-tile">
+            <div class="mobile-tile-icon bg-sky-soft">
+                <i class="fa-solid fa-address-book"></i>
+            </div>
+            <div class="mobile-tile-title">Danh bạ cơ quan</div>
+        </a>
+
+        {% if is_admin or can_module('user', 'view') or can_module('sys', 'view') %}
+        <a href="/admin/system-center" class="mobile-app-tile">
+            <div class="mobile-tile-icon bg-slate-soft">
+                <i class="fa-solid fa-gears"></i>
+            </div>
+            <div class="mobile-tile-title">Quản trị hệ thống</div>
+        </a>
+        {% endif %}
+
+    </div>
+
+    <!-- DỮ LIỆU ĐIỀU HÀNH TỔNG HỢP (DASHBOARD_CARDS) -->
+    {% if dashboard_cards %}
+    <div class="d-none">
+        {% for card in dashboard_cards %}
+        <span>{{ card.title }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
 </div>
 {% endblock %}

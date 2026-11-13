@@ -173,7 +173,14 @@ def build_aggregate_context(task_id, cycle_key=None, group_by="unit"):
             nav = last.narrative_content or ''
             narrative_per_unit.append({'unit_key': key, 'narrative': nav, 'submitted_at': last.submitted_at})
 
-        items_out.append({'item_id': item_id, 'item_code': item.item_code, 'title': item.title, 'fields': fields_agg, 'narratives': narrative_per_unit})
+        items_out.append({
+            'item_id': item_id,
+            'item_code': item.item_code,
+            'title': item.title,
+            'fields': fields_agg,
+            'narratives': narrative_per_unit,
+            'synthesis_content': getattr(item, 'synthesis_content', None),
+        })
 
     # build units list
     units_out = []
@@ -209,10 +216,16 @@ def export_outline_docx(task_id, cycle_key=None):
 
     for item in agg['items']:
         doc.add_heading(f"{item.get('item_code') or ''} {item.get('title')}", level=2)
-        # narratives
-        if item.get('narratives'):
-            for n in item['narratives']:
-                doc.add_paragraph(f"{n.get('unit_key')}: { (n.get('narrative') or '').strip() }")
+        synthesis = (item.get('synthesis_content') or '').strip()
+        if synthesis:
+            doc.add_paragraph(synthesis)
+        else:
+            # narratives
+            if item.get('narratives'):
+                for n in item['narratives']:
+                    nav_text = (n.get('narrative') or '').strip()
+                    if nav_text:
+                        doc.add_paragraph(nav_text)
         # numeric fields aggregated
         for f in item.get('fields', []):
             doc.add_paragraph(f"Field: {f.get('key')}")

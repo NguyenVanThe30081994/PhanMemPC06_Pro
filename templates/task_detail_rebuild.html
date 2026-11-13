@@ -4,284 +4,337 @@
 
 {% block content %}
 {% set default_tab = detail_context.default_tab %}
-<div class="task-detail-shell">
-    <section class="task-detail-hero task-detail-tone-{{ detail_context.status_tone }}">
-        <div class="task-detail-hero-main">
-            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                <a href="{{ url_for('tasks_bp.tasks') }}" class="btn btn-light btn-sm">Quay lại danh sách</a>
-                <span class="task-detail-pill task-detail-pill-info">{{ task.task_mode_label }}</span>
+{% set my_outline_rows = outline_rows|selectattr('my_assignment')|list if outline_rows else [] %}
+<div class="task-detail-shell pc-linear-workspace">
+    <!-- ── 1. HEADER TỐI GIẢN HIỆN ĐẠI (LINEAR / NOTION EDITORIAL) ── -->
+    <header class="pc-linear-header">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <a href="{{ url_for('tasks_bp.tasks') }}" class="pc-btn pc-btn-secondary btn-sm pc-linear-back">
+                    <i class="fa-solid fa-arrow-left me-1"></i>Danh sách
+                </a>
+                <span class="pc-detail-badge pc-detail-badge-{{ detail_context.status_tone }}">
+                    <span class="pc-status-dot" aria-hidden="true"></span>{{ detail_context.status_text }}
+                </span>
+                <span class="pc-detail-badge pc-detail-badge-neutral">{{ task.task_mode_label }}</span>
                 {% if report_kind_label %}
-                <span class="task-detail-pill task-detail-pill-info">{{ report_kind_label }}</span>
+                <span class="pc-detail-badge pc-detail-badge-neutral">{{ report_kind_label }}</span>
                 {% endif %}
                 {% if task.task_mode == 'FORM' %}
-                <span class="task-detail-pill task-detail-pill-info">{{ task.form_provider_label }}</span>
-                {% endif %}
-                <span class="task-detail-pill task-detail-pill-{{ detail_context.status_tone }}">{{ detail_context.status_text }}</span>
-            </div>
-            <h1>{{ task.title }}</h1>
-            <p>{{ task.task_mode_description }}</p>
-            <div class="task-detail-meta">
-                <span>Người giao: <strong>{{ task.author_name }}</strong></span>
-                {% if current_cycle and current_cycle.label and report_period and report_period.kind != 'one_time' %}
-                <span>Chu kỳ: <strong>{{ current_cycle.label }}</strong>{% if current_cycle.due %} — hạn nộp <strong>{{ current_cycle.due[8:10] }}/{{ current_cycle.due[5:7] }}/{{ current_cycle.due[0:4] }}</strong>{% endif %}{% if current_cycle.overdue %} <span class="text-danger">(quá hạn)</span>{% endif %}</span>
-                {% elif task.deadline %}<span>Hạn: <strong>{{ task.deadline.strftime('%d/%m/%Y') }}</strong></span>{% endif %}
-                <span>Tiến độ: <strong>{{ detail_context.progress_percent }}%</strong></span>
-                {% if task.task_mode == 'FORM' and task.form_provider == 'google' and task.google_form_sync_state.last_sync_at %}
-                <span>Đồng bộ cuối: <strong>{{ task.google_form_sync_state.last_sync_at[:16]|replace('T', ' ') }}</strong></span>
+                <span class="pc-detail-badge pc-detail-badge-neutral">{{ task.form_provider_label }}</span>
                 {% endif %}
             </div>
-        </div>
-        <div class="task-detail-hero-side">
-            <div class="task-detail-next-card">
-                <span class="task-detail-next-label">Bước tiếp theo</span>
-                <h2>{{ detail_context.next_step_title }}</h2>
-                <p>{{ detail_context.next_step_body }}</p>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                {% if task.task_mode == 'OUTLINE' and (can_manage_task_view or can_watch_task_view) %}
+                <a class="pc-btn pc-btn-primary btn-sm" href="{{ url_for('tasks_bp.export_outline_task_word', tid=task.id) }}">
+                    <i class="fa-solid fa-file-word me-1"></i>Xuất báo cáo Word
+                </a>
+                {% elif task.task_mode == 'FORM' and can_manage_task_view %}
+                <a class="pc-btn pc-btn-secondary btn-sm" href="{{ url_for('tasks_bp.form_data_aggregation', tid=task.id) }}">
+                    <i class="fa-solid fa-table me-1"></i>Xem dữ liệu
+                </a>
+                <a class="pc-btn pc-btn-secondary btn-sm" href="{{ url_for('tasks_bp.export_form_task_v2', tid=task.id) }}">
+                    <i class="fa-solid fa-file-excel me-1"></i>Xuất Excel
+                </a>
+                {% endif %}
                 {% if can_delete_task %}
-                <form action="{{ url_for('tasks_bp.delete_task', tid=task.id) }}" method="POST" onsubmit="return pc06ConfirmSubmit(event, 'Xóa công việc này?')" class="mt-3">
-                    <button class="btn btn-outline-danger btn-sm" type="submit">Xóa công việc</button>
+                <form action="{{ url_for('tasks_bp.delete_task', tid=task.id) }}" method="POST" onsubmit="return pc06ConfirmSubmit(event, 'Xóa công việc này?')" class="m-0">
+                    <button class="btn btn-outline-danger btn-sm pc-linear-ghost-danger" type="submit">
+                        <i class="fa-solid fa-trash me-1"></i>Xóa
+                    </button>
                 </form>
                 {% endif %}
             </div>
         </div>
-    </section>
 
-    <section class="task-detail-metric-grid">
-        <article class="task-detail-metric-card">
-            <span>Tổng lượt giao</span>
-            <strong>{{ summary.total_assignments }}</strong>
-        </article>
-        <article class="task-detail-metric-card">
-            <span>Đang xử lý</span>
-            <strong>{{ summary.in_progress_assignments }}</strong>
-        </article>
-        <article class="task-detail-metric-card">
-            <span>Đã nộp</span>
-            <strong>{{ summary.submitted_assignments }}</strong>
-        </article>
-        <article class="task-detail-metric-card">
-            <span>Tiến độ</span>
-            <strong>{{ detail_context.progress_percent }}%</strong>
-        </article>
-    </section>
+        <h1 class="pc-detail-title">{{ task.title }}</h1>
 
-    {% if task.content or task.file_path %}
-    <div class="card border-0 shadow-sm">
-        <div class="card-body">
+        <div class="pc-detail-meta">
+            <span><i class="fa-regular fa-user me-1"></i>Người giao: <strong>{{ task.author_name }}</strong></span>
+            {% if current_cycle and current_cycle.label and report_period and report_period.kind != 'one_time' %}
+            <span><i class="fa-regular fa-calendar me-1"></i>Chu kỳ: <strong>{{ current_cycle.label }}</strong>{% if current_cycle.due %} — hạn nộp <strong>{{ current_cycle.due[8:10] }}/{{ current_cycle.due[5:7] }}/{{ current_cycle.due[0:4] }}</strong>{% endif %}{% if current_cycle.overdue %} <span class="text-danger fw-bold">(quá hạn)</span>{% endif %}</span>
+            {% elif task.deadline %}
+            <span><i class="fa-regular fa-clock me-1"></i>Hạn nộp: <strong>{{ task.deadline.strftime('%d/%m/%Y') }}</strong></span>
+            {% endif %}
+            <span><i class="fa-solid fa-layer-group me-1"></i>{{ summary.total_assignments }} lượt giao · Đã nộp <strong>{{ summary.submitted_assignments }}/{{ summary.total_assignments }}</strong> ({{ detail_context.progress_percent }}%)</span>
+            {% if summary.in_progress_assignments %}
+            <span><i class="fa-solid fa-spinner me-1"></i>Đang xử lý: <strong>{{ summary.in_progress_assignments }}</strong></span>
+            {% endif %}
+        </div>
+
+        <div class="pc-detail-progress mt-3" aria-label="Tiến độ hoàn thành {{ detail_context.progress_percent }}%">
+            <span style="width: {{ detail_context.progress_percent }}%;"></span>
+        </div>
+
+        {% if task.content or task.file_path %}
+        <div class="pc-linear-callout mt-3">
             {% if task.content %}
-            <h2 class="h5 mb-3">Mô tả</h2>
-            <div style="white-space: pre-wrap;">{{ task.content }}</div>
+            <div class="pc-linear-callout-label">Nội dung / Yêu cầu</div>
+            <div class="pc-detail-desc-body">{{ task.content }}</div>
             {% endif %}
             {% if task.file_path %}
-            <div class="{% if task.content %}mt-3 pt-3 border-top{% endif %}">
-                <div class="small text-muted mb-2">Tài liệu giao việc</div>
-                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('dl_file', fn=task.file_path) }}">Tải tài liệu đính kèm</a>
+            <div class="{% if task.content %}mt-2{% endif %}">
+                <a class="pc-btn pc-btn-secondary btn-sm" href="{{ url_for('dl_file', fn=task.file_path) }}">
+                    <i class="fa-solid fa-paperclip me-1"></i>Tải tài liệu đính kèm
+                </a>
             </div>
             {% endif %}
         </div>
-    </div>
+        {% endif %}
+    </header>
+
+    <!-- ── 2. THANH TAB ĐƯỜNG GẠCH CHÂN (LINEAR UNDERLINE TABS) ── -->
+    {% set show_outline_tabs = (task.task_mode == 'OUTLINE') and (can_manage_task_view or can_watch_task_view) %}
+    {% set show_file_tabs = (task.task_mode == 'FILE') and (can_submit and my_file_assignment) and (can_manage_task_view or can_watch_task_view or (file_rows|length > 1)) %}
+    {% set show_form_tabs = (task.task_mode != 'OUTLINE' and task.task_mode != 'FILE') and (can_submit and my_form_assignment) and (can_manage_task_view or can_watch_task_view or (form_rows|length > 1)) %}
+
+    {% if show_outline_tabs or show_file_tabs or show_form_tabs %}
+    <nav class="pc-linear-tabs-wrap" aria-label="Điều hướng công việc">
+        <div class="nav pc-linear-tabs" id="taskWorkspaceTabs" role="tablist">
+            {% if task.task_mode == 'OUTLINE' %}
+                {% if can_manage_task_view or can_watch_task_view %}
+                <button class="nav-link {% if default_tab == 'outline-matrix' or (can_watch_task_view and not can_manage_task_view) %}active{% endif %}" id="tab-outline-matrix" data-bs-toggle="pill" data-bs-target="#pane-outline-matrix" type="button" role="tab">
+                    Tiến độ chung <span class="pc-tab-count">{{ outline_matrix.total_submitted }}/{{ outline_matrix.total_count }}</span>
+                </button>
+                {% endif %}
+                {% if my_outline_rows|length > 0 %}
+                <button class="nav-link {% if default_tab == 'outline-group' %}active{% endif %}" id="tab-outline-my-work" data-bs-toggle="pill" data-bs-target="#pane-outline-my-work" type="button" role="tab">
+                    Phần việc cần nộp <span class="pc-tab-count">{{ my_outline_rows|length }}</span>
+                </button>
+                {% endif %}
+                {% if can_manage_task_view %}
+                <button class="nav-link {% if default_tab == 'outline-create' %}active{% endif %}" id="tab-outline-create" data-bs-toggle="pill" data-bs-target="#pane-outline-create" type="button" role="tab">
+                    <i class="fa-solid fa-sliders me-1"></i>Thiết lập đầu mục
+                </button>
+                {% endif %}
+            {% elif task.task_mode == 'FILE' %}
+                {% if can_submit and my_file_assignment %}
+                <button class="nav-link {% if default_tab == 'file-submit' %}active{% endif %}" id="tab-file-submit" data-bs-toggle="pill" data-bs-target="#pane-file-submit" type="button" role="tab">Phần việc của tôi</button>
+                {% endif %}
+                <button class="nav-link {% if default_tab == 'file-list' %}active{% endif %}" id="tab-file-list" data-bs-toggle="pill" data-bs-target="#pane-file-list" type="button" role="tab">Tiến độ chung</button>
+            {% else %}
+                {% if can_submit and my_form_assignment %}
+                <button class="nav-link {% if default_tab == 'form-submit' %}active{% endif %}" id="tab-form-submit" data-bs-toggle="pill" data-bs-target="#pane-form-submit" type="button" role="tab">Phần việc của tôi</button>
+                {% endif %}
+                <button class="nav-link {% if default_tab == 'form-list' %}active{% endif %}" id="tab-form-list" data-bs-toggle="pill" data-bs-target="#pane-form-list" type="button" role="tab">Tiến độ chung</button>
+            {% endif %}
+        </div>
+    </nav>
     {% endif %}
 
-    {% if delivery_contract_groups %}
-    <div class="card border-0 shadow-sm mt-4">
-        <div class="card-body">
-            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
-                <div>
-                    <h2 class="h5 mb-1">Phạm Vi Đã Phát Hành</h2>
-                    <div class="small text-muted">
-                        Khối này cho biết sau khi phát hành, nhóm nào sẽ nộp báo cáo chung và đang được giao những nội dung nào.
-                    </div>
-                </div>
-                <span class="badge bg-light text-dark">{{ delivery_contract_groups|length }} nhóm nộp</span>
-            </div>
-            <div class="row g-3">
-                {% for group in delivery_contract_groups %}
-                <div class="col-12 col-xl-4">
-                    <div class="border rounded-3 p-3 h-100 bg-light-subtle">
-                        <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
-                            <div>
-                                <div class="fw-semibold">{{ group.group_label }}</div>
-                                <div class="small text-muted">{{ group.mode_label }}</div>
-                            </div>
-                            <div class="small text-muted text-end">
-                                {{ group.recipient_count }} người
-                                <br>
-                                {{ group.payload_count }} nội dung
+    <!-- ── 3. KHU VỰC LÀM VIỆC MỞ TOÀN CHIỀU RỘNG ── -->
+    <div class="tab-content pc-detail-tab-content">
+        {% if task.task_mode == 'OUTLINE' %}
+            {% if can_manage_task_view or can_watch_task_view %}
+            <div class="tab-pane fade {% if default_tab == 'outline-matrix' or (can_watch_task_view and not can_manage_task_view) %}show active{% endif %}" id="pane-outline-matrix" role="tabpanel" aria-labelledby="tab-outline-matrix">
+                <section class="pc-linear-section">
+                    <div class="pc-linear-toolbar">
+                        <div>
+                            <h2 class="pc-linear-section-title mb-0">Tiến độ chung</h2>
+                            <div class="pc-linear-section-sub">
+                                {{ outline_matrix.unit_names|length }} đơn vị tham gia · {{ outline_matrix.percent }}% hoàn thành
                             </div>
                         </div>
-                        {% if group.member_names %}
-                        <div class="small text-muted mb-2">Thành viên: {{ group.member_names|join(', ') }}</div>
-                        {% endif %}
-                        {% if group.payload_labels %}
-                        <div class="small">Nội dung giao: {{ group.payload_labels|join(', ') }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <div class="row g-4 align-items-start">
-        <div class="col-xl-3">
-            {% if (task.task_mode == 'FILE' and can_submit and my_file_assignment and (my_file_assignment.status or '') == 'assigned') or (task.task_mode == 'FORM' and can_submit and my_form_assignment and (my_form_assignment.status or '') == 'assigned') %}
-            <div class="card border-0 shadow-sm mb-3">
-                <div class="card-body">
-                    <div class="small text-muted mb-2">Hành động nhanh</div>
-                    {% if task.task_mode == 'FILE' %}
-                    <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST">
-                        <button class="btn btn-outline-primary w-100" type="submit">Tiếp nhận công việc</button>
-                    </form>
-                    {% else %}
-                    <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST">
-                        <button class="btn btn-outline-primary w-100" type="submit">Tiếp nhận biểu mẫu</button>
-                    </form>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <h2 class="h5 mb-3">Khu vực làm việc</h2>
-                    <div class="nav flex-column nav-pills gap-2" id="taskWorkspaceTabs" role="tablist" aria-orientation="vertical">
-                        {% if task.task_mode == 'OUTLINE' %}
-                            {% if can_manage_task_view %}
-                            <button class="nav-link text-start {% if default_tab == 'outline-create' %}active{% endif %}" id="tab-outline-create" data-bs-toggle="pill" data-bs-target="#pane-outline-create" type="button" role="tab">Thiết lập đầu mục</button>
-                            {% endif %}
-                            {% if can_manage_task_view or can_watch_task_view %}
-                            <button class="nav-link text-start {% if default_tab == 'outline-matrix' %}active{% endif %}" id="tab-outline-matrix" data-bs-toggle="pill" data-bs-target="#pane-outline-matrix" type="button" role="tab">
-                                <div class="fw-semibold">Tiến độ chung</div>
-                                <div class="small opacity-75">{{ outline_matrix.total_submitted }}/{{ outline_matrix.total_count }} lượt giao đã nộp</div>
-                            </button>
-                            {% endif %}
-                            {% for group in outline_groups %}
-                            <button class="nav-link text-start {% if not can_manage_task_view and loop.first %}active{% endif %}" id="tab-outline-group-{{ loop.index }}" data-bs-toggle="pill" data-bs-target="#pane-outline-group-{{ loop.index }}" type="button" role="tab">
-                                <div class="fw-semibold">{{ group.label }}</div>
-                                <div class="small opacity-75">{{ group.fully_submitted_items }}/{{ group.total_items }} đầu mục hoàn tất</div>
-                            </button>
-                            {% endfor %}
-                        {% elif task.task_mode == 'FILE' %}
-                            <button class="nav-link text-start {% if default_tab == 'file-list' %}active{% endif %}" id="tab-file-list" data-bs-toggle="pill" data-bs-target="#pane-file-list" type="button" role="tab">Tiến độ chung</button>
-                            {% if can_submit and my_file_assignment %}
-                            <button class="nav-link text-start {% if default_tab == 'file-submit' %}active{% endif %}" id="tab-file-submit" data-bs-toggle="pill" data-bs-target="#pane-file-submit" type="button" role="tab">Phần việc của tôi</button>
-                            {% endif %}
-                        {% else %}
-                            <button class="nav-link text-start {% if default_tab == 'form-list' %}active{% endif %}" id="tab-form-list" data-bs-toggle="pill" data-bs-target="#pane-form-list" type="button" role="tab">Tiến độ chung</button>
-                            {% if can_submit and my_form_assignment %}
-                            <button class="nav-link text-start {% if default_tab == 'form-submit' %}active{% endif %}" id="tab-form-submit" data-bs-toggle="pill" data-bs-target="#pane-form-submit" type="button" role="tab">Phần việc của tôi</button>
-                            {% endif %}
+                        {% if outline_matrix.rows %}
+                        <div class="pc-linear-filters">
+                            <div class="pc-linear-search-wrap">
+                                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                                <input type="search" class="form-control form-control-sm" id="outlineMatrixSearch" placeholder="Tìm đầu mục hoặc đơn vị...">
+                            </div>
+                            <select class="form-select form-select-sm" id="outlineMatrixUnitFilter">
+                                <option value="">Tất cả đơn vị ({{ outline_matrix.unit_names|length }})</option>
+                                {% for unit_name in outline_matrix.unit_names %}
+                                <option value="{{ unit_name|lower }}">{{ unit_name }}</option>
+                                {% endfor %}
+                            </select>
+                            <select class="form-select form-select-sm" id="outlineMatrixStatusFilter">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="done">Đã hoàn tất (100%)</option>
+                                <option value="pending">Chưa hoàn tất</option>
+                            </select>
+                        </div>
                         {% endif %}
                     </div>
-                </div>
-            </div>
-        </div>
 
-        <div class="col-xl-9">
-            <div class="tab-content">
-                {% if task.task_mode == 'OUTLINE' %}
-                    {% if can_manage_task_view or can_watch_task_view %}
-                    <div class="tab-pane fade {% if default_tab == 'outline-matrix' %}show active{% endif %}" id="pane-outline-matrix" role="tabpanel" aria-labelledby="tab-outline-matrix">
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-body">
-                                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
-                                    <div>
-                                        <h2 class="h4 mb-1">Tiến độ chung</h2>
-                                        <div class="text-muted">Ma trận đầu mục × đơn vị nhận việc. Bấm "Xuất báo cáo Word" để gộp nội dung đã nộp thành văn bản tổng hợp.</div>
-                                    </div>
-                                    <a class="btn btn-primary pc-btn" href="{{ url_for('tasks_bp.export_outline_task_word', tid=task.id) }}">Xuất báo cáo Word</a>
-                                </div>
-                                {% if outline_matrix.rows %}
-                                <div class="table-responsive">
-                                    <table class="table align-middle">
-                                        <thead scope="col">
-                                            <tr>
-                                                <th style="min-width: 260px;" scope="col">Đầu mục</th>
-                                                {% for unit_name in outline_matrix.unit_names %}
-                                                <th class="text-center" scope="col">{{ unit_name }}</th>
-                                                {% endfor %}
-                                                <th class="text-center" scope="col">Tổng</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for row in outline_matrix.rows %}
-                                            <tr>
-                                                <td>
-                                                <div class="fw-semibold">{{ row.item.item_code or loop.index }}. {{ row.item.title }}</div>
-                                                {% if row.item.deadline %}<div class="small text-muted mt-1">Hạn riêng: {{ row.item.deadline.strftime('%d/%m/%Y') }}</div>{% endif %}
-                                                {% if row.table_render_html %}
-                                                <div class="mt-2">{{ row.table_render_html|safe }}</div>
-                                                {% endif %}
-                                                    <div class="small text-muted">{{ row.submitted_count }}/{{ row.total_count }} lượt giao đã nộp</div>
-                                                    {% if can_manage_task_view %}
-                                                    <div class="mt-2">
-                                                        <button type="button" class="btn btn-sm {% if row.item.synthesis_content %}btn-success{% else %}btn-outline-primary{% endif %}" data-synthesis-open data-item-id="{{ row.item.id }}" data-item-code="{{ row.item.item_code or loop.index }}" data-item-title="{{ row.item.title }}">
-                                                            <i class="fa-solid fa-layer-group me-1"></i>Tổng hợp{% if row.item.synthesis_content %}<span class="ms-2 badge bg-white text-success">Đã lưu</span>{% endif %}
-                                                        </button>
-                                                    </div>
-                                                    {% endif %}
-                                                </td>
-                                                {% for cell in row.cells %}
-                                                <td class="text-center align-middle">
-                                                    {% if cell.total_count == 0 %}
-                                                    <span class="text-muted small">—</span>
-                                                    {% elif cell.done %}
-                                                    <span class="badge bg-success-subtle text-success">Đã nộp</span>
-                                                    {% else %}
-                                                    <span class="badge bg-light text-dark">{{ cell.submitted_count }}/{{ cell.total_count }}</span>
-                                                    {% endif %}
-                                                    {% if cell.numbers %}
-                                                    <div class="small text-start mt-2">
-                                                        {% for number in cell.numbers %}
-                                                        <div class="text-primary fw-medium">{{ number.first_value }}</div>
+                    {% if outline_matrix.rows %}
+                    <div class="table-responsive pc-detail-table-wrap">
+                        <table class="table pc-table pc-linear-table align-top mb-0" id="outlineMatrixTable">
+                            <thead>
+                                <tr>
+                                    <th class="pc-matrix-item-col" scope="col">Đầu mục</th>
+                                    <th class="pc-matrix-units-col" scope="col">Đơn vị thực hiện</th>
+                                    <th class="text-center pc-matrix-total-col" scope="col">Tiến độ</th>
+                                    <th class="text-center pc-matrix-action-col" scope="col">Tổng hợp</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in outline_matrix.rows %}
+                                {% set row_title = row.display_title or row.item.title %}
+                                <tr data-matrix-row data-row-done="{{ '1' if row.done else '0' }}" data-row-units="{{ row.assigned_cells|map(attribute='unit_name')|join('||')|lower }}" data-row-text="{{ (row.item.item_code ~ ' ' ~ row_title)|lower }}">
+                                    <td class="pc-matrix-item-col">
+                                        <div class="pc-matrix-item-heading">
+                                            <span class="pc-matrix-item-index">{{ row.item.item_code or loop.index }}</span>
+                                            <span>{{ row_title }}</span>
+                                        </div>
+                                        {% if row.secondary_text %}
+                                        <div class="pc-matrix-item-note mt-1">{{ row.secondary_text }}</div>
+                                        {% endif %}
+                                        {% if row.item.deadline %}
+                                        <div class="pc-matrix-item-meta mt-1"><i class="fa-regular fa-clock me-1"></i>Hạn riêng: {{ row.item.deadline.strftime('%d/%m/%Y') }}</div>
+                                        {% endif %}
+                                        {% if row.table_render_html %}
+                                        <div class="mt-2">{{ row.table_render_html|safe }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="pc-matrix-units-col">
+                                        {% set assigned_count = row.assigned_cells|length %}
+                                        {% if assigned_count == 0 %}
+                                        <span class="text-muted small">Chưa giao đơn vị</span>
+                                        {% else %}
+                                            {% if assigned_count > 6 %}
+                                            <details class="pc-matrix-units-collapse" data-matrix-collapse>
+                                                <summary class="pc-matrix-units-summary">
+                                                    <span class="pc-detail-badge pc-detail-badge-success">Đã nộp: {{ row.submitted_count }}/{{ assigned_count }} đơn vị</span>
+                                                    <span class="pc-detail-badge pc-detail-badge-neutral">Chưa nộp: {{ assigned_count - row.submitted_count }}</span>
+                                                    <span class="pc-summary-bar" aria-hidden="true"><span style="width: {{ row.percent }}%;"></span></span>
+                                                    <span class="pc-summary-toggle ms-auto">Xem danh sách đơn vị <i class="fa-solid fa-chevron-down ms-1"></i></span>
+                                                </summary>
+                                                <div class="pc-matrix-unit-scroll">
+                                            {% endif %}
+                                                    <div class="pc-matrix-unit-grid">
+                                                        {% for cell in row.assigned_cells %}
+                                                        {% set first_entry = cell.assignments[0] if cell.assignments else None %}
+                                                        <div class="pc-matrix-unit-chip {% if cell.done %}is-done{% endif %}" data-matrix-unit-chip data-unit-name="{{ cell.unit_name|lower }}">
+                                                            <div class="pc-unit-chip-top">
+                                                                <div class="d-flex align-items-center gap-2 min-w-0">
+                                                                    <span class="pc-unit-dot {% if cell.done %}is-done{% endif %}" aria-hidden="true"></span>
+                                                                    <span class="fw-semibold text-truncate" title="{{ cell.unit_name }}">{{ cell.unit_name }}</span>
+                                                                    {% if first_entry and first_entry.submitted and first_entry.submitted_at %}
+                                                                    <span class="pc-unit-time d-none d-sm-inline">{{ first_entry.submitted_at }}</span>
+                                                                    {% endif %}
+                                                                </div>
+                                                                <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                                                    {% if cell.done %}
+                                                                    <span class="pc-detail-badge pc-detail-badge-success">Đã nộp</span>
+                                                                    {% else %}
+                                                                    <span class="pc-detail-badge pc-detail-badge-neutral">{{ cell.submitted_count }}/{{ cell.total_count }}</span>
+                                                                    {% endif %}
+                                                                    <button type="button" class="pc-btn-inline-action" data-review-open data-item-id="{{ row.item.id }}" data-unit-name="{{ cell.unit_name }}" title="Xem chi tiết báo cáo của {{ cell.unit_name }}">
+                                                                        Chi tiết
+                                                                    </button>
+                                                                    {% for cell_assignment in cell.assignments %}
+                                                                    {% if cell_assignment.submitted %}
+                                                                    <button type="button" class="pc-btn-inline-danger" data-return-toggle="return-box-{{ cell_assignment.assignment.id }}">Trả lại</button>
+                                                                    {% endif %}
+                                                                    {% endfor %}
+                                                                </div>
+                                                            </div>
+
+                                                            {% if cell.numbers %}
+                                                            <div class="pc-inline-numbers mt-2">
+                                                                {% for number in cell.numbers %}
+                                                                <span class="pc-detail-badge pc-detail-badge-info">{{ number.first_value }}</span>
+                                                                {% endfor %}
+                                                            </div>
+                                                            {% endif %}
+
+                                                            {% for cell_assignment in cell.assignments %}
+                                                            {% if cell_assignment.submitted %}
+                                                                {% if cell_assignment.report_text or cell_assignment.files %}
+                                                                <div class="pc-inline-report mt-2">
+                                                                    {% if cell_assignment.report_text %}
+                                                                    <div class="pc-inline-report-text">{{ cell_assignment.report_text }}</div>
+                                                                    {% endif %}
+                                                                    {% if cell_assignment.files %}
+                                                                    <div class="pc-inline-report-files">
+                                                                        {% for file in cell_assignment.files %}
+                                                                        <a class="pc-file-chip" href="{{ url_for('tasks_bp.download_task_submission_file_v2', tid=task.id, file_id=file.id) }}">
+                                                                            <i class="fa-solid fa-paperclip me-1"></i>{{ file.name }}
+                                                                        </a>
+                                                                        {% endfor %}
+                                                                    </div>
+                                                                    {% endif %}
+                                                                </div>
+                                                                {% else %}
+                                                                <div class="pc-inline-report-empty mt-1">Đơn vị đã đánh dấu nộp báo cáo.</div>
+                                                                {% endif %}
+
+                                                                <div class="pc-return-box d-none mt-2" id="return-box-{{ cell_assignment.assignment.id }}">
+                                                                    <form action="{{ url_for('tasks_bp.return_task_assignment', tid=task.id, assignment_id=cell_assignment.assignment.id) }}" method="POST" class="d-flex flex-wrap gap-2 align-items-center">
+                                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                                        <input type="text" name="return_reason" class="form-control form-control-sm flex-grow-1" placeholder="Nhập lý do yêu cầu đơn vị bổ sung...">
+                                                                        <button class="btn btn-sm btn-danger flex-shrink-0" type="submit">Xác nhận gửi</button>
+                                                                        <button class="btn btn-sm btn-outline-secondary flex-shrink-0" type="button" data-return-cancel="return-box-{{ cell_assignment.assignment.id }}">Hủy</button>
+                                                                    </form>
+                                                                </div>
+                                                            {% elif cell_assignment.return_reason %}
+                                                            <div class="pc-inline-returned-note mt-2">
+                                                                <i class="fa-solid fa-rotate-left me-1"></i>Đã yêu cầu bổ sung: {{ cell_assignment.return_reason }}
+                                                            </div>
+                                                            {% endif %}
+                                                            {% endfor %}
+                                                        </div>
                                                         {% endfor %}
                                                     </div>
-                                                    {% endif %}
-                                                    {% for cell_assignment in cell.assignments %}
-                                                    {% if cell_assignment.submitted %}
-                                                    <form action="{{ url_for('tasks_bp.return_task_assignment', tid=task.id, assignment_id=cell_assignment.assignment.id) }}" method="POST" class="d-inline-flex gap-1 mt-2">
-                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                        <input type="text" name="return_reason" class="form-control form-control-sm" placeholder="Lý do" style="max-width: 130px;">
-                                                        <button class="btn btn-sm btn-outline-danger" type="submit">Trả lại</button>
-                                                    </form>
-                                                    {% endif %}
-                                                    {% endfor %}
-                                                </td>
-                                                {% endfor %}
-                                                <td class="text-center">
-                                                    {% if row.aggregate_total is not none and row.aggregate_count >= 2 %}
-                                                    <div class="fw-bold text-success" title="Tổng cộng số liệu {{ row.aggregate_count }} đơn vị đã nộp">Tổng: {{ "%g" % row.aggregate_total }}</div>
-                                                    {% endif %}
-                                                    {% if row.done %}
-                                                    <span class="badge bg-success">Hoàn tất</span>
-                                                    {% else %}
-                                                    <span class="badge bg-warning-subtle text-warning">{{ row.percent }}%</span>
-                                                    {% endif %}
-                                                    {% if row.item.report_kind == 'number' %}
-                                                    <form action="{{ url_for('tasks_bp.toggle_task_item_aggregate', tid=task.id, item_id=row.item.id) }}" method="POST" class="d-inline-block mt-2">
-                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                        <button class="btn btn-sm {% if row.item.allow_aggregate %}btn-success{% else %}btn-outline-secondary{% endif %}" type="submit" title="Cho phép cộng gộp số liệu các đơn vị">Cộng gộp {% if row.item.allow_aggregate %}<i class="fa-solid fa-check ms-1" aria-hidden="true"></i>{% endif %}</button>
-                                                    </form>
-                                                    {% endif %}
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="border-top pt-3 mt-3 small text-muted">
-                                    Tổng: {{ outline_matrix.total_submitted }}/{{ outline_matrix.total_count }} lượt giao đã nộp ({{ outline_matrix.percent }}%). Dùng nút "Trả lại" ở từng ô để yêu cầu bổ sung; người nhận sẽ nộp lại được.
-                                </div>
-                                {% else %}
-                                <div class="alert alert-info mb-0">Chưa có đầu mục nào. Hãy thiết lập đề cương trước khi theo dõi tiến độ.</div>
-                                {% endif %}
-                            </div>
-                        </div>
+                                            {% if assigned_count > 6 %}
+                                                </div>
+                                            </details>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center pc-matrix-total-col">
+                                        {% if row.aggregate_total is not none and row.aggregate_count >= 2 %}
+                                        <div class="fw-bold small mb-1 pc-aggregate-total" title="Tổng cộng số liệu {{ row.aggregate_count }} đơn vị đã nộp">Tổng: {{ "%g" % row.aggregate_total }}</div>
+                                        {% endif %}
+                                        {% if row.done %}
+                                        <span class="pc-detail-badge pc-detail-badge-success">Hoàn tất</span>
+                                        {% else %}
+                                        <span class="pc-detail-badge pc-detail-badge-warning">{{ row.percent }}%</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center pc-matrix-action-col">
+                                        <div class="d-flex flex-column align-items-center gap-2">
+                                            {% if can_manage_task_view %}
+                                            <button type="button" class="pc-btn pc-btn-secondary btn-sm" data-synthesis-open data-item-id="{{ row.item.id }}" data-item-code="{{ row.item.item_code or loop.index }}" data-item-title="{{ row_title }}">
+                                                <i class="fa-solid fa-layer-group me-1"></i>Tổng hợp{% if row.item.synthesis_content %} <i class="fa-solid fa-check ms-1 text-success" aria-hidden="true"></i>{% endif %}
+                                            </button>
+                                            {% endif %}
+                                            <button type="button" class="pc-btn-inline-action" data-review-open data-item-id="{{ row.item.id }}">
+                                                <i class="fa-regular fa-eye me-1" aria-hidden="true"></i>Ngăn kéo duyệt
+                                            </button>
+                                            {% if row.item.report_kind == 'number' %}
+                                            <form action="{{ url_for('tasks_bp.toggle_task_item_aggregate', tid=task.id, item_id=row.item.id) }}" method="POST" class="m-0">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button class="btn btn-sm {% if row.item.allow_aggregate %}btn-success{% else %}btn-outline-secondary{% endif %} py-1 px-2" type="submit" title="Cho phép cộng gộp số liệu các đơn vị">Cộng gộp {% if row.item.allow_aggregate %}<i class="fa-solid fa-check ms-1" aria-hidden="true"></i>{% endif %}</button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-none text-center text-muted small py-4" id="outlineMatrixEmptyFilter">Không có đầu mục phù hợp với bộ lọc hiện tại.</div>
+                    <div class="pc-linear-footnote">
+                        Nội dung báo cáo của đơn vị được hiển thị trực tiếp ngay trên dòng. Bấm <strong>Chi tiết</strong> để đọc đầy đủ ở ngăn kéo bên phải hoặc bấm <strong>Trả lại</strong> khi cần yêu cầu bổ sung.
+                    </div>
+                    {% for row in outline_matrix.rows %}
+                    <script type="application/json" class="pc-matrix-row-json" data-item-id="{{ row.item.id }}">{{ row.review_payload|tojson }}</script>
+                    {% endfor %}
+                    {% else %}
+                    <div class="pc-empty">
+                        <div class="pc-empty-title">Chưa có đầu mục nào</div>
+                        <p class="pc-empty-desc mb-0">Hãy chuyển sang tab Thiết lập đầu mục để thêm nội dung giao việc trước khi theo dõi tiến độ.</p>
                     </div>
                     {% endif %}
+                </section>
+            </div>
+            {% endif %}
                     {% if can_manage_task_view %}
                     <div class="tab-pane fade {% if default_tab == 'outline-create' %}show active{% endif %}" id="pane-outline-create" role="tabpanel" aria-labelledby="tab-outline-create">
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-body">
+                        <div class="pc-linear-section">
+                            <div class="pc-linear-section-body">
                                 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
                                     <div>
                                         <h2 class="h4 mb-1">Gán nội dung báo cáo</h2>
@@ -515,108 +568,135 @@
                     </div>
                     {% endif %}
 
-                    {% for group in outline_groups %}
-                    <div class="tab-pane fade {% if not can_manage_task_view and loop.first %}show active{% endif %}" id="pane-outline-group-{{ loop.index }}" role="tabpanel" aria-labelledby="tab-outline-group-{{ loop.index }}">
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-body">
-                                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
-                                    <div>
-                                        <h2 class="h4 mb-1">{{ group.label }}</h2>
-                                        <div class="text-muted">{{ group.mode_label }}</div>
-                                        {% if group.members_label and group.mode != 'unit' %}
-                                        <div class="small text-muted mt-2">{{ group.members_label }}</div>
-                                        {% endif %}
-                                    </div>
-                                    <div class="text-end">
-                                        <div class="badge bg-light text-dark mb-2">{{ group.fully_submitted_items }}/{{ group.total_items }} đầu mục hoàn tất</div>
-                                        <div class="small text-muted">{{ group.total_assignments }} lượt giao</div>
-                                    </div>
+                    {% if not (can_manage_task_view or can_watch_task_view) or my_outline_rows %}
+                    {% set target_rows = my_outline_rows if my_outline_rows else outline_rows %}
+                    <div class="tab-pane fade {% if not (can_manage_task_view or can_watch_task_view) or default_tab == 'outline-group' %}show active{% endif %}" id="pane-outline-my-work" role="tabpanel" aria-labelledby="tab-outline-my-work">
+                        <section class="pc-linear-section">
+                            <div class="pc-linear-toolbar">
+                                <div>
+                                    <h2 class="pc-linear-section-title mb-0">Phần việc cần nộp</h2>
+                                    <div class="pc-linear-section-sub">{{ target_rows|length }} đầu mục được giao</div>
                                 </div>
-
-                                <div class="d-grid gap-3">
-                                    {% for row in group.rows %}
-                                    <div class="border rounded-3 p-3">
-                                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-2">
-                                            <div>
-                                                <div class="fw-semibold">{{ row.item.item_code }}. {{ row.item.title }}</div>
-                                                {% if row.item.deadline %}<div class="small text-muted mt-1">Hạn riêng: {{ row.item.deadline.strftime('%d/%m/%Y') }}</div>{% endif %}
-                                                {% if row.secondary_text %}
-                                                <div class="small text-muted mt-1">{{ row.secondary_text }}</div>
-                                                {% endif %}
-                                                {% if row.table_render_html %}
-                                                <div class="mt-2">{{ row.table_render_html|safe }}</div>
-                                                {% endif %}
-                                            </div>
-                                            <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
-                                                {% if can_manage_task_view %}
-                                                <button type="button" class="btn btn-sm {% if row.item.synthesis_content %}btn-success{% else %}btn-outline-primary{% endif %}" data-synthesis-open data-item-id="{{ row.item.id }}" data-item-code="{{ row.item.item_code or '' }}" data-item-title="{{ row.item.title }}">
-                                                    <i class="fa-solid fa-layer-group me-1"></i>Tổng hợp{% if row.item.synthesis_content %} <i class="fa-solid fa-check ms-1" aria-hidden="true"></i>{% endif %}
-                                                </button>
-                                                {% endif %}
-                                                <span class="badge bg-light text-dark">{{ row.submitted_count }}/{{ row.total_count }} đã nộp</span>
-                                                <span class="badge bg-primary-subtle text-primary">{{ 'Báo cáo số' if row.item.report_kind == 'number' else 'Báo cáo lời' }}</span>
-                                                {% if row.item.attachment_required %}
-                                                <span class="badge bg-warning-subtle text-warning">Bắt buộc file</span>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-
-                                        {% if row.my_assignment %}
-                                        <div class="border-top pt-3 mt-3">
-                                            <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-                                                <span class="badge bg-info-subtle text-info">Trạng thái của bạn: {{ status_labels.get((row.my_assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
-                                                {% if row.my_assignment.status == 'assigned' %}
-                                                <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST">
-                                                    <input type="hidden" name="task_item_id" value="{{ row.item.id }}">
-                                                    <button class="btn btn-sm btn-outline-primary" type="submit">Tiếp nhận</button>
-                                                </form>
-                                                {% endif %}
-                                            </div>
-                                            <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data">
-                                                <input type="hidden" name="task_item_id" value="{{ row.item.id }}">
-                                                <div class="row g-3">
-                                                    {% if row.item.report_kind == 'number' %}
-                                                    <div class="col-12">
-                                                        <label class="form-label fw-bold">Điền số liệu vào chỗ trống trong nội dung</label>
-                                                        {% if row.blank_editor_html %}
-                                                        <div class="border rounded-3 p-3 bg-white outline-blank-editor">{{ row.blank_editor_html|safe }}</div>
-                                                        <div class="small text-muted mt-1"><i class="fa-solid fa-circle-info me-1"></i>Điền số thực tế của đơn vị vào từng ô. Nếu cặp số dạng "54.105/57.417" (số đã làm / tổng số) thì điền cả hai vào 1 ô.</div>
-                                                        {% else %}
-                                                        <input class="form-control" type="number" step="any" name="report_number" value="{{ row.my_submission.numeric_value if row.my_submission and row.my_submission.numeric_value is not none else '' }}">
-                                                        {% endif %}
-                                                    </div>
-                                                    {% endif %}
-                                                    <div class="col-lg-{{ '5' if row.item.report_kind == 'number' else '6' }}">
-                                                        <label class="form-label fw-bold">Nội dung báo cáo</label>
-                                                        <textarea class="form-control" name="report_content" rows="4">{{ row.my_submission.narrative_content if row.my_submission else '' }}</textarea>
-                                                    </div>
-                                                    <div class="col-lg-{{ '4' if row.item.report_kind == 'number' else '6' }}">
-                                                        <label class="form-label fw-bold">Tệp minh chứng</label>
-                                                        <input class="form-control" type="file" name="report_file">
-                                                        {% if row.my_submission and row.my_submission.files %}
-                                                        <div class="small mt-2">
-                                                            {% for file in row.my_submission.files %}
-                                                            <a class="d-block" href="{{ url_for('tasks_bp.download_task_submission_file_v2', tid=task.id, file_id=file.id) }}">{{ file.original_name or file.stored_name }}</a>
-                                                            {% endfor %}
-                                                        </div>
-                                                        {% endif %}
-                                                    </div>
-                                                </div>
-                                                <button class="btn btn-primary mt-3" type="submit">Gửi báo cáo</button>
-                                            </form>
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                    {% endfor %}
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="pc-detail-badge pc-detail-badge-neutral">{{ target_rows|selectattr('submitted_count')|list|length }}/{{ target_rows|length }} đã nộp</span>
                                 </div>
                             </div>
-                        </div>
+
+                            {% if target_rows %}
+                            <div class="pc-linear-work-list">
+                                {% for row in target_rows %}
+                                {% set my_st = ((row.my_assignment.status if row.my_assignment else '') or '')|lower %}
+                                <article class="pc-outline-item {% if my_st in ['submitted', 'completed'] %}is-done{% endif %}">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                                        <div class="min-w-0 flex-grow-1">
+                                            <div class="pc-matrix-item-heading">
+                                                {% if row.item.item_code %}
+                                                <span class="pc-matrix-item-index">{{ row.item.item_code }}</span>
+                                                {% endif %}
+                                                <span>{{ row.item.title }}</span>
+                                            </div>
+                                            {% if row.item.deadline %}<div class="pc-matrix-item-meta mt-1"><i class="fa-regular fa-clock me-1"></i>Hạn riêng: {{ row.item.deadline.strftime('%d/%m/%Y') }}</div>{% endif %}
+                                            {% if row.secondary_text %}
+                                            <div class="pc-matrix-item-note mt-2">{{ row.secondary_text }}</div>
+                                            {% endif %}
+                                            {% if row.table_render_html %}
+                                            <div class="mt-2 table-responsive">{{ row.table_render_html|safe }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center flex-shrink-0">
+                                            {% if can_manage_task_view %}
+                                            <button type="button" class="pc-btn pc-btn-secondary btn-sm" data-synthesis-open data-item-id="{{ row.item.id }}" data-item-code="{{ row.item.item_code or '' }}" data-item-title="{{ row.item.title }}">
+                                                <i class="fa-solid fa-layer-group me-1"></i>Tổng hợp{% if row.item.synthesis_content %} <i class="fa-solid fa-check ms-1 text-success" aria-hidden="true"></i>{% endif %}
+                                            </button>
+                                            {% endif %}
+                                            <span class="pc-detail-badge pc-detail-badge-neutral">{{ row.submitted_count }}/{{ row.total_count }} đã nộp</span>
+                                            <span class="pc-detail-badge pc-detail-badge-info">{{ 'Báo cáo số' if row.item.report_kind == 'number' else 'Báo cáo lời' }}</span>
+                                            {% if row.item.attachment_required %}
+                                            <span class="pc-detail-badge pc-detail-badge-warning">Bắt buộc file</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    {% if row.my_assignment %}
+                                    <div class="pc-outline-work-body mt-3 pt-3">
+                                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                                <span class="pc-detail-badge {% if my_st in ['submitted', 'completed'] %}pc-detail-badge-success{% elif my_st in ['in_progress', 'received'] %}pc-detail-badge-info{% else %}pc-detail-badge-warning{% endif %}">
+                                                    <span class="pc-status-dot" aria-hidden="true"></span>{{ status_labels.get(my_st, 'Chưa tiếp nhận') }}
+                                                </span>
+                                                {% if my_st == 'assigned' %}
+                                                <span class="small text-muted">Bấm Tiếp nhận hoặc gửi báo cáo trực tiếp bên dưới</span>
+                                                {% endif %}
+                                            </div>
+                                            {% if my_st == 'assigned' %}
+                                            <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="m-0">
+                                                <input type="hidden" name="task_item_id" value="{{ row.item.id }}">
+                                                <button class="pc-btn pc-btn-secondary btn-sm" type="submit">
+                                                    <i class="fa-solid fa-check me-1"></i>Tiếp nhận
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                        {% set my_return_reason = row.my_return_reason or row.my_assignment.return_reason %}
+                                        {% if my_return_reason and my_st not in ['submitted', 'completed'] %}
+                                        <div class="pc-inline-returned-note mb-3">
+                                            <i class="fa-solid fa-rotate-left me-1"></i>Yêu cầu bổ sung từ người giao: {{ my_return_reason }}
+                                        </div>
+                                        {% endif %}
+                                        <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data">
+                                            <input type="hidden" name="task_item_id" value="{{ row.item.id }}">
+                                            <div class="row g-3">
+                                                {% if row.item.report_kind == 'number' %}
+                                                <div class="col-12">
+                                                    <label class="form-label fw-semibold small mb-1">Điền số liệu vào chỗ trống</label>
+                                                    {% if row.blank_editor_html %}
+                                                    <div class="pc-blank-editor-box outline-blank-editor">{{ row.blank_editor_html|safe }}</div>
+                                                    <div class="small text-muted mt-1"><i class="fa-solid fa-circle-info me-1"></i>Điền số thực tế của đơn vị vào từng ô (nếu dạng "54.105/57.417" thì điền cả hai vào 1 ô).</div>
+                                                    {% else %}
+                                                    <input class="form-control" type="number" step="any" name="report_number" value="{{ row.my_submission.numeric_value if row.my_submission and row.my_submission.numeric_value is not none else '' }}">
+                                                    {% endif %}
+                                                </div>
+                                                {% endif %}
+                                                <div class="col-lg-{{ '7' if row.item.report_kind == 'number' else '8' }}">
+                                                    <label class="form-label fw-semibold small mb-1">Nội dung báo cáo</label>
+                                                    <textarea class="form-control" name="report_content" rows="4" placeholder="Nhập kết quả thực hiện của đơn vị...">{{ row.my_submission.narrative_content if row.my_submission else '' }}</textarea>
+                                                </div>
+                                                <div class="col-lg-{{ '5' if row.item.report_kind == 'number' else '4' }}">
+                                                    <label class="form-label fw-semibold small mb-1">Tệp minh chứng{% if row.item.attachment_required %} <span class="text-danger">*</span>{% endif %}</label>
+                                                    <input class="form-control" type="file" name="report_file">
+                                                    {% if row.my_submission and row.my_submission.files %}
+                                                    <div class="pc-inline-report-files mt-2">
+                                                        {% for file in row.my_submission.files %}
+                                                        <a class="pc-file-chip" href="{{ url_for('tasks_bp.download_task_submission_file_v2', tid=task.id, file_id=file.id) }}"><i class="fa-solid fa-paperclip me-1"></i>{{ file.original_name or file.stored_name }}</a>
+                                                        {% endfor %}
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="mt-3 d-flex justify-content-end">
+                                                <button class="pc-btn pc-btn-primary" type="submit">
+                                                    <i class="fa-solid fa-paper-plane me-1"></i>{% if my_st in ['submitted', 'completed'] %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    {% endif %}
+                                </article>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="pc-empty">
+                                <div class="pc-empty-title">Chưa có phần việc cần nộp</div>
+                                <p class="pc-empty-desc mb-0">Hiện chưa có đầu mục nào được giao cho bạn trong nhiệm vụ này.</p>
+                            </div>
+                            {% endif %}
+                        </section>
                     </div>
-                    {% endfor %}
+                    {% endif %}
                 {% elif task.task_mode == 'FILE' %}
                     <div class="tab-pane fade {% if default_tab == 'file-list' %}show active{% endif %}" id="pane-file-list" role="tabpanel" aria-labelledby="tab-file-list">
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-body">
+                        <div class="pc-linear-section">
+                            <div class="pc-linear-section-body">
                                 <h2 class="h4 mb-4">Tiến độ chung</h2>
                                 {% if file_assignment_role_groups %}
                                 <div class="border rounded-4 p-3 bg-light-subtle mb-4">
@@ -723,8 +803,8 @@
 
                     {% if can_submit and my_file_assignment %}
                     <div class="tab-pane fade {% if default_tab == 'file-submit' %}show active{% endif %}" id="pane-file-submit" role="tabpanel" aria-labelledby="tab-file-submit">
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-body">
+                        <div class="pc-linear-section">
+                            <div class="pc-linear-section-body">
                                 <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
                                     <h2 class="h4 mb-0">Phần việc của tôi</h2>
                                     <span class="badge bg-info-subtle text-info">{{ detail_context.submit_status_text or status_labels.get((my_file_assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
@@ -809,8 +889,8 @@
                     {% endif %}
                 {% else %}
                     <div class="tab-pane fade {% if default_tab == 'form-list' %}show active{% endif %}" id="pane-form-list" role="tabpanel" aria-labelledby="tab-form-list">
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-body">
+                        <div class="pc-linear-section">
+                            <div class="pc-linear-section-body">
                                 <div class="d-flex justify-content-between align-items-center mb-4">
                                     <div>
                                         <h2 class="h4 mb-0">Tiến độ chung</h2>
@@ -1049,8 +1129,8 @@
 
                     {% if can_submit and my_form_assignment %}
                     <div class="tab-pane fade {% if default_tab == 'form-submit' %}show active{% endif %}" id="pane-form-submit" role="tabpanel" aria-labelledby="tab-form-submit">
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-body">
+                        <div class="pc-linear-section">
+                            <div class="pc-linear-section-body">
                                 <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
                                     <h2 class="h4 mb-0">Phần việc của tôi</h2>
                                     <span class="badge bg-info-subtle text-info">{{ detail_context.submit_status_text or status_labels.get((my_form_assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
@@ -1188,25 +1268,56 @@
                     </div>
                     {% endif %}
                 {% endif %}
-            </div>
-        </div>
     </div>
+
+    {% if delivery_contract_groups %}
+    <details class="pc-card pc-detail-scope-card">
+        <summary class="d-flex justify-content-between align-items-center fw-semibold small" style="cursor: pointer;">
+            <span><i class="fa-solid fa-sitemap me-2 text-primary"></i>Phạm Vi Đã Phát Hành ({{ delivery_contract_groups|length }} nhóm nộp)</span>
+            <span class="text-muted fw-normal">Bấm để xem chi tiết</span>
+        </summary>
+        <div class="row g-3 mt-2 pt-2 border-top">
+            {% for group in delivery_contract_groups %}
+            <div class="col-12 col-xl-4">
+                <div class="border rounded-3 p-3 h-100 bg-light-subtle">
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                        <div>
+                            <div class="fw-semibold small">{{ group.group_label }}</div>
+                            <div class="small text-muted">{{ group.mode_label }}</div>
+                        </div>
+                        <div class="small text-muted text-end">
+                            {{ group.recipient_count }} người · {{ group.payload_count }} nội dung
+                        </div>
+                    </div>
+                    {% if group.member_names %}
+                    <div class="small text-muted mb-1">Thành viên: {{ group.member_names|join(', ') }}</div>
+                    {% endif %}
+                    {% if group.payload_labels %}
+                    <div class="small">Nội dung giao: {{ group.payload_labels|join(', ') }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </details>
+    {% endif %}
 </div>
 
 <style>
     .import-config-row-child {
         margin-left: 42px;
-        border-left: 3px solid rgba(0, 102, 255, 0.25) !important;
-        background: rgba(248, 250, 252, 0.85);
+        border-left: 3px solid var(--pc-primary-200) !important;
+        background: var(--pc-bg-subtle);
     }
 
     .outline-table-render th {
-        background: #f1f5f9;
-        font-size: 0.8rem;
+        background: var(--pc-bg-subtle);
+        font-size: 0.78rem;
         white-space: nowrap;
+        color: var(--pc-text-muted);
     }
     .outline-table-render td {
-        font-size: 0.85rem;
+        font-size: 0.84rem;
     }
 
     .wizard-outline-row-main {
@@ -1226,9 +1337,9 @@
     }
 
     .wizard-outline-group {
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        border-radius: 12px;
-        background: #fff;
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-md);
+        background: var(--pc-bg-card);
         overflow: hidden;
     }
 
@@ -1237,8 +1348,8 @@
         align-items: flex-start;
         gap: 10px;
         padding: 12px 14px;
-        background: #f6f8fa;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+        background: var(--pc-bg-subtle);
+        border-bottom: 1px solid var(--pc-border);
     }
 
     .wizard-outline-group-marker {
@@ -1248,9 +1359,9 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #0066ff;
-        color: #fff;
-        border-radius: 8px;
+        background: var(--pc-primary);
+        color: var(--pc-neutral-0);
+        border-radius: var(--pc-radius-sm);
         font-weight: 700;
         font-size: 13px;
         margin-top: 2px;
@@ -1264,7 +1375,7 @@
     .wizard-outline-group-breadcrumb {
         font-size: 13px;
         font-weight: 700;
-        color: #1f2937;
+        color: var(--pc-text);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1275,7 +1386,7 @@
     .wizard-outline-group-title {
         font-weight: 700;
         font-size: 14px;
-        color: #1f2937;
+        color: var(--pc-text);
         line-height: 1.45;
     }
 
@@ -1286,211 +1397,733 @@
         gap: 10px;
     }
 
-    /* Step pill phẳng cho luồng import đề cương */
     .step-pill {
         display: inline-flex;
         align-items: center;
-        padding: 4px 12px;
-        border-radius: 999px;
-        background: #0066FF;
-        color: #fff;
+        padding: 3px 10px;
+        border-radius: var(--pc-radius-pill);
+        background: var(--pc-primary);
+        color: var(--pc-neutral-0);
         font-size: 0.75rem;
         font-weight: 700;
-        letter-spacing: 0.2px;
         vertical-align: middle;
     }
 
-    [data-theme="dark"] .step-pill {
-        background: #3b82f6;
-    }
-
+    /* ── Linear / Notion Minimalist Editorial Workspace ── */
     .task-detail-shell {
-        display: grid;
-        gap: 24px;
-        padding: 24px 0;
-    }
-
-    .task-detail-hero,
-    .task-detail-metric-card,
-    .task-detail-next-card {
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
-    }
-
-    .task-detail-hero {
-        display: grid;
-        grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
-        gap: 20px;
-        padding: 28px;
-        border-radius: 28px;
-    }
-
-    .task-detail-hero h1 {
-        margin: 0 0 10px;
-        font-size: clamp(2rem, 3vw, 2.6rem);
-        font-weight: 900;
-    }
-
-    .task-detail-hero p,
-    .task-detail-next-card p {
-        margin: 0;
-        color: var(--text-muted);
-        line-height: 1.6;
-    }
-
-    .task-detail-hero-side {
         display: flex;
-        align-items: stretch;
-    }
-
-    .task-detail-next-card {
+        flex-direction: column;
+        gap: 0;
         width: 100%;
-        border-radius: 24px;
-        padding: 22px;
+        max-width: 100%;
+        min-width: 0;
+        padding: 6px 0 36px;
     }
 
-    .task-detail-next-label {
-        display: inline-flex;
-        margin-bottom: 10px;
-        color: var(--text-muted);
-        font-size: 0.82rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+    .task-detail-shell > * {
+        min-width: 0;
+        max-width: 100%;
     }
 
-    .task-detail-next-card h2 {
-        margin: 0 0 8px;
-        font-size: 1.2rem;
-        font-weight: 800;
+    .pc-linear-header {
+        padding: 10px 2px 18px;
+        background: transparent;
     }
 
-    .task-detail-meta {
+    .pc-linear-back {
+        border-radius: var(--pc-radius-pill);
+        font-weight: 500;
+    }
+
+    .pc-linear-ghost-danger {
+        border-color: transparent;
+        color: var(--pc-danger-text);
+        background: transparent;
+    }
+
+    .pc-linear-ghost-danger:hover {
+        background: var(--pc-danger-bg);
+        border-color: var(--pc-danger-border);
+        color: var(--pc-danger-text);
+    }
+
+    .pc-detail-title {
+        margin: 0 0 10px;
+        font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--pc-text);
+        line-height: 1.3;
+        word-break: break-word;
+    }
+
+    .pc-detail-meta {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px 16px;
-        margin-top: 14px;
-        color: var(--text-muted);
+        align-items: center;
+        gap: 8px 20px;
+        font-size: 0.84rem;
+        color: var(--pc-text-muted);
+    }
+
+    .pc-detail-meta strong {
+        color: var(--pc-text);
+        font-weight: 600;
+    }
+
+    .pc-detail-progress {
+        height: 4px;
+        width: 100%;
+        background: var(--pc-border);
+        border-radius: var(--pc-radius-pill);
+        overflow: hidden;
+    }
+
+    .pc-detail-progress > span {
+        display: block;
+        height: 100%;
+        background: var(--pc-primary);
+        border-radius: var(--pc-radius-pill);
+        transition: width var(--pc-dur-base) var(--pc-ease);
+    }
+
+    .pc-linear-callout {
+        border-left: 3px solid var(--pc-primary-300);
+        background: var(--pc-bg-subtle);
+        padding: 10px 14px;
+        border-radius: 0 var(--pc-radius-sm) var(--pc-radius-sm) 0;
+    }
+
+    .pc-linear-callout-label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--pc-text-muted);
+        margin-bottom: 4px;
+    }
+
+    .pc-detail-desc-body {
+        white-space: pre-wrap;
+        font-size: 0.9rem;
+        color: var(--pc-text);
+        line-height: 1.6;
+        word-break: break-word;
+    }
+
+    .pc-detail-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 9px;
+        border-radius: 6px;
+        font-size: 0.76rem;
+        font-weight: 600;
+        border: 1px solid transparent;
+        line-height: 1.35;
+    }
+
+    .pc-status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: currentColor;
+        flex-shrink: 0;
+    }
+
+    .pc-detail-badge-neutral,
+    .pc-detail-badge-muted {
+        background: var(--pc-bg-subtle);
+        color: var(--pc-text-muted);
+        border-color: var(--pc-border);
+    }
+
+    .pc-detail-badge-info {
+        background: var(--pc-info-bg);
+        color: var(--pc-info-text);
+        border-color: var(--pc-info-border);
+    }
+
+    .pc-detail-badge-success {
+        background: var(--pc-success-bg);
+        color: var(--pc-success-text);
+        border-color: var(--pc-success-border);
+    }
+
+    .pc-detail-badge-warning {
+        background: var(--pc-warning-bg);
+        color: var(--pc-warning-text);
+        border-color: var(--pc-warning-border);
+    }
+
+    .pc-detail-badge-danger {
+        background: var(--pc-danger-bg);
+        color: var(--pc-danger-text);
+        border-color: var(--pc-danger-border);
+    }
+
+    /* ── Thanh Tab Đường Gạch Chân (Linear Underline Navigation) ── */
+    .pc-linear-tabs-wrap {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        border-bottom: 1px solid var(--pc-border);
+        margin-bottom: 18px;
+    }
+
+    .pc-linear-tabs {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 4px;
+        width: max-content;
+        min-width: 100%;
+        padding: 0;
+        background: transparent;
+    }
+
+    .pc-linear-tabs .nav-link {
+        white-space: nowrap;
+        border-radius: var(--pc-radius-sm) var(--pc-radius-sm) 0 0;
+        padding: 10px 14px;
+        margin-bottom: -1px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--pc-text-muted);
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        transition: color var(--pc-dur-fast) var(--pc-ease), background var(--pc-dur-fast) var(--pc-ease);
+    }
+
+    .pc-linear-tabs .nav-link:hover {
+        background: var(--pc-bg-subtle);
+        color: var(--pc-text);
+    }
+
+    .pc-linear-tabs .nav-link.active {
+        color: var(--pc-primary);
+        font-weight: 600;
+        border-bottom-color: var(--pc-primary);
+        background: transparent;
+    }
+
+    .pc-tab-count {
+        font-size: 0.73rem;
+        font-weight: 600;
+        padding: 1px 7px;
+        border-radius: var(--pc-radius-pill);
+        background: var(--pc-bg-subtle);
+        color: var(--pc-text-muted);
+        border: 1px solid var(--pc-border);
+    }
+
+    .pc-linear-tabs .nav-link.active .pc-tab-count {
+        background: var(--pc-primary-soft);
+        color: var(--pc-primary);
+        border-color: var(--pc-primary-200);
+    }
+
+    .pc-detail-tab-content,
+    .pc-detail-tab-content > .tab-pane,
+    .pc-detail-table-wrap {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    /* ── Khu vực làm việc mở, phẳng, không đóng khung chồng chéo ── */
+    .pc-linear-section {
+        background: transparent;
+        padding: 2px 0 8px;
+    }
+
+    .pc-linear-section-body {
+        background: var(--pc-bg-card);
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-md);
+        padding: 18px 20px;
+    }
+
+    .pc-linear-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 12px 16px;
+        margin-bottom: 14px;
+    }
+
+    .pc-linear-section-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        color: var(--pc-text);
+    }
+
+    .pc-linear-section-sub {
+        font-size: 0.82rem;
+        color: var(--pc-text-muted);
+        margin-top: 2px;
+    }
+
+    .pc-linear-filters {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        flex: 1 1 auto;
+        justify-content: flex-end;
+    }
+
+    .pc-linear-search-wrap {
+        position: relative;
+        min-width: 220px;
+        flex: 1 1 240px;
+        max-width: 340px;
+    }
+
+    .pc-linear-search-wrap > i {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.78rem;
+        color: var(--pc-text-subtle);
+        pointer-events: none;
+    }
+
+    .pc-linear-search-wrap .form-control {
+        padding-left: 30px;
+    }
+
+    .pc-linear-filters .form-select {
+        width: auto;
+        min-width: 170px;
+        max-width: 240px;
+    }
+
+    /* ── Bảng ma trận Linear editorial ── */
+    .pc-detail-table-wrap {
+        background: var(--pc-bg-card);
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-md);
+        overflow-x: auto;
+    }
+
+    .pc-linear-table {
+        --bs-table-bg: transparent;
+        --bs-table-color: var(--pc-text);
+        --bs-table-border-color: var(--pc-border);
+        margin-bottom: 0;
+    }
+
+    .pc-linear-table thead th {
+        background: var(--pc-bg-subtle);
+        color: var(--pc-text-muted);
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 11px 14px;
+        border-bottom: 1px solid var(--pc-border);
+        white-space: nowrap;
+    }
+
+    .pc-linear-table tbody td {
+        padding: 16px 14px;
+        border-bottom: 1px solid var(--pc-border);
+        vertical-align: top;
+    }
+
+    .pc-linear-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .pc-matrix-item-col {
+        min-width: 250px;
+        max-width: 440px;
+        white-space: normal !important;
+        word-break: break-word;
+    }
+
+    .pc-matrix-item-heading {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        font-size: 0.92rem;
+        font-weight: 600;
+        line-height: 1.55;
+        color: var(--pc-text);
+    }
+
+    .pc-matrix-item-index {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1px 7px;
+        margin-top: 2px;
+        border-radius: 5px;
+        background: var(--pc-bg-subtle);
+        border: 1px solid var(--pc-border);
+        color: var(--pc-text-muted);
+        font-size: 0.74rem;
         font-weight: 700;
     }
 
-    .task-detail-pill {
-        display: inline-flex;
-        align-items: center;
-        height: 32px;
-        padding: 0 12px;
-        border-radius: 999px;
-        font-size: 0.84rem;
-        font-weight: 800;
+    .pc-matrix-item-note {
+        font-size: 0.82rem;
+        color: var(--pc-text-muted);
+        white-space: pre-wrap;
+        line-height: 1.5;
     }
 
-    .task-detail-pill-info {
-        background: rgba(0, 102, 255, 0.1);
-        color: #0052cc;
+    .pc-matrix-item-meta {
+        font-size: 0.78rem;
+        color: var(--pc-text-muted);
     }
 
-    .task-detail-pill-success {
-        background: rgba(16, 185, 129, 0.14);
-        color: #047857;
+    .pc-matrix-units-col {
+        min-width: 340px;
+        max-width: 580px;
+        white-space: normal !important;
     }
 
-    .task-detail-pill-warning {
-        background: rgba(245, 158, 11, 0.14);
-        color: #b45309;
-    }
-
-    .task-detail-pill-danger {
-        background: rgba(239, 68, 68, 0.12);
-        color: #b91c1c;
-    }
-
-    .task-detail-pill-muted {
-        background: rgba(148, 163, 184, 0.14);
-        color: #475569;
-    }
-
-    .task-detail-tone-success {
-        background: linear-gradient(145deg, rgba(240, 253, 244, 0.96), rgba(255, 255, 255, 0.96));
-    }
-
-    .task-detail-tone-warning {
-        background: linear-gradient(145deg, rgba(255, 251, 235, 0.96), rgba(255, 255, 255, 0.96));
-    }
-
-    .task-detail-tone-danger {
-        background: linear-gradient(145deg, rgba(254, 242, 242, 0.96), rgba(255, 255, 255, 0.96));
-    }
-
-    .task-detail-tone-muted,
-    .task-detail-tone-info {
-        background: linear-gradient(145deg, rgba(248, 250, 252, 0.96), rgba(255, 255, 255, 0.96));
-    }
-
-    .task-detail-metric-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 16px;
-    }
-
-    .task-detail-metric-card {
-        padding: 18px 20px;
-        border-radius: 22px;
-        display: grid;
+    .pc-matrix-unit-grid {
+        display: flex;
+        flex-direction: column;
         gap: 8px;
     }
 
-    .task-detail-metric-card span {
-        color: var(--text-muted);
-        font-weight: 700;
+    .pc-matrix-unit-chip {
+        padding: 10px 12px;
+        border: 1px solid var(--pc-border);
+        border-left: 3px solid var(--pc-border-strong);
+        border-radius: var(--pc-radius-sm);
+        background: var(--pc-bg-card);
+        font-size: 0.85rem;
     }
 
-    .task-detail-metric-card strong {
-        font-size: 2rem;
-        line-height: 1;
+    .pc-matrix-unit-chip.is-done {
+        border-left-color: var(--pc-success);
+        background: var(--pc-bg-card);
     }
 
-    [data-theme="dark"] .task-detail-hero,
-    [data-theme="dark"] .task-detail-metric-card,
-    [data-theme="dark"] .task-detail-next-card {
-        background: rgba(15, 23, 42, 0.84);
-        border-color: rgba(148, 163, 184, 0.18);
-        box-shadow: 0 18px 45px rgba(2, 6, 23, 0.34);
+    .pc-unit-chip-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
     }
 
-    [data-theme="dark"] .task-detail-tone-success {
-        background: linear-gradient(145deg, rgba(6, 78, 59, 0.45), rgba(15, 23, 42, 0.84));
+    .pc-unit-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: var(--pc-text-subtle);
+        flex-shrink: 0;
     }
 
-    [data-theme="dark"] .task-detail-tone-warning {
-        background: linear-gradient(145deg, rgba(69, 26, 3, 0.55), rgba(15, 23, 42, 0.84));
+    .pc-unit-dot.is-done {
+        background: var(--pc-success);
     }
 
-    [data-theme="dark"] .task-detail-tone-danger {
-        background: linear-gradient(145deg, rgba(69, 10, 10, 0.55), rgba(15, 23, 42, 0.84));
+    .pc-unit-time {
+        font-size: 0.75rem;
+        color: var(--pc-text-muted);
+        white-space: nowrap;
     }
 
-    @media (max-width: 1199.98px) {
-        .task-detail-hero,
-        .task-detail-metric-grid {
-            grid-template-columns: 1fr;
-        }
+    .pc-btn-inline-action,
+    .pc-btn-inline-danger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 0.76rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid var(--pc-border);
+        background: var(--pc-bg-subtle);
+        color: var(--pc-text);
+        transition: background var(--pc-dur-fast) var(--pc-ease), border-color var(--pc-dur-fast) var(--pc-ease);
+    }
+
+    .pc-btn-inline-action:hover {
+        background: var(--pc-primary-soft);
+        border-color: var(--pc-primary-200);
+        color: var(--pc-primary);
+    }
+
+    .pc-btn-inline-danger {
+        color: var(--pc-danger-text);
+        border-color: var(--pc-danger-border);
+        background: transparent;
+    }
+
+    .pc-btn-inline-danger:hover {
+        background: var(--pc-danger-bg);
+    }
+
+    /* ── Đọc báo cáo đơn vị trực tiếp theo kiểu Notion Callout ── */
+    .pc-inline-numbers {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .pc-inline-report {
+        border-left: 2px solid var(--pc-primary-300);
+        background: var(--pc-bg-subtle);
+        padding: 8px 12px;
+        border-radius: 0 6px 6px 0;
+    }
+
+    .pc-inline-report-text {
+        font-size: 0.855rem;
+        line-height: 1.55;
+        color: var(--pc-text);
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 165px;
+        overflow-y: auto;
+    }
+
+    .pc-inline-report-files {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+    }
+
+    .pc-file-chip {
+        display: inline-flex;
+        align-items: center;
+        max-width: 100%;
+        padding: 2px 9px;
+        border-radius: 6px;
+        font-size: 0.76rem;
+        font-weight: 500;
+        color: var(--pc-primary);
+        background: var(--pc-bg-card);
+        border: 1px solid var(--pc-border);
+        text-decoration: none;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .pc-file-chip:hover {
+        background: var(--pc-primary-soft);
+        border-color: var(--pc-primary-200);
+    }
+
+    .pc-inline-report-empty {
+        font-size: 0.78rem;
+        color: var(--pc-text-muted);
+        font-style: italic;
+    }
+
+    .pc-inline-returned-note {
+        padding: 7px 10px;
+        border-radius: 6px;
+        background: var(--pc-warning-bg);
+        border: 1px solid var(--pc-warning-border);
+        color: var(--pc-warning-text);
+        font-size: 0.8rem;
+    }
+
+    .pc-return-box {
+        padding-top: 8px;
+        border-top: 1px dashed var(--pc-border-strong);
+    }
+
+    /* ── Gom nhóm đơn vị lớn (> 6 đơn vị: 19 Sở / 124 Xã) ── */
+    .pc-matrix-units-collapse {
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-sm);
+        padding: 8px 10px;
+        background: var(--pc-bg-card);
+    }
+
+    .pc-matrix-units-summary {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 8px;
+        cursor: pointer;
+        list-style: none;
+    }
+
+    .pc-matrix-units-summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .pc-summary-bar {
+        display: inline-block;
+        width: 72px;
+        height: 5px;
+        border-radius: var(--pc-radius-pill);
+        background: var(--pc-border);
+        overflow: hidden;
+    }
+
+    .pc-summary-bar > span {
+        display: block;
+        height: 100%;
+        background: var(--pc-success);
+    }
+
+    .pc-summary-toggle {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--pc-primary);
+    }
+
+    .pc-matrix-unit-scroll {
+        margin-top: 10px;
+        max-height: 280px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    .pc-matrix-total-col {
+        width: 108px;
+        min-width: 96px;
+        vertical-align: middle !important;
+    }
+
+    .pc-aggregate-total {
+        color: var(--pc-success-text);
+    }
+
+    .pc-matrix-action-col {
+        width: 140px;
+        min-width: 128px;
+        vertical-align: middle !important;
+    }
+
+    .pc-linear-footnote {
+        margin-top: 10px;
+        font-size: 0.8rem;
+        color: var(--pc-text-muted);
+    }
+
+    /* ── Không gian nộp báo cáo của đơn vị ── */
+    .pc-linear-work-list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .pc-outline-item {
+        border: 1px solid var(--pc-border);
+        border-left: 3px solid var(--pc-primary);
+        border-radius: var(--pc-radius-md);
+        padding: 16px 18px;
+        background: var(--pc-bg-card);
+    }
+
+    .pc-outline-item.is-done {
+        border-left-color: var(--pc-success);
+    }
+
+    .pc-outline-work-body {
+        border-top: 1px solid var(--pc-border);
+    }
+
+    .pc-blank-editor-box {
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-sm);
+        padding: 12px 14px;
+        background: var(--pc-bg-subtle);
+    }
+
+    .pc-detail-scope-card {
+        margin-top: 16px;
+        padding: 14px 18px;
+        border-radius: var(--pc-radius-md);
+    }
+
+    /* ── Ngăn kéo trượt xem chi tiết (Slide-over Review Drawer) ── */
+    .pc-linear-drawer {
+        width: min(560px, 96vw) !important;
+        background: var(--pc-bg-card);
+        color: var(--pc-text);
+        border-left: 1px solid var(--pc-border);
+    }
+
+    .pc-linear-drawer .offcanvas-header {
+        border-bottom: 1px solid var(--pc-border);
+        padding: 14px 18px;
+    }
+
+    .pc-linear-drawer .offcanvas-body {
+        padding: 16px 18px 24px;
+    }
+
+    .pc-drawer-unit-card {
+        border: 1px solid var(--pc-border);
+        border-left: 3px solid var(--pc-border-strong);
+        border-radius: var(--pc-radius-sm);
+        padding: 12px 14px;
+        background: var(--pc-bg-card);
+    }
+
+    .pc-drawer-unit-card.is-done {
+        border-left-color: var(--pc-success);
+    }
+
+    .pc-drawer-unit-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .pc-drawer-unit-pill {
+        border: 1px solid var(--pc-border);
+        background: var(--pc-bg-subtle);
+        color: var(--pc-text-muted);
+        border-radius: var(--pc-radius-pill);
+        padding: 4px 10px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .pc-drawer-unit-pill.is-active {
+        background: var(--pc-primary-soft);
+        color: var(--pc-primary);
+        border-color: var(--pc-primary-200);
     }
 
     @media (max-width: 767.98px) {
         .task-detail-shell {
-            padding: 16px 0;
+            padding: 4px 0 22px;
         }
 
-        .task-detail-hero {
-            padding: 20px;
-            border-radius: 24px;
+        .pc-linear-section-body,
+        .pc-detail-scope-card {
+            padding: 14px;
         }
 
-        .task-detail-next-card,
-        .task-detail-metric-card {
-            padding: 16px;
-            border-radius: 18px;
+        .pc-linear-filters {
+            justify-content: stretch;
+        }
+
+        .pc-linear-search-wrap,
+        .pc-linear-filters .form-select {
+            max-width: 100%;
+            width: 100%;
+        }
+
+        .pc-outline-item {
+            padding: 14px;
         }
     }
 </style>
@@ -2338,7 +2971,343 @@
         syncTableGrid(grid);
     });
 })();
+
+(() => {
+    const searchInput = document.getElementById('outlineMatrixSearch');
+    const unitSelect = document.getElementById('outlineMatrixUnitFilter');
+    const statusSelect = document.getElementById('outlineMatrixStatusFilter');
+    const matrixTable = document.getElementById('outlineMatrixTable');
+    const emptyNotice = document.getElementById('outlineMatrixEmptyFilter');
+    if (!matrixTable) return;
+
+    const rows = Array.from(matrixTable.querySelectorAll('tbody tr[data-matrix-row]'));
+    function applyMatrixFilter() {
+        const keyword = (searchInput ? searchInput.value : '').trim().toLowerCase();
+        const selectedUnit = (unitSelect ? unitSelect.value : '').trim().toLowerCase();
+        const selectedStatus = (statusSelect ? statusSelect.value : '').trim().toLowerCase();
+        let visibleCount = 0;
+
+        rows.forEach((row) => {
+            const rowText = (row.dataset.rowText || '').toLowerCase();
+            const rowUnits = (row.dataset.rowUnits || '').toLowerCase();
+            const rowDone = row.dataset.rowDone === '1';
+
+            const matchesKeyword = !keyword || rowText.includes(keyword) || rowUnits.includes(keyword);
+            const matchesUnit = !selectedUnit || rowUnits.split('||').includes(selectedUnit);
+            const matchesStatus = !selectedStatus
+                || (selectedStatus === 'done' && rowDone)
+                || (selectedStatus === 'pending' && !rowDone);
+
+            const show = matchesKeyword && matchesUnit && matchesStatus;
+            row.classList.toggle('d-none', !show);
+            if (!show) return;
+            visibleCount += 1;
+
+            const collapse = row.querySelector('[data-matrix-collapse]');
+            const chips = Array.from(row.querySelectorAll('[data-matrix-unit-chip]'));
+            if (selectedUnit) {
+                if (collapse) collapse.open = true;
+                chips.forEach((chip) => {
+                    chip.classList.toggle('d-none', (chip.dataset.unitName || '') !== selectedUnit);
+                });
+            } else if (keyword && !rowText.includes(keyword) && rowUnits.includes(keyword)) {
+                if (collapse) collapse.open = true;
+                chips.forEach((chip) => {
+                    chip.classList.toggle('d-none', !(chip.dataset.unitName || '').includes(keyword));
+                });
+            } else {
+                chips.forEach((chip) => chip.classList.remove('d-none'));
+            }
+        });
+
+        if (emptyNotice) {
+            emptyNotice.classList.toggle('d-none', visibleCount > 0);
+        }
+    }
+
+    [searchInput, unitSelect, statusSelect].forEach((el) => {
+        if (!el) return;
+        el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', applyMatrixFilter);
+    });
+})();
+
+(() => {
+    // Bật/tắt form Trả lại ngay tại dòng đơn vị (chỉ hiện khi bấm nút Trả lại)
+    document.addEventListener('click', (event) => {
+        const toggleBtn = event.target.closest('[data-return-toggle]');
+        if (toggleBtn) {
+            const boxId = toggleBtn.getAttribute('data-return-toggle');
+            const box = boxId ? document.getElementById(boxId) : null;
+            if (!box) return;
+            const willShow = box.classList.contains('d-none');
+            box.classList.toggle('d-none', !willShow);
+            if (willShow) {
+                const input = box.querySelector('input[name="return_reason"]');
+                if (input) input.focus();
+            }
+            return;
+        }
+        const cancelBtn = event.target.closest('[data-return-cancel]');
+        if (cancelBtn) {
+            const boxId = cancelBtn.getAttribute('data-return-cancel');
+            const box = boxId ? document.getElementById(boxId) : null;
+            if (box) box.classList.add('d-none');
+        }
+    });
+
+    // Ngăn kéo trượt xem chi tiết & duyệt báo cáo từng đầu mục / đơn vị
+    const drawerEl = document.getElementById('outlineReviewDrawer');
+    if (!drawerEl) return;
+    const titleEl = document.getElementById('outlineDrawerItemTitle');
+    const metaEl = document.getElementById('outlineDrawerMeta');
+    const noteEl = document.getElementById('outlineDrawerItemNote');
+    const pillsEl = document.getElementById('outlineDrawerUnitPills');
+    const unitsListEl = document.getElementById('outlineDrawerUnitsList');
+    const synthBtn = document.getElementById('outlineDrawerSynthesisBtn');
+    const returnUrlTpl = drawerEl.dataset.returnUrlTpl || '';
+    const fileUrlTpl = drawerEl.dataset.fileUrlTpl || '';
+    const csrfValue = drawerEl.dataset.csrfToken || '';
+
+    const payloadCache = {};
+    document.querySelectorAll('script.pc-matrix-row-json[data-item-id]').forEach((scriptEl) => {
+        try {
+            payloadCache[String(scriptEl.dataset.itemId)] = JSON.parse(scriptEl.textContent || '{}');
+        } catch (_err) {
+            // Bỏ qua JSON lỗi nếu có
+        }
+    });
+
+    let activePayload = null;
+    let activeUnitFilter = '';
+
+    function buildDrawerUnitCard(unit, itemSubmittedView) {
+        const card = document.createElement('div');
+        card.className = 'pc-drawer-unit-card' + (unit.done ? ' is-done' : '');
+
+        const top = document.createElement('div');
+        top.className = 'd-flex align-items-center justify-content-between gap-2 mb-2';
+        const left = document.createElement('div');
+        left.className = 'd-flex align-items-center gap-2 min-w-0';
+        const dot = document.createElement('span');
+        dot.className = 'pc-unit-dot' + (unit.done ? ' is-done' : '');
+        const nameEl = document.createElement('strong');
+        nameEl.className = 'text-truncate';
+        nameEl.textContent = unit.unit_name || '';
+        left.append(dot, nameEl);
+
+        const statusBadge = document.createElement('span');
+        statusBadge.className = 'pc-detail-badge ' + (unit.done ? 'pc-detail-badge-success' : 'pc-detail-badge-neutral');
+        statusBadge.textContent = unit.done ? 'Đã nộp' : `${unit.submitted_count}/${unit.total_count}`;
+        top.append(left, statusBadge);
+        card.appendChild(top);
+
+        (unit.entries || []).forEach((entry) => {
+            const subWrap = document.createElement('div');
+            subWrap.className = 'mt-2';
+
+            if (entry.submitter_name || entry.submitted_at) {
+                const subMeta = document.createElement('div');
+                subMeta.className = 'small text-muted mb-1';
+                const parts = [];
+                if (entry.submitter_name) parts.push(`Người nộp: ${entry.submitter_name}`);
+                if (entry.submitted_at) parts.push(entry.submitted_at);
+                subMeta.textContent = parts.join(' · ');
+                subWrap.appendChild(subMeta);
+            }
+
+            if (entry.submitted) {
+                const box = document.createElement('div');
+                box.className = 'pc-inline-report';
+                if (entry.report_text) {
+                    const txt = document.createElement('div');
+                    txt.className = 'pc-inline-report-text';
+                    txt.style.maxHeight = 'none';
+                    txt.textContent = entry.report_text;
+                    box.appendChild(txt);
+                } else {
+                    const emptyTxt = document.createElement('div');
+                    emptyTxt.className = 'pc-inline-report-empty';
+                    emptyTxt.textContent = 'Đơn vị đã đánh dấu nộp báo cáo.';
+                    box.appendChild(emptyTxt);
+                }
+                if ((entry.files || []).length && fileUrlTpl) {
+                    const filesRow = document.createElement('div');
+                    filesRow.className = 'pc-inline-report-files';
+                    entry.files.forEach((f) => {
+                        const a = document.createElement('a');
+                        a.className = 'pc-file-chip';
+                        a.href = fileUrlTpl.replace('987654321', String(f.id));
+                        a.textContent = f.name || `Tệp #${f.id}`;
+                        filesRow.appendChild(a);
+                    });
+                    box.appendChild(filesRow);
+                }
+                subWrap.appendChild(box);
+
+                if (returnUrlTpl && entry.assignment_id) {
+                    const actionsRow = document.createElement('div');
+                    actionsRow.className = 'mt-2 d-flex justify-content-end';
+                    const toggleReturnBtn = document.createElement('button');
+                    toggleReturnBtn.type = 'button';
+                    toggleReturnBtn.className = 'pc-btn-inline-danger';
+                    toggleReturnBtn.textContent = 'Yêu cầu bổ sung';
+                    actionsRow.appendChild(toggleReturnBtn);
+                    subWrap.appendChild(actionsRow);
+
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = returnUrlTpl.replace('987654321', String(entry.assignment_id));
+                    form.className = 'pc-return-box d-none mt-2';
+
+                    const csrf = document.createElement('input');
+                    csrf.type = 'hidden';
+                    csrf.name = 'csrf_token';
+                    csrf.value = csrfValue;
+                    const row = document.createElement('div');
+                    row.className = 'd-flex gap-2 align-items-center';
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.name = 'return_reason';
+                    input.className = 'form-control form-control-sm';
+                    input.placeholder = 'Nhập lý do yêu cầu đơn vị bổ sung...';
+                    const submitBtn = document.createElement('button');
+                    submitBtn.type = 'submit';
+                    submitBtn.className = 'btn btn-sm btn-danger flex-shrink-0';
+                    submitBtn.textContent = 'Xác nhận gửi yêu cầu';
+                    row.append(input, submitBtn);
+                    form.append(csrf, row);
+                    subWrap.appendChild(form);
+
+                    toggleReturnBtn.addEventListener('click', () => {
+                        form.classList.toggle('d-none');
+                        if (!form.classList.contains('d-none')) input.focus();
+                    });
+                }
+            } else {
+                const pendingEl = document.createElement('div');
+                pendingEl.className = entry.return_reason ? 'pc-inline-returned-note' : 'small text-muted';
+                pendingEl.textContent = entry.return_reason
+                    ? `Đã yêu cầu bổ sung: ${entry.return_reason}`
+                    : `${entry.status_label || 'Chưa nộp báo cáo'}`;
+                subWrap.appendChild(pendingEl);
+            }
+
+            card.appendChild(subWrap);
+        });
+        return card;
+    }
+
+    function renderDrawerContent() {
+        if (!activePayload) return;
+        const units = activePayload.units || [];
+        pillsEl.innerHTML = '';
+        if (units.length > 1) {
+            const allPill = document.createElement('button');
+            allPill.type = 'button';
+            allPill.className = 'pc-drawer-unit-pill' + (!activeUnitFilter ? ' is-active' : '');
+            allPill.textContent = `Tất cả (${units.length})`;
+            allPill.addEventListener('click', () => {
+                activeUnitFilter = '';
+                renderDrawerContent();
+            });
+            pillsEl.appendChild(allPill);
+
+            units.forEach((u) => {
+                const pill = document.createElement('button');
+                pill.type = 'button';
+                pill.className = 'pc-drawer-unit-pill' + (activeUnitFilter === u.unit_name ? ' is-active' : '');
+                pill.textContent = u.unit_name;
+                pill.addEventListener('click', () => {
+                    activeUnitFilter = u.unit_name;
+                    renderDrawerContent();
+                });
+                pillsEl.appendChild(pill);
+            });
+        }
+
+        unitsListEl.innerHTML = '';
+        const visibleUnits = activeUnitFilter ? units.filter((u) => u.unit_name === activeUnitFilter) : units;
+        if (!visibleUnits.length) {
+            const empty = document.createElement('div');
+            empty.className = 'text-muted small py-3';
+            empty.textContent = 'Chưa có đơn vị nào được phân công cho đầu mục này.';
+            unitsListEl.appendChild(empty);
+            return;
+        }
+        visibleUnits.forEach((u) => {
+            unitsListEl.appendChild(buildDrawerUnitCard(u));
+        });
+    }
+
+    document.addEventListener('click', (event) => {
+        const openBtn = event.target.closest('[data-review-open]');
+        if (!openBtn) return;
+        const itemId = String(openBtn.getAttribute('data-item-id') || '');
+        const unitName = openBtn.getAttribute('data-unit-name') || '';
+        const payload = payloadCache[itemId];
+        if (!payload) return;
+
+        activePayload = payload;
+        activeUnitFilter = unitName;
+
+        titleEl.textContent = `${payload.index ? payload.index + '. ' : ''}${payload.item_title || 'Chi tiết đầu mục'}`;
+        metaEl.textContent = `Đã nộp: ${payload.submitted_count}/${payload.total_count} (${payload.percent}%)` +
+            (payload.aggregate_total !== null && payload.aggregate_total !== undefined ? ` · Tổng số liệu: ${payload.aggregate_total}` : '');
+        if (payload.secondary_text) {
+            noteEl.textContent = payload.secondary_text;
+            noteEl.classList.remove('d-none');
+        } else {
+            noteEl.textContent = '';
+            noteEl.classList.add('d-none');
+        }
+
+        if (synthBtn) {
+            synthBtn.dataset.itemId = String(payload.item_id || '');
+            synthBtn.classList.toggle('d-none', !document.querySelector(`[data-synthesis-open][data-item-id="${payload.item_id}"]`));
+        }
+
+        renderDrawerContent();
+        if (window.bootstrap && window.bootstrap.Offcanvas) {
+            window.bootstrap.Offcanvas.getOrCreateInstance(drawerEl).show();
+        }
+    });
+
+    if (synthBtn) {
+        synthBtn.addEventListener('click', () => {
+            const targetItemId = synthBtn.dataset.itemId || '';
+            const matchingBtn = document.querySelector(`[data-synthesis-open][data-item-id="${targetItemId}"]`);
+            if (window.bootstrap && window.bootstrap.Offcanvas) {
+                const instance = window.bootstrap.Offcanvas.getInstance(drawerEl);
+                if (instance) instance.hide();
+            }
+            if (matchingBtn) matchingBtn.click();
+        });
+    }
+})();
 </script>
+
+<div class="offcanvas offcanvas-end pc-linear-drawer" tabindex="-1" id="outlineReviewDrawer" aria-labelledby="outlineDrawerItemTitle" data-return-url-tpl="{{ url_for('tasks_bp.return_task_assignment', tid=task.id, assignment_id=987654321) }}" data-file-url-tpl="{{ url_for('tasks_bp.download_task_submission_file_v2', tid=task.id, file_id=987654321) }}" data-csrf-token="{{ csrf_token() }}">
+    <div class="offcanvas-header align-items-start gap-2">
+        <div class="min-w-0 flex-grow-1">
+            <div class="small text-muted text-uppercase fw-semibold mb-1" style="letter-spacing: 0.04em;">Chi tiết báo cáo đơn vị</div>
+            <h5 class="offcanvas-title fs-6 fw-bold text-break" id="outlineDrawerItemTitle">Chi tiết đầu mục</h5>
+            <div class="small text-muted mt-1" id="outlineDrawerMeta"></div>
+        </div>
+        <button type="button" class="btn-close flex-shrink-0" data-bs-dismiss="offcanvas" aria-label="Đóng"></button>
+    </div>
+    <div class="offcanvas-body d-flex flex-column gap-3">
+        <div class="pc-linear-callout d-none" id="outlineDrawerItemNote"></div>
+        {% if can_manage_task_view %}
+        <div class="d-flex justify-content-end">
+            <button type="button" class="pc-btn pc-btn-secondary btn-sm d-none" id="outlineDrawerSynthesisBtn">
+                <i class="fa-solid fa-layer-group me-1"></i>Mở trình Tổng hợp
+            </button>
+        </div>
+        {% endif %}
+        <div class="pc-drawer-unit-pills" id="outlineDrawerUnitPills"></div>
+        <div class="d-flex flex-column gap-3" id="outlineDrawerUnitsList"></div>
+    </div>
+</div>
 
 {% if can_manage_task_view %}
 <div class="modal fade" id="synthesisModal" tabindex="-1" aria-hidden="true">

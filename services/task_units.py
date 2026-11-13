@@ -138,6 +138,18 @@ def _task_unit_identity(user):
     if not user:
         return {"unit_name": "Chưa có đơn vị", "unit_key": ""}
 
+    unit_obj = getattr(user, "unit", None)
+    if not unit_obj and getattr(user, "unit_id", None) and hasattr(user, "__table__"):
+        unit_obj = db.session.get(Unit, user.unit_id)
+    if unit_obj and getattr(unit_obj, "name", None):
+        unit_name = str(unit_obj.name).strip()
+        raw_code = str(getattr(unit_obj, "code", "") or "").strip()
+        unit_key = (extract_unit_key(raw_code or unit_name) or extract_unit_key(unit_name) or unit_name.lower()).strip()
+        return {
+            "unit_name": unit_name,
+            "unit_key": unit_key,
+        }
+
     stored_key = (getattr(user, "unit_key", "") or "").strip()
     unit_area_display = _resolve_task_unit_label(getattr(user, "unit_area_display", None) or "")
     unit_area = (getattr(user, "unit_area", None) or "").strip()
@@ -208,24 +220,93 @@ def _task_assignee_unit_name(user):
     return unit_name
 
 
+def _resolve_unit_record(unit_ref):
+    raw = str(unit_ref or "").strip()
+    if not raw:
+        return None
+    from models import Unit
+
+    unit = Unit.query.filter(
+        Unit.is_active.is_(True),
+        db.or_(Unit.code == raw, Unit.name == raw),
+    ).first()
+    if unit:
+        return unit
+
+    unit_options = _task_assignment_unit_options()
+    canonical = canonicalize_category_value(raw, unit_options, prefer_stable=True)
+    resolved = resolve_category_display(canonical or raw, unit_options, fallback_label="").get("display_name", "")
+    candidates = {value for value in {raw, canonical, resolved} if value}
+    if candidates:
+        unit = Unit.query.filter(
+            Unit.is_active.is_(True),
+            db.or_(Unit.code.in_(candidates), Unit.name.in_(candidates)),
+        ).first()
+        if unit:
+            return unit
+
+    target_key = extract_unit_key(resolved or raw)
+    if target_key:
+        for candidate_unit in Unit.query.filter(Unit.is_active.is_(True)).all():
+            if (
+                extract_unit_key(candidate_unit.code or "") == target_key
+                or extract_unit_key(candidate_unit.name or "") == target_key
+            ):
+                return candidate_unit
+    return None
+
+
 def _users_for_unit(unit_name):
-    domain_options = _task_domain_options()
-    canonical_unit = canonicalize_category_value(unit_name or "", domain_options, prefer_stable=True)
-    resolved_unit = resolve_category_display(canonical_unit or unit_name, domain_options, fallback_label="").get("display_name", "")
-    unit_key = extract_unit_key(resolved_unit or unit_name)
+    raw_unit = str(unit_name or "").strip()
+    if not raw_unit:
+        return []
+
+    unit_options = _task_assignment_unit_options()
+    canonical_unit = canonicalize_category_value(raw_unit, unit_options, prefer_stable=True)
+    resolved_unit = resolve_category_display(canonical_unit or raw_unit, unit_options, fallback_label="").get("display_name", "")
+    target_unit = _resolve_unit_record(raw_unit)
+    unit_key = extract_unit_key(
+        (target_unit.name if target_unit else "") or resolved_unit or raw_unit
+    )
+
     query = User.query.filter(User.is_active.is_(True))
+    direct_conditions = []
+    if target_unit:
+        direct_conditions.append(User.unit_id == target_unit.id)
+    text_candidates = {
+        value for value in {
+            raw_unit,
+            canonical_unit,
+            resolved_unit,
+            getattr(target_unit, "code", "") or "",
+            getattr(target_unit, "name", "") or "",
+        } if value
+    }
     if unit_key:
-        users = query.filter(User.unit_key == unit_key).order_by(User.fullname.asc()).all()
-        if users:
-            return users
+        text_candidates.add(unit_key)
+    if text_candidates:
+        direct_conditions.append(User.unit_key.in_(text_candidates))
+        direct_conditions.append(User.unit_area.in_(text_candidates))
 
-    if canonical_unit or resolved_unit:
-        users = query.filter(User.unit_area.in_([value for value in {canonical_unit, resolved_unit} if value])).order_by(User.fullname.asc()).all()
+    if direct_conditions:
+        users = query.filter(db.or_(*direct_conditions)).order_by(User.fullname.asc()).all()
         if users:
-            return users
+            return _dedupe_users(users)
 
-    users = query.order_by(User.fullname.asc()).all()
-    return [user for user in users if is_unit_match(user.unit_area or user.fullname or user.username, resolved_unit or unit_name)]
+    # Fallback: đối sánh chuẩn hóa theo unit_key không dấu gạch dưới hoặc tên đơn vị đã giải mã
+    active_users = query.order_by(User.fullname.asc()).all()
+    target_label = getattr(target_unit, "name", "") or resolved_unit or raw_unit
+    matched = []
+    for user in active_users:
+        identity = _task_unit_identity(user)
+        user_key = extract_unit_key(user.unit_key or identity.get("unit_name", ""))
+        if unit_key and user_key and user_key == unit_key:
+            matched.append(user)
+            continue
+        user_label = identity.get("unit_name") or user.unit_area or user.fullname or user.username
+        if is_unit_match(user_label, target_label):
+            matched.append(user)
+    return _dedupe_users(matched)
 
 
 def _is_commune_role(role_name):

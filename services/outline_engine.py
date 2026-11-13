@@ -665,21 +665,71 @@ def _append_outline_bullet(item, raw_text):
         bullets.append({"text": text, "type": bullet_type, "children": []})
 
 
-def _flatten_hierarchy_to_rows(hierarchy_items, catalog=None):
+def _flatten_hierarchy_to_rows(hierarchy_items, catalog=None, group_by_heading=False):
     """Chuyển cây đề cương thành danh sách dòng để gán việc.
 
-    Mỗi GẠCH ĐẦU DÒNG cấp 1 ('-', '•', '*') là MỘT nội dung để gán (row riêng).
-    Dòng '+' nằm dưới một gạch đầu dòng là NỘI DUNG CON của gạch đó (row con,
-    có parent_row_index trỏ về row cha). Mặc định gán cho gạch đầu dòng sẽ tự
-    gán cho các nội dung con, nhưng quản trị vẫn sửa được riêng từng dòng con.
-
-    - Tiêu đề row = chính nội dung gạch đầu dòng (đã bỏ ký hiệu), không cần lặp
-      lại tiêu đề mục vì đường dẫn mục đã đủ chi tiết (vd: I. » 1. » 1.1. ...).
-    - Mục lá không có gạch đầu dòng -> tự nó là 1 việc (đầu mục chỉ có tiêu đề).
-    - Mục trung gian (chỉ chứa mục con) -> không tạo việc, chỉ đệ quy xuống mục con.
+    - Nếu group_by_heading=False (mặc định):
+      Mỗi GẠCH ĐẦU DÒNG cấp 1 ('-', '•', '*') là MỘT nội dung để gán (row riêng).
+      Dòng '+' nằm dưới một gạch đầu dòng là NỘI DUNG CON của gạch đó.
+    - Nếu group_by_heading=True (chế độ gom theo mục):
+      Mỗi TIỂU MỤC (heading) chứa các gạch đầu dòng được gom thành 1 row duy nhất,
+      toàn bộ các gạch đầu dòng trở thành nội dung hướng dẫn của mục đó.
     """
     rows = []
     seen = set()
+
+    if group_by_heading:
+        def walk_grouped(item, parent_heading=""):
+            full_heading = item.get("full_title", item.get("title", ""))
+            if parent_heading:
+                full_heading = f"{parent_heading} » {full_heading}"
+
+            children = item.get("children") or []
+            bullets = item.get("bullets") or []
+            number = str(item.get("number") or "").strip()
+            cleaned_title = _clean_outline_title(item.get("title", ""))
+
+            if bullets or not children:
+                content_lines = []
+                for b in bullets:
+                    content_lines.append(f"- {b.get('text', '')}")
+                    for c in b.get("children") or []:
+                        content_lines.append(f"  + {c.get('text', '')}")
+
+                raw_content = "\n".join(content_lines).strip()
+                row_title = f"{number}. {cleaned_title}" if number else cleaned_title
+                if len(row_title) >= 3:
+                    full_text = f"{full_heading}\n{raw_content}" if raw_content else full_heading
+                    assignment = _resolve_outline_assignee_hint(full_text, catalog) if catalog else None
+                    number_fields = _extract_number_fields_from_text(raw_content)
+
+                    rows.append({
+                        "title": row_title[:255],
+                        "content": raw_content[:3000] if raw_content else f"- {row_title}",
+                        "heading": parent_heading[:255],
+                        "level": item.get("level", 2),
+                        "number": number,
+                        "parent_row_index": None,
+                        "has_numbers": bool(number_fields),
+                        "number_fields": number_fields,
+                        "skeleton": _outline_skeleton_text(raw_content[:3000], number_fields) if raw_content else "",
+                        "assign_type": assignment["assign_type"] if assignment else "",
+                        "domain": "",
+                        "unit_domains": assignment["unit_domains"] if assignment else [],
+                        "role_ids": assignment["role_ids"] if assignment else [],
+                        "user_ids": assignment["user_ids"] if assignment else [],
+                        "assignee_hint": full_text[:500],
+                        "assignee_detected": bool(
+                            assignment and (assignment["unit_domains"] or assignment["role_ids"] or assignment["user_ids"])
+                        ),
+                    })
+
+            for child in children:
+                walk_grouped(child, full_heading)
+
+        for root in hierarchy_items or []:
+            walk_grouped(root)
+        return rows
 
     def make_row(text, full_heading, number, level, parent_row_index=None):
         raw = str(text or "").strip()

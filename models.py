@@ -587,3 +587,79 @@ class CustomSatellitePoint(db.Model):
     lat = db.Column(db.Float, nullable=False)
     lng = db.Column(db.Float, nullable=False)
     parent_key = db.Column(db.String(255), nullable=False)
+
+
+class CheckInSession(db.Model):
+    """Một đợt điểm danh công khai (không cần tài khoản)."""
+    __tablename__ = 'check_in_session'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    code = db.Column(db.String(40), unique=True, index=True, nullable=False)
+    note = db.Column(db.Text)
+    is_open = db.Column(db.Boolean, default=True, index=True)
+    start_at = db.Column(db.DateTime)
+    end_at = db.Column(db.DateTime)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    user = db.relationship('User', backref='check_in_sessions')
+
+    def window_state(self, now=None):
+        """'open' | 'pending' | 'closed' — kết hợp công tắc thủ công và mốc giờ."""
+        now = now or datetime.now()
+        if not self.is_open:
+            return 'closed'
+        if self.start_at and now < self.start_at:
+            return 'pending'
+        if self.end_at and now > self.end_at:
+            return 'closed'
+        return 'open'
+
+
+class CheckIn(db.Model):
+    """Một lượt điểm danh. Một thiết bị chỉ có 1 dòng cho mỗi đợt; các lần bấm lại
+    chỉ cộng dồn vào duplicate_attempts để báo trùng."""
+    __tablename__ = 'check_in'
+    __table_args__ = (
+        UniqueConstraint('session_id', 'device_token', name='uq_check_in_session_device'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('check_in_session.id'), nullable=False, index=True)
+    device_token = db.Column(db.String(64), nullable=False, index=True)
+    # 'device' = token do trình duyệt sinh; 'ip_fallback' = khách chặn localStorage.
+    device_kind = db.Column(db.String(16), default='device')
+    ip = db.Column(db.String(64))
+    ip_network = db.Column(db.String(64), index=True)
+    user_agent = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.now, index=True)
+    duplicate_attempts = db.Column(db.Integer, default=0, nullable=False)
+    last_attempt_at = db.Column(db.DateTime)
+    last_ip = db.Column(db.String(64))
+
+    check_session = db.relationship(
+        'CheckInSession',
+        backref=db.backref('check_ins', cascade='all, delete-orphan'),
+    )
+
+
+class Dossier(db.Model):
+    """Sổ theo dõi thời hạn hồ sơ (Căn cước, cư trú, xác thực...).
+    Lưu mã/tên hồ sơ và mốc thời gian hạn trả kết quả để cảnh báo sát hạn."""
+    __tablename__ = 'dossiers'
+
+    id = db.Column(db.Integer, primary_key=True)
+    ma_ho_so = db.Column(db.String(255), nullable=False, index=True)
+    loai = db.Column(db.String(50), nullable=False, default='khac')
+    ngay_tiep_nhan = db.Column(db.Date)
+    han_tra = db.Column(db.Date, nullable=False, index=True)
+    ghi_chu = db.Column(db.Text)
+    trang_thai = db.Column(db.String(32), nullable=False, default='dang_xu_ly', index=True)
+    da_tra_at = db.Column(db.DateTime)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
+    unit_area = db.Column(db.String(255), index=True)
+    created_at = db.Column(db.DateTime, default=datetime.now, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    author = db.relationship('User', foreign_keys=[created_by], backref='dossiers')

@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}Trung Tâm Quản Trị Hệ Thống — PC06 Pro{% endblock %}
+
+{% block extra_head %}
+<style>
+  .admin-hub-header {
+    margin-bottom: 24px;
+  }
+  .stat-card-hub {
+    background: var(--pc-card-bg, #FFFFFF);
+    border: 1px solid var(--pc-border, #E2E8F0);
+    border-radius: 14px;
+    padding: 20px 24px;
+    box-shadow: var(--pc-shadow-sm, 0 1px 3px rgba(0,0,0,0.05));
+    transition: all 0.2s;
+  }
+  .stat-card-hub:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--pc-shadow-md, 0 4px 12px rgba(0,0,0,0.08));
+  }
+  .stat-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+  }
+  .hub-section-card {
+    background: var(--pc-card-bg, #FFFFFF);
+    border: 1px solid var(--pc-border, #E2E8F0);
+    border-radius: 16px;
+    padding: 24px;
+    height: 100%;
+    box-shadow: var(--pc-shadow-sm, 0 1px 3px rgba(0,0,0,0.05));
+    display: flex;
+    flex-direction: column;
+  }
+  .hub-item-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--pc-border, #E2E8F0);
+    text-decoration: none;
+    color: var(--pc-text, #1E293B);
+    background: #F8FAFC;
+    margin-bottom: 10px;
+    transition: all 0.15s ease-in-out;
+  }
+  [data-theme="dark"] .hub-item-link {
+    background: #1E293B;
+    border-color: #334155;
+    color: #F1F5F9;
+  }
+  .hub-item-link:hover {
+    background: #EBF8FF;
+    border-color: #90CDF4;
+    color: #2B6CB0;
+    transform: translateX(4px);
+  }
+  [data-theme="dark"] .hub-item-link:hover {
+    background: #2C3E50;
+    border-color: #3182CE;
+    color: #90CDF4;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-4 py-3">
+
+  <!-- HEADER -->
+  <div class="admin-hub-header d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div>
+      <h2 class="fw-bold mb-0" style="color: var(--text-main, #1A365D);">
+        <i class="fa-solid fa-gears me-2 text-primary"></i>Trung Tâm Quản Trị Hệ Thống
+      </h2>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
+        <i class="fa-solid fa-shield-halved me-1"></i>Phiên bản: <strong>PC06 Pro v3.5.0</strong>
+      </span>
+    </div>
+  </div>
+
+  <!-- 4 THẺ THỐNG KÊ NHANH -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="stat-card-hub d-flex align-items-center justify-content-between">
+        <div>
+          <div class="text-muted small fw-semibold mb-1">Tài khoản toàn tỉnh</div>
+          <h3 class="fw-bold mb-0 text-primary">{{ total_users }}</h3>
+          <span class="text-muted" style="font-size: 11.5px;">Phân cấp 4 tầng</span>
+        </div>
+        <div class="stat-card-icon bg-primary-subtle text-primary">
+          <i class="fa-solid fa-users"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+      <div class="stat-card-hub d-flex align-items-center justify-content-between">
+        <div>
+          <div class="text-muted small fw-semibold mb-1">Đơn vị hành chính</div>
+          <h3 class="fw-bold mb-0 text-success">{{ total_units }}</h3>
+          <span class="text-muted" style="font-size: 11.5px;">19 Sở + 124 Xã + 124 CAX</span>
+        </div>
+        <div class="stat-card-icon bg-success-subtle text-success">
+          <i class="fa-solid fa-building-flag"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+      <div class="stat-card-hub d-flex align-items-center justify-content-between">
+        <div>
+          <div class="text-muted small fw-semibold mb-1">Nhật ký hoạt động</div>
+          <h3 class="fw-bold mb-0 text-warning">{{ recent_logs_count }}</h3>
+          <span class="text-muted" style="font-size: 11.5px;">Sự kiện an ninh đã ghi</span>
+        </div>
+        <div class="stat-card-icon bg-warning-subtle text-warning">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+      <div class="stat-card-hub d-flex align-items-center justify-content-between">
+        <div>
+          <div class="text-muted small fw-semibold mb-1">Trạng thái CSDL</div>
+          <h3 class="fw-bold mb-0 text-info">Tốt</h3>
+          <span class="text-muted" style="font-size: 11.5px;">Toàn vẹn &amp; Đã tối ưu</span>
+        </div>
+        <div class="stat-card-icon bg-info-subtle text-info">
+          <i class="fa-solid fa-database"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CÁC KHỐI CHỨC NĂNG QUẢN TRỊ THỰC TẾ -->
+  <div class="row g-4">
+
+    <!-- KHỐI 1: TỔ CHỨC & TÀI KHOẢN -->
+    <div class="col-lg-6">
+      <div class="hub-section-card">
+        <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+          <div class="p-2 bg-primary-subtle text-primary rounded-circle" style="width: 36px; height: 36px; display:flex; align-items:center; justify-content:center;">
+            <i class="fa-solid fa-users-gear"></i>
+          </div>
+          <div>
+            <h5 class="fw-bold mb-0 text-primary">Tổ Chức &amp; Người Dùng</h5>
+          </div>
+        </div>
+
+        <div class="d-flex flex-column gap-2 flex-grow-1">
+          <a href="/roles" class="hub-item-link">
+            <div class="d-flex align-items-center gap-3">
+              <i class="fa-solid fa-id-card-clip text-primary fs-5"></i>
+              <div>
+                <div class="fw-bold">Tài khoản và vai trò</div>
+                <small class="text-muted">Quản lý 535 tài khoản, phân quyền 4 tầng, reset mật khẩu theo đơn vị</small>
+              </div>
+            </div>
+            <i class="fa-solid fa-chevron-right text-muted small"></i>
+          </a>
+
+          <a href="/admin/units" class="hub-item-link">
+            <div class="d-flex align-items-center gap-3">
+              <i class="fa-solid fa-sitemap text-primary fs-5"></i>
+              <div>
+                <div class="fw-bold">Đơn vị hành chính</div>
+                <small class="text-muted">Danh sách 19 Sở ban ngành, 124 UBND Xã/Phường, 124 Công an Xã</small>
+              </div>
+            </div>
+            <i class="fa-solid fa-chevron-right text-muted small"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- KHỐI 2: DANH MỤC & AN NINH HỆ THỐNG -->
+    <div class="col-lg-6">
+      <div class="hub-section-card">
+        <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+          <div class="p-2 bg-success-subtle text-success rounded-circle" style="width: 36px; height: 36px; display:flex; align-items:center; justify-content:center;">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <div>
+            <h5 class="fw-bold mb-0 text-success">Danh Mục &amp; Giám Sát Vận Hành</h5>
+          </div>
+        </div>
+
+        <div class="d-flex flex-column gap-2 flex-grow-1">
+          <a href="/admin/module-categories" class="hub-item-link">
+            <div class="d-flex align-items-center gap-3">
+              <i class="fa-solid fa-layer-group text-success fs-5"></i>
+              <div>
+                <div class="fw-bold">Thiết lập danh mục hệ thống</div>
+                <small class="text-muted">Cấu hình danh mục lĩnh vực, nhóm danh bạ, chức vụ, đơn vị</small>
+              </div>
+            </div>
+            <i class="fa-solid fa-chevron-right text-muted small"></i>
+          </a>
+
+          <a href="/logs" class="hub-item-link">
+            <div class="d-flex align-items-center gap-3">
+              <i class="fa-solid fa-clock-rotate-left text-warning fs-5"></i>
+              <div>
+                <div class="fw-bold">Nhật ký hoạt động (Audit Logs)</div>
+                <small class="text-muted">Tra cứu lịch sử đăng nhập, thao tác nghiệp vụ, cảnh báo bảo mật</small>
+              </div>
+            </div>
+            <i class="fa-solid fa-chevron-right text-muted small"></i>
+          </a>
+
+          <a href="/admin/db-tool" class="hub-item-link">
+            <div class="d-flex align-items-center gap-3">
+              <i class="fa-solid fa-database text-info fs-5"></i>
+              <div>
+                <div class="fw-bold">Sao lưu cơ sở dữ liệu</div>
+                <small class="text-muted">Tải bản sao lưu CSDL hệ thống an toàn</small>
+              </div>
+            </div>
+            <i class="fa-solid fa-chevron-right text-muted small"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

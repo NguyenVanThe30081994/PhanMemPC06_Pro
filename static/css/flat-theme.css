@@ -615,7 +615,7 @@ hr {
 /* ---------- 15. Desktop shell geometry (flat, edge-to-edge) ---------- */
 @media (min-width: 992px) {
     body.pc06-bdhvs-body {
-        padding-left: var(--desktop-sidebar-width);
+        padding-left: 0 !important;
     }
 
     .desktop-sidebar {
@@ -627,7 +627,7 @@ hr {
 
     .top-navbar {
         top: 0;
-        left: var(--desktop-sidebar-width);
+        left: 0;
         right: 0;
         height: var(--nav-height);
         border-radius: 0;

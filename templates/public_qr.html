@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token_value }}">
+    <title>Tiện Ích Tạo Mã QR & Rút Gọn Link — PC06 Công An Tỉnh Tuyên Quang</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pc06-premium.css') }}?v=1.0.0">
+    <style>
+        .pc-qr-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background: url('/static/img/cand_logo_bg.jpg') center/cover no-repeat;
+        }
+        .pc-qr-bg::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(15, 23, 42, .88) 0%, rgba(30, 58, 138, .75) 100%);
+        }
+        .pc-qr-shell {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 16px;
+        }
+        .pc-qr-card {
+            width: 100%;
+            max-width: 580px;
+            background: var(--pc-card-bg, #FFFFFF);
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            padding: 36px 32px;
+        }
+        .pc-qr-header-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 14px;
+            background: #059669;
+            color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            margin: 0 auto 16px;
+            box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35);
+        }
+        .qr-img-preview {
+            width: 190px;
+            height: 190px;
+            object-fit: contain;
+            border-radius: 10px;
+            border: 1px solid #CBD5E0;
+            padding: 8px;
+            background: #FFFFFF;
+            margin: 0 auto 16px;
+            display: block;
+        }
+        .qr-result-box {
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 14px;
+            padding: 24px;
+            text-align: center;
+        }
+        [data-theme="dark"] .qr-result-box {
+            background: #1E293B;
+            border-color: #334155;
+        }
+    </style>
+</head>
+<body>
+    <div class="pc-qr-bg" aria-hidden="true"></div>
+    <div class="pc-qr-shell">
+        <div class="pc-qr-card">
+            
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <a href="/login" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Đăng nhập</span>
+                </a>
+                <span class="text-muted small">Tiện ích công khai</span>
+            </div>
+
+            <div class="text-center mb-4">
+                <div class="pc-qr-header-icon">
+                    <i class="fa-solid fa-qrcode"></i>
+                </div>
+                <h1 class="fs-4 fw-bold text-dark mb-1">TẠO MÃ QR & LIÊN KẾT RÚT GỌN</h1>
+                <p class="text-muted small mb-0">Công cụ tạo mã QR tài liệu và rút gọn link nhanh</p>
+            </div>
+
+            <!-- FORM NHẬP LINK -->
+            <div id="qrCreateFormWrap">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold mb-1" for="qrOriginalUrl">
+                        Đường dẫn liên kết cần tạo QR <span class="text-danger">*</span>
+                    </label>
+                    <input type="url" id="qrOriginalUrl" class="form-control" placeholder="Dán link tại đây (https://...)" required autofocus>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold mb-1" for="qrCustomName">
+                        Tiêu đề / Tên gợi nhớ (tùy chọn)
+                    </label>
+                    <input type="text" id="qrCustomName" class="form-control" placeholder="Ví dụ: Hướng dẫn ĐA06, Biểu mẫu...">
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label small fw-bold mb-1" for="qrCustomCode">
+                        Mã rút gọn tùy chọn
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-muted small">/s/</span>
+                        <input type="text" id="qrCustomCode" class="form-control" placeholder="Mã ngắn (hoặc để trống)">
+                    </div>
+                </div>
+
+                <div id="qrErrorAlert" class="alert alert-danger py-2 small mb-3" style="display: none;">
+                    <i class="fa-solid fa-circle-exclamation me-1"></i>
+                    <span id="qrErrorMsg">Lỗi</span>
+                </div>
+
+                <button type="button" class="pc-btn w-100 py-2 fs-6 text-white" id="btnCreateQr" style="background: #059669;">
+                    <i class="fa-solid fa-bolt me-2"></i>TẠO MÃ QR & LINK NGAY
+                </button>
+            </div>
+
+            <!-- KHU VỰC KẾT QUẢ HIỂN THỊ (SAU KHI TẠO XONG) -->
+            <div id="qrResultWrap" style="display: none;">
+                <div class="qr-result-box mb-3">
+                    <img src="" alt="Mã QR" id="qrResultImg" class="qr-img-preview">
+                    <div class="fw-bold fs-6 mb-1 text-truncate" id="qrResultTitle">Liên kết</div>
+                    <div class="text-muted small text-truncate mb-3" id="qrResultOriginal">...</div>
+
+                    <div class="input-group mb-3">
+                        <input type="text" id="qrResultShortUrl" class="form-control text-center fw-bold text-primary" readonly>
+                        <button class="btn btn-outline-primary" type="button" id="btnCopyShortUrl" title="Sao chép">
+                            <i class="fa-regular fa-copy me-1"></i>Copy
+                        </button>
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-center">
+                        <a href="#" id="btnDownloadQr" class="pc-btn btn-sm text-white" style="background: #059669;" download>
+                            <i class="fa-solid fa-download me-1"></i>Tải ảnh QR (PNG)
+                        </a>
+                        <a href="#" id="btnOpenShortUrl" class="pc-btn pc-btn-secondary btn-sm" target="_blank">
+                            <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Mở link
+                        </a>
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-link w-100 text-decoration-none small text-center text-muted" id="btnResetQrForm">
+                    <i class="fa-solid fa-plus me-1"></i>Tạo thêm mã QR / Link khác
+                </button>
+            </div>
+
+            <div class="text-center mt-4 pt-2 border-top">
+                <span class="text-muted small">Cổng thông tin & điều hành Đề án 06 Tỉnh Tuyên Quang</span>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const btnCreateQr = document.getElementById('btnCreateQr');
+        const qrOriginalUrl = document.getElementById('qrOriginalUrl');
+        const qrCustomName = document.getElementById('qrCustomName');
+        const qrCustomCode = document.getElementById('qrCustomCode');
+        const qrErrorAlert = document.getElementById('qrErrorAlert');
+        const qrErrorMsg = document.getElementById('qrErrorMsg');
+
+        const qrCreateFormWrap = document.getElementById('qrCreateFormWrap');
+        const qrResultWrap = document.getElementById('qrResultWrap');
+        const qrResultImg = document.getElementById('qrResultImg');
+        const qrResultTitle = document.getElementById('qrResultTitle');
+        const qrResultOriginal = document.getElementById('qrResultOriginal');
+        const qrResultShortUrl = document.getElementById('qrResultShortUrl');
+        const btnDownloadQr = document.getElementById('btnDownloadQr');
+        const btnOpenShortUrl = document.getElementById('btnOpenShortUrl');
+        const btnCopyShortUrl = document.getElementById('btnCopyShortUrl');
+        const btnResetQrForm = document.getElementById('btnResetQrForm');
+
+        if (btnCreateQr) {
+            btnCreateQr.addEventListener('click', function() {
+                const urlVal = qrOriginalUrl.value.trim();
+                if (!urlVal) {
+                    showQrError('Vui lòng nhập đường dẫn liên kết (URL)!');
+                    qrOriginalUrl.focus();
+                    return;
+                }
+
+                hideQrError();
+                btnCreateQr.disabled = true;
+                btnCreateQr.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>ĐANG TẠO...';
+
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+                fetch('/api/public/create-qr', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({
+                        original_url: urlVal,
+                        custom_name: qrCustomName.value.trim(),
+                        custom_code: qrCustomCode.value.trim()
+                    })
+                })
+                .then(r => r.json().then(data => ({ status: r.status, data })))
+                .then(({ status, data }) => {
+                    btnCreateQr.disabled = false;
+                    btnCreateQr.innerHTML = '<i class="fa-solid fa-bolt me-2"></i>TẠO MÃ QR & LINK NGAY';
+
+                    if (status >= 400 || data.error) {
+                        showQrError(data.error || 'Không thể tạo mã QR. Vui lòng thử lại!');
+                        return;
+                    }
+
+                    qrResultImg.src = data.qr_download_url;
+                    qrResultTitle.textContent = qrCustomName.value.trim() || data.original_url;
+                    qrResultOriginal.textContent = data.original_url;
+                    qrResultShortUrl.value = data.short_url;
+                    btnDownloadQr.href = data.qr_download_url;
+                    btnDownloadQr.download = `QR_${data.short_code}.png`;
+                    btnOpenShortUrl.href = data.short_url;
+
+                    qrCreateFormWrap.style.display = 'none';
+                    qrResultWrap.style.display = 'block';
+                })
+                .catch(err => {
+                    btnCreateQr.disabled = false;
+                    btnCreateQr.innerHTML = '<i class="fa-solid fa-bolt me-2"></i>TẠO MÃ QR & LINK NGAY';
+                    showQrError('Lỗi kết nối máy chủ: ' + err.message);
+                });
+            });
+        }
+
+        if (btnCopyShortUrl) {
+            btnCopyShortUrl.addEventListener('click', function() {
+                qrResultShortUrl.select();
+                navigator.clipboard.writeText(qrResultShortUrl.value).then(() => {
+                    const origHtml = btnCopyShortUrl.innerHTML;
+                    btnCopyShortUrl.innerHTML = '<i class="fa-solid fa-check me-1"></i>Đã chép!';
+                    btnCopyShortUrl.classList.replace('btn-outline-primary', 'btn-success');
+                    setTimeout(() => {
+                        btnCopyShortUrl.innerHTML = origHtml;
+                        btnCopyShortUrl.classList.replace('btn-success', 'btn-outline-primary');
+                    }, 2000);
+                });
+            });
+        }
+
+        if (btnResetQrForm) {
+            btnResetQrForm.addEventListener('click', function() {
+                qrOriginalUrl.value = '';
+                qrCustomName.value = '';
+                qrCustomCode.value = '';
+                qrCreateFormWrap.style.display = 'block';
+                qrResultWrap.style.display = 'none';
+                hideQrError();
+                qrOriginalUrl.focus();
+            });
+        }
+
+        function showQrError(msg) {
+            qrErrorMsg.textContent = msg;
+            qrErrorAlert.style.display = 'block';
+        }
+
+        function hideQrError() {
+            qrErrorAlert.style.display = 'none';
+        }
+    </script>
+</body>
+</html>

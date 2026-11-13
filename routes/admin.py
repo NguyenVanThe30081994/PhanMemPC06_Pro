@@ -469,18 +469,88 @@ def _workspace_card(
     }
 
 
-def _task_dashboard_unit_metrics():
+def _visible_dashboard_task_ids(perms):
+    """Trả None nếu user có quyền xem toàn tỉnh; ngược lại trả tập ID task gốc user được phép thấy."""
+    from models import TaskAssignment
+    from services.task_guards import _can_manage_task, _can_watch_task
+    from services.task_permissions import _can_view_all_tasks
+    from task_page_builders import task_visible_for_user
+
+    if _can_view_all_tasks(perms):
+        return None
+
+    uid = session.get('uid')
+    current_user = db.session.get(User, uid) if uid else None
+    if not current_user:
+        return set()
+
+    executor_cond = TaskAssignment.user_id == uid
+    if getattr(current_user, 'unit_id', None):
+        executor_cond = db.or_(
+            executor_cond,
+            db.and_(
+                TaskAssignment.assignee_type == 'unit',
+                TaskAssignment.user_id.is_(None),
+                TaskAssignment.unit_id == current_user.unit_id,
+            ),
+        )
+    assigned_task_ids = {
+        row[0]
+        for row in db.session.query(TaskAssignment.task_id).filter(executor_cond).distinct().all()
+        if row[0] is not None
+    }
+
+    visible_ids = set()
+    root_tasks = Task.query.filter(Task.parent_task_id.is_(None)).all()
+    for task in root_tasks:
+        is_executor = task.id in assigned_task_ids
+        is_manager = _can_manage_task(task, user=current_user)
+        is_viewer = _can_watch_task(task, user=current_user)
+        if task_visible_for_user(
+            task,
+            uid,
+            can_view_all_tasks=False,
+            is_admin=False,
+            is_executor=is_executor,
+            is_manager=is_manager,
+            is_viewer=is_viewer,
+        ):
+            visible_ids.add(task.id)
+    return visible_ids
+
+
+def _task_dashboard_unit_metrics(visible_task_ids=None):
     from models import TaskAssignment
 
-    total_tasks = Task.query.count()
-    unit_rows = db.session.query(User.unit_key, User.unit_area).join(
-        TaskAssignment, TaskAssignment.user_id == User.id
-    ).distinct().all()
-    pending_rows = db.session.query(User.unit_key, User.unit_area).join(
-        TaskAssignment, TaskAssignment.user_id == User.id
-    ).filter(
-        func.lower(func.coalesce(TaskAssignment.status, '')).notin_(['submitted', 'completed'])
-    ).distinct().all()
+    if visible_task_ids is not None:
+        if not visible_task_ids:
+            return {
+                'total_tasks': 0,
+                'total_units': 0,
+                'unreported_units': 0,
+                'reported_units': 0,
+            }
+        total_tasks = len(visible_task_ids)
+        assign_filter = TaskAssignment.task_id.in_(visible_task_ids)
+        unit_rows = db.session.query(User.unit_key, User.unit_area).join(
+            TaskAssignment, TaskAssignment.user_id == User.id
+        ).filter(assign_filter).distinct().all()
+        pending_rows = db.session.query(User.unit_key, User.unit_area).join(
+            TaskAssignment, TaskAssignment.user_id == User.id
+        ).filter(
+            assign_filter,
+            func.lower(func.coalesce(TaskAssignment.status, '')).notin_(['submitted', 'completed'])
+        ).distinct().all()
+    else:
+        total_tasks = Task.query.filter(Task.parent_task_id.is_(None)).count()
+        unit_rows = db.session.query(User.unit_key, User.unit_area).join(
+            TaskAssignment, TaskAssignment.user_id == User.id
+        ).distinct().all()
+        pending_rows = db.session.query(User.unit_key, User.unit_area).join(
+            TaskAssignment, TaskAssignment.user_id == User.id
+        ).filter(
+            func.lower(func.coalesce(TaskAssignment.status, '')).notin_(['submitted', 'completed'])
+        ).distinct().all()
 
     def _collect_units(rows):
         units = set()
@@ -500,18 +570,22 @@ def _task_dashboard_unit_metrics():
     }
 
 
-def _overdue_task_count():
+def _overdue_task_count(visible_task_ids=None):
     """Số công việc gốc đã quá hạn mà còn assignment dang dở (dashboard)."""
     from models import TaskAssignment
 
-    overdue_task_ids = {
-        row[0]
-        for row in db.session.query(Task.id).filter(
-            Task.parent_task_id.is_(None),
-            Task.deadline.isnot(None),
-            Task.deadline < date.today(),
-        ).all()
-    }
+    if visible_task_ids is not None and not visible_task_ids:
+        return 0
+
+    overdue_query = db.session.query(Task.id).filter(
+        Task.parent_task_id.is_(None),
+        Task.deadline.isnot(None),
+        Task.deadline < date.today(),
+    )
+    if visible_task_ids is not None:
+        overdue_query = overdue_query.filter(Task.id.in_(visible_task_ids))
+
+    overdue_task_ids = {row[0] for row in overdue_query.all()}
     if not overdue_task_ids:
         return 0
     pending_task_ids = {
@@ -533,6 +607,30 @@ def _overdue_task_count():
     return len(pending_task_ids | (overdue_task_ids - assigned_task_ids))
 
 
+@admin_bp.route('/admin/system-center')
+def system_center():
+    """Trung tâm điều hành và cấu hình quản trị hệ thống PC06 Pro."""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+
+    from permissions import current_authz, has_any_module_permission
+    authz = current_authz()
+    if not has_any_module_permission(authz['perms'], ['user', 'sys', 'db'], tier='view', is_admin=authz['is_admin'], role_name=authz['role_name']):
+        return render_template('403.html'), 403
+
+    from models import User, Unit, SystemLog
+    total_users = User.query.count()
+    total_units = Unit.query.count()
+    recent_logs_count = SystemLog.query.count()
+
+    return render_template(
+        'admin_center.html',
+        total_users=total_users,
+        total_units=total_units,
+        recent_logs_count=recent_logs_count,
+    )
+
+
 @admin_bp.route('/admin')
 def index():
     try:
@@ -546,10 +644,28 @@ def index():
         contact_group_items = module_category_options('contacts', 'contact_group', 'Nhóm danh bạ')
         document_field_items = module_category_options('notify', 'category', 'Lĩnh vực', 'Loại tài liệu')
 
-        task_raw_counts = db.session.query(
-            Task.domain,
-            func.count(Task.id)
-        ).group_by(Task.domain).all()
+        from permissions import current_authz
+        authz = current_authz()
+        is_admin = authz['is_admin']
+        role_name = authz['role_name']
+        perms = authz['perms']
+
+        visible_task_ids = _visible_dashboard_task_ids(perms)
+        if visible_task_ids is None:
+            task_raw_counts = db.session.query(
+                Task.domain,
+                func.count(Task.id)
+            ).filter(Task.parent_task_id.is_(None)).group_by(Task.domain).all()
+        elif visible_task_ids:
+            task_raw_counts = db.session.query(
+                Task.domain,
+                func.count(Task.id)
+            ).filter(
+                Task.parent_task_id.is_(None),
+                Task.id.in_(visible_task_ids),
+            ).group_by(Task.domain).all()
+        else:
+            task_raw_counts = []
 
         document_raw_counts = db.session.query(
             DocumentLib.category,
@@ -586,17 +702,24 @@ def index():
             include_zero=True,
             category_options=contact_group_items,
         )
-        from permissions import current_authz
-        authz = current_authz()
-        is_admin = authz['is_admin']
-        role_name = authz['role_name']
-        perms = authz['perms']
 
         def can_module(module_code, tier='view'):
             return has_module_permission(perms, module_code, tier=tier, is_admin=is_admin, role_name=role_name)
 
-        task_metrics = _task_dashboard_unit_metrics()
-        overdue_count = _overdue_task_count()
+        task_metrics = _task_dashboard_unit_metrics(visible_task_ids=visible_task_ids)
+        overdue_count = _overdue_task_count(visible_task_ids=visible_task_ids)
+
+        # Thống kê hồ sơ TTHC sát/quá hạn từ phân hệ Dossier
+        dossier_urgent_count = 0
+        try:
+            from models import Dossier
+            today_d = date.today()
+            dossier_urgent_count = Dossier.query.filter(
+                Dossier.trang_thai == 'dang_xu_ly',
+                Dossier.han_tra <= today_d + timedelta(days=2)
+            ).count()
+        except Exception as _de:
+            dossier_urgent_count = 0
 
         overview_metrics = [
             {
@@ -604,18 +727,28 @@ def index():
                 'value': task_metrics['total_tasks'],
                 'href': '/tasks',
                 'accent_class': 'primary',
+                'icon': 'fa-solid fa-list-check'
             },
             {
-                'title': 'Đơn vị chưa báo cáo công việc',
+                'title': 'Đơn vị chưa nộp',
                 'value': task_metrics['unreported_units'],
-                'href': '/tasks',
+                'href': '/tasks/report-dashboard',
                 'accent_class': 'warning',
+                'icon': 'fa-solid fa-clock-rotate-left'
             },
             {
                 'title': 'Công việc quá hạn',
                 'value': overdue_count,
                 'href': '/tasks',
-                'accent_class': 'indigo',
+                'accent_class': 'danger',
+                'icon': 'fa-solid fa-triangle-exclamation'
+            },
+            {
+                'title': 'Hồ sơ TTHC sát/quá hạn',
+                'value': dossier_urgent_count,
+                'href': '/dossiers',
+                'accent_class': 'rose',
+                'icon': 'fa-solid fa-folder-open'
             },
         ]
 
@@ -764,6 +897,8 @@ def index():
         return render_template('admin_dashboard.html', 
             title='Trang chủ',
             now_str=now_str, 
+            is_admin=is_admin,
+            dossier_urgent_count=dossier_urgent_count,
             dashboard_cards=dashboard_cards,
             dashboard_snapshots=dashboard_snapshots,
             workspace_groups=workspace_groups,
@@ -1031,6 +1166,17 @@ def roles():
         func.count(User.id)
     ).group_by(User.role_id).all()
     role_user_counts = {int(role_id): int(count) for role_id, count in raw_role_counts if role_id}
+
+    # Chuẩn hóa hiển thị: Ưu tiên 4 vai trò chuẩn, ẩn các vai trò CAT/CAX cũ rác 0 tài khoản
+    core_role_names = {'Quản trị hệ thống', 'Quản trị đơn vị', 'Lãnh đạo đơn vị', 'Cán bộ báo cáo'}
+    roles = [r for r in roles if r.name in core_role_names or role_user_counts.get(r.id, 0) > 0]
+    role_order_priority = {
+        'Quản trị hệ thống': 1,
+        'Quản trị đơn vị': 2,
+        'Lãnh đạo đơn vị': 3,
+        'Cán bộ báo cáo': 4,
+    }
+    roles.sort(key=lambda r: (role_order_priority.get(r.name, 99), r.name))
 
     raw_unit_counts = db.session.query(User.unit_area, func.count(User.id)).group_by(User.unit_area).all()
     raw_unit_counts_map = {(unit_value or ''): int(count) for unit_value, count in raw_unit_counts}
