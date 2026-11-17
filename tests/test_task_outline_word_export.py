@@ -195,9 +195,13 @@ class TaskOutlineWordExportTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
         self.assertIn("tự nhận diện người nhận cho 2 đầu mục", html)
-        self.assertIn("doi-a", html)
-        self.assertIn("doi-b", html)
-        self.assertIn("unit", html)
+        with self.client.session_transaction() as sess:
+            preview_rows = sess.get(f"task:outline_import_preview:{task_id}:{self._admin_id()}")
+        self.assertIsInstance(preview_rows, list)
+        self.assertEqual(len(preview_rows), 2)
+        self.assertEqual(preview_rows[0]["unit_domains"], ["doi-a"])
+        self.assertEqual(preview_rows[1]["unit_domains"], ["doi-b"])
+        self.assertEqual(preview_rows[0]["assign_type"], "unit")
 
     def test_outline_matrix_and_word_export(self):
         assignment1_id = self._create_outline_task()

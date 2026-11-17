@@ -188,6 +188,7 @@ from services.task_workspace_views import (
     _build_outline_group_rows,
     _clear_outline_import_preview,
     _get_outline_import_preview,
+    _outline_display_and_secondary,
     _outline_item_number_fields,
     _outline_item_table_cells,
     _outline_table_schema_map,
@@ -1371,20 +1372,10 @@ def _export_form_task_v2(tid):
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
-def _outline_matrix_display_title(item, content_text):
+def _outline_matrix_display_title(item, content_text=None):
     """Trả về tên/nội dung đầy đủ của đầu mục, tránh bị cắt cụt ở mốc 255 ký tự."""
-    raw_title = str(getattr(item, "title", "") or "").strip()
-    clean_content = re.sub(r"\s+", " ", str(content_text or "")).strip()
-    if not clean_content or clean_content.startswith("{") or clean_content.startswith("["):
-        return raw_title
-    prefix_match = re.match(r"^(\[[^\]]+\]\s*)(.*)$", raw_title)
-    prefix = prefix_match.group(1) if prefix_match else ""
-    title_body = (prefix_match.group(2) if prefix_match else raw_title).strip()
-    if title_body and len(clean_content) > len(title_body) and (
-        clean_content.startswith(title_body) or len(raw_title) >= 245
-    ):
-        return f"{prefix}{clean_content}" if prefix and not clean_content.startswith(prefix.strip()) else clean_content
-    return raw_title
+    display_title, _ = _outline_display_and_secondary(item, content_text=content_text)
+    return display_title
 
 
 def _outline_assignment_report_entry(assignment, submission, item, content_text, number_fields, user, return_reason=""):
@@ -1483,7 +1474,7 @@ def _build_outline_progress_matrix(task, current_uid):
         item = row["item"]
         content_text = str(getattr(item, "content", "") or "")
         number_fields = row.get("number_fields") or []
-        display_title = _outline_matrix_display_title(item, content_text)
+        display_title = row.get("display_title") or _outline_matrix_display_title(item, content_text)
         cells = []
         item_submitted = 0
         item_total = 0

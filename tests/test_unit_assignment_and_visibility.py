@@ -7,6 +7,7 @@ Kiểm thử hồi quy luồng giao việc theo đơn vị & phân quyền xem/b
 4. Tài khoản `Cán bộ báo cáo` chỉ thấy công việc liên quan đến đơn vị/cá nhân mình, thấy biểu mẫu và gửi báo cáo thành công.
 """
 import json
+import re
 import unittest
 
 from app import app
@@ -22,6 +23,7 @@ from models import (
     db,
 )
 from services.task_units import _users_for_unit
+from services.task_workspace_views import _outline_display_and_secondary
 
 
 class UnitAssignmentAndVisibilityTests(unittest.TestCase):
@@ -524,6 +526,12 @@ class UnitAssignmentAndVisibilityTests(unittest.TestCase):
         self.assertIn("1 lượt giao", html_before)
         self.assertNotIn("2 lượt giao", html_before)
         self.assertNotIn('id="tab-outline-group-', html_before)
+        self.assertNotIn("Thiết lập đầu mục", html_before)
+        self.assertNotIn('id="tab-outline-create"', html_before)
+        self.assertNotIn('id="pane-outline-create"', html_before)
+        self.assertNotIn('id="taskWorkspaceTabs"', html_before)
+        self.assertNotIn("data-review-open data-item-id=", html_before)
+        self.assertNotIn("Ngăn kéo duyệt", html_before)
 
         synth_resp = self.client.get(f"/tasks/{task_id}/items/{item_id}/synthesis-data")
         self.assertEqual(synth_resp.status_code, 200)
@@ -555,10 +563,32 @@ class UnitAssignmentAndVisibilityTests(unittest.TestCase):
         self.assertIn("1/1", html_after)
         self.assertIn("100%", html_after)
         self.assertNotIn("2/2", html_after)
-        self.assertIn("Đơn vị đã hoàn thành báo cáo.", html_after)
+        self.assertNotIn('class="pc-inline-report-text', html_after)
+        self.assertIn("data-review-open data-item-id=", html_after)
+        self.assertIn("Xem báo cáo", html_after)
+        payload_match = re.search(
+            r'<script type="application/json" class="pc-matrix-row-json"[^>]*>(.*?)</script>',
+            html_after,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(payload_match)
+        review_payload = json.loads(payload_match.group(1))
+        self.assertEqual(
+            review_payload["units"][0]["entries"][0]["report_text"],
+            "Đơn vị đã hoàn thành báo cáo.",
+        )
         self.assertEqual(html_after.count("fa-file-word"), 1)
         self.assertIn("Xuất báo cáo Word", html_after)
         self.assertIn('id="outlineReviewDrawer"', html_after)
+        self.assertNotIn("Ngăn kéo duyệt", html_after)
+        self.assertLess(
+            html_after.index('id="outlineReviewDrawer"'),
+            html_after.index("document.getElementById('outlineReviewDrawer')"),
+        )
+        self.assertLess(
+            html_after.index("bootstrap.bundle.min.js"),
+            html_after.index("document.getElementById('outlineReviewDrawer')"),
+        )
         self.assertIn('class="pc-return-box d-none', html_after)
         self.assertEqual(html_after.count("Trả lại</button>"), 1)
 
@@ -658,6 +688,105 @@ class UnitAssignmentAndVisibilityTests(unittest.TestCase):
         self.assertIn("Đã nộp: 0/8 đơn vị", html)
         self.assertIn('id="outlineMatrixUnitFilter"', html)
         self.assertIn("Xã Thử Nghiệm 8", html)
+
+    def test_outline_display_and_secondary_deduplicates_prefixed_and_truncated_items(self):
+        long_text = (
+            "Tham mưu với Tỉnh ủy, UBND tỉnh, Ban chỉ đạo, Tổ công tác ban hành các Chỉ thị, "
+            "Nghị quyết, chương trình, kế hoạch, văn bản triển khai Đề án 06, cải cách TTHC, "
+            "chuyển đổi số tại địa phương theo chỉ đạo của Chính phủ và các văn bản khác do "
+            "đơn vị chủ động tham mưu ban hành trong năm công tác."
+        )
+        truncated_leaf = TaskItem(
+            title=("[1.1] " + long_text)[:255],
+            content=f"– {long_text}",
+        )
+        display_title, secondary_text = _outline_display_and_secondary(truncated_leaf)
+        self.assertIn(long_text, display_title)
+        self.assertTrue(display_title.startswith("[1.1] "))
+        self.assertEqual(secondary_text, "")
+
+        leaf_with_subline = TaskItem(
+            title="[1.2] Kiểm tra định kỳ",
+            content="– Kiểm tra định kỳ\n+ Lập biên bản chi tiết từng đơn vị",
+        )
+        display_sub, secondary_sub = _outline_display_and_secondary(leaf_with_subline)
+        self.assertEqual(display_sub, "[1.2] Kiểm tra định kỳ")
+        self.assertEqual(secondary_sub, "+ Lập biên bản chi tiết từng đơn vị")
+
+        guided_heading = TaskItem(
+            title="1. Công tác tuyên truyền",
+            guide_text="Nêu rõ số lượng tin bài và hiệu quả truyền thông",
+            content="– Đẩy mạnh tuyên truyền trên cổng thông tin",
+        )
+        display_guided, secondary_guided = _outline_display_and_secondary(guided_heading)
+        self.assertEqual(display_guided, "1. Công tác tuyên truyền")
+        self.assertEqual(secondary_guided, "Nêu rõ số lượng tin bài và hiệu quả truyền thông")
+
+    def test_outline_long_bullet_detail_page_no_duplicate_note_and_renders_clamp(self):
+        long_bullet_text = (
+            "Tham mưu với Tỉnh ủy, UBND tỉnh, Ban chỉ đạo, Tổ công tác ban hành các Chỉ thị, "
+            "Nghị quyết, chương trình, kế hoạch, văn bản triển khai Đề án 06, cải cách TTHC, "
+            "chuyển đổi số tại địa phương (theo chỉ đạo của Ban Chỉ đạo Trung ương, Ban Chỉ đạo Chính phủ; "
+            "tại các Nghị quyết của Chính phủ và các văn bản khác do đơn vị chủ động tham mưu ban hành)."
+        )
+        unique_tail = "do đơn vị chủ động tham mưu ban hành)."
+
+        self._login(self.admin_sys_id, is_admin=True)
+        resp = self.client.post(
+            "/api/create-outline-task",
+            json={
+                "title": "Đề cương kiểm tra chống lặp và thu gọn",
+                "tree": {
+                    "title": "Đề cương",
+                    "sections": [
+                        {
+                            "id": "sec-1",
+                            "type": "section",
+                            "label": "1.1",
+                            "text": "Các Sở, ban, ngành",
+                            "children": [
+                                {
+                                    "id": "bullet-1",
+                                    "type": "bullet",
+                                    "label": "",
+                                    "text": long_bullet_text,
+                                    "children": [],
+                                }
+                            ],
+                        }
+                    ],
+                },
+                "assignments": {
+                    "bullet-1": {
+                        "unit_domains": ["so_tu_phap_test"],
+                        "user_ids": [],
+                        "labels": ["Sở Tư pháp Test"],
+                    }
+                },
+            },
+            headers={"X-CSRF-Token": self.csrf_token},
+        )
+        self.assertEqual(resp.status_code, 200, resp.get_data(as_text=True))
+        task_id = int(resp.get_json()["task_id"])
+        self.created_task_ids.append(task_id)
+
+        detail_admin = self.client.get(f"/tasks/{task_id}")
+        self.assertEqual(detail_admin.status_code, 200)
+        html_admin = detail_admin.get_data(as_text=True)
+        # Kiểm tra phần tiêu đề đầy đủ có mặt đúng 1 lần trong bảng (và 1 lần trong JSON drawer), không có khối pc-matrix-item-note trùng lặp
+        self.assertIn(unique_tail, html_admin)
+        self.assertNotIn('<div class="pc-matrix-item-note', html_admin)
+        self.assertIn('data-clamp-block', html_admin)
+        self.assertIn('pc-clamp-text pc-clamp-3', html_admin)
+        self.assertIn('data-clamp-toggle', html_admin)
+
+        self._login(self.bc_stp_id, is_admin=False)
+        detail_unit = self.client.get(f"/tasks/{task_id}")
+        self.assertEqual(detail_unit.status_code, 200)
+        html_unit = detail_unit.get_data(as_text=True)
+        self.assertIn(unique_tail, html_unit)
+        self.assertNotIn('<div class="pc-matrix-item-note', html_unit)
+        self.assertIn('data-clamp-block', html_unit)
 
 
 if __name__ == "__main__":

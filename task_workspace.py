@@ -126,13 +126,9 @@ def build_task_detail_context(
     submit_scope_hint = ""
 
     if mode == "OUTLINE":
-        if can_manage_task_view and not outline_groups:
-            next_step_title = "Thiết lập đầu mục đầu tiên"
-            next_step_body = "Bắt đầu ở mục thiết lập đầu mục để tạo nội dung báo cáo, gán người nhận và chuẩn hóa cách nộp."
-            default_tab = "outline-create"
-        elif can_manage_task_view:
+        if can_manage_task_view:
             next_step_title = "Theo dõi tiến độ chung"
-            next_step_body = "Xem ma trận tiến độ để biết đầu mục nào còn thiếu, rồi mở từng nhóm khi cần kiểm tra chi tiết."
+            next_step_body = "Xem ma trận tiến độ để biết đầu mục nào còn thiếu, đọc báo cáo chi tiết và xuất báo cáo tổng hợp."
             default_tab = "outline-matrix"
         else:
             next_step_title = "Mở đúng nhóm được giao"

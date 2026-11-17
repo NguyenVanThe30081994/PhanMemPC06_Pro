@@ -197,6 +197,118 @@ def _assignment_return_reason(assignment, return_comments):
     return text[len("[TRẢ LẠI]"):].strip() if text.startswith("[TRẢ LẠI]") else text
 
 
+_OUTLINE_PREFIX_RE = re.compile(r"^(\[[^\]]+\]\s*)(.*)$", re.DOTALL)
+_OUTLINE_LEADING_BULLET_RE = re.compile(r"^(?:[-–—•+*]+|\u2022)\s*")
+
+
+def _normalize_outline_compare_text(text):
+    """Chuẩn hóa nội dung đầu mục để phát hiện trùng lặp bất chấp tiền tố [nhãn], dấu gạch và khoảng trắng."""
+    raw = str(text or "").strip()
+    if not raw:
+        return ""
+    lines = []
+    for line in raw.splitlines():
+        cleaned = _OUTLINE_LEADING_BULLET_RE.sub("", line.strip()).strip()
+        if cleaned:
+            lines.append(cleaned)
+    joined = re.sub(r"\s+", " ", " ".join(lines)).strip().lower()
+    prefix_match = _OUTLINE_PREFIX_RE.match(joined)
+    if prefix_match and prefix_match.group(2).strip():
+        joined = _OUTLINE_LEADING_BULLET_RE.sub("", prefix_match.group(2).strip()).strip()
+    return joined
+
+
+def _outline_lines_match_title(norm_line, norm_title, raw_title):
+    """Kiểm tra một dòng text có phải cùng một câu với tiêu đề đầu mục hay không."""
+    if not norm_line or not norm_title:
+        return False
+    if norm_line == norm_title:
+        return True
+    if len(norm_title) >= 6 and norm_line.startswith(norm_title):
+        return True
+    if len(norm_line) >= 6 and norm_title.startswith(norm_line):
+        return True
+    if len(str(raw_title or "").strip()) >= 240:
+        anchor_len = min(60, len(norm_title), len(norm_line))
+        if anchor_len >= 20 and norm_line[:anchor_len] == norm_title[:anchor_len]:
+            return True
+    return False
+
+
+def _outline_display_and_secondary(item, content_text=None):
+    """Trả về (display_title, secondary_text) đầy đủ, không lặp lại phần đầu đã hiển thị ở tiêu đề."""
+    raw_title = re.sub(r"\s+", " ", str(getattr(item, "title", "") or "")).strip()
+    prefix_match = _OUTLINE_PREFIX_RE.match(raw_title)
+    prefix = prefix_match.group(1) if prefix_match else ""
+    title_body = (prefix_match.group(2) if prefix_match else raw_title).strip()
+    norm_title = _normalize_outline_compare_text(title_body or raw_title)
+
+    raw_content = str(getattr(item, "content", "") or "" if content_text is None else content_text or "").strip()
+    is_json_content = raw_content.startswith("{") or raw_content.startswith("[")
+    content_lines = []
+    if raw_content and not is_json_content:
+        content_lines = [line.strip() for line in raw_content.splitlines() if line.strip()]
+
+    display_title = raw_title
+    remaining_content_lines = list(content_lines)
+    if content_lines:
+        first_line_clean = re.sub(r"\s+", " ", content_lines[0]).strip()
+        first_match = _OUTLINE_PREFIX_RE.match(first_line_clean)
+        first_body = (first_match.group(2) if first_match else first_line_clean).strip()
+        norm_first = _normalize_outline_compare_text(first_body or first_line_clean)
+        if _outline_lines_match_title(norm_first, norm_title, raw_title):
+            remaining_content_lines = content_lines[1:]
+            title_core_len = len(_OUTLINE_LEADING_BULLET_RE.sub("", title_body))
+            first_core_len = len(_OUTLINE_LEADING_BULLET_RE.sub("", first_body))
+            if not raw_title or first_core_len > title_core_len or len(raw_title) >= 245:
+                if prefix and not first_line_clean.startswith(prefix.strip()):
+                    display_title = f"{prefix}{first_line_clean}"
+                else:
+                    display_title = first_line_clean
+        elif not raw_title:
+            display_title = first_line_clean
+            remaining_content_lines = content_lines[1:]
+
+    norm_display = _normalize_outline_compare_text(display_title)
+
+    secondary_text = ""
+    candidates = [
+        str(getattr(item, "guide_text", None) or "").strip(),
+        "\n".join(remaining_content_lines).strip(),
+    ]
+    for candidate_text in candidates:
+        if not candidate_text:
+            continue
+        if candidate_text.startswith("{") or candidate_text.startswith("["):
+            # guide_text hoặc content dạng JSON (trường số liệu) — không hiển thị thô
+            continue
+        filtered_lines = []
+        for idx, line in enumerate(candidate_text.splitlines()):
+            stripped_line = line.strip()
+            if not stripped_line:
+                continue
+            if idx == 0:
+                norm_line = _normalize_outline_compare_text(stripped_line)
+                if (
+                    _outline_lines_match_title(norm_line, norm_display, display_title)
+                    or _outline_lines_match_title(norm_line, norm_title, raw_title)
+                ):
+                    continue
+            filtered_lines.append(stripped_line)
+        cleaned_candidate = "\n".join(filtered_lines).strip()
+        norm_cand = _normalize_outline_compare_text(cleaned_candidate)
+        if not norm_cand:
+            continue
+        if norm_cand == norm_display or norm_cand == norm_title:
+            continue
+        if len(norm_cand) >= 12 and (norm_cand in norm_display or (norm_title and norm_cand in norm_title)):
+            continue
+        secondary_text = cleaned_candidate
+        break
+
+    return display_title, secondary_text
+
+
 def _parse_outline_item_rows(task, current_uid):
     rows = []
     items = _task_items_for_task(task)
@@ -231,18 +343,7 @@ def _parse_outline_item_rows(task, current_uid):
             assignment.id: latest_submission_by_assignment.get(assignment.id)
             for assignment in assignments
         }
-        secondary_text = ""
-        for candidate in [getattr(item, "guide_text", None), getattr(item, "content", None)]:
-            candidate_text = str(candidate or "").strip()
-            if not candidate_text:
-                continue
-            if candidate_text.startswith("{") or candidate_text.startswith("["):
-                # guide_text dạng JSON (trường số liệu) — không hiển thị thô
-                continue
-            if re.sub(r"\s+", " ", candidate_text).strip().lower() == re.sub(r"\s+", " ", str(item.title or "")).strip().lower():
-                continue
-            secondary_text = candidate_text
-            break
+        display_title, secondary_text = _outline_display_and_secondary(item)
         my_submission = latest_submissions.get(getattr(my_assignment, "id", None))
         number_fields = _outline_item_number_fields(item)
         my_submission_payload = _parse_task_submission_payload(my_submission) if my_submission else {}
@@ -261,6 +362,7 @@ def _parse_outline_item_rows(task, current_uid):
         rows.append(
             {
                 "item": item,
+                "display_title": display_title,
                 "assignments": assignments,
                 "my_assignment": my_assignment,
                 "my_return_reason": _assignment_return_reason(my_assignment, return_comments),
