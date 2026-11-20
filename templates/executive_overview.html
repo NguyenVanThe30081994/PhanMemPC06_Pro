@@ -1,0 +1,654 @@
+{% extends "base.html" %}
+
+{% block title %}Tổng hợp số liệu — Hệ thống PC06{% endblock %}
+
+{% block extra_head %}
+<style>
+  .exec-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 18px;
+  }
+
+  /* ── 1. Header gọn 1 dòng ── */
+  .exec-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .exec-title {
+    font-size: 19px;
+    font-weight: 800;
+    margin: 0;
+    color: var(--pc-text);
+    letter-spacing: -0.02em;
+  }
+  .exec-head-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .exec-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: var(--pc-control-h-md, 40px);
+    min-height: var(--pc-control-h-md, 40px);
+    padding: 0 14px;
+    border-radius: var(--pc-control-radius, 10px);
+    font-size: 13.5px;
+    font-weight: 700;
+    text-decoration: none;
+    border: 1px solid var(--pc-border);
+    background: var(--pc-bg-card);
+    color: var(--pc-text);
+    cursor: pointer;
+    transition: all 0.14s ease;
+  }
+  .exec-icon-btn:hover {
+    border-color: var(--pc-primary);
+    color: var(--pc-primary);
+  }
+  .exec-icon-btn-primary {
+    background: var(--pc-primary);
+    border-color: var(--pc-primary);
+    color: #fff;
+  }
+  .exec-icon-btn-primary:hover {
+    color: #fff;
+    filter: brightness(0.95);
+  }
+
+  /* ── 2. 4 Thẻ chỉ số cốt lõi (Chỉ Nhãn + Số lớn, không chữ phụ rối mắt) ── */
+  .exec-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .exec-kpi-card {
+    background: var(--pc-bg-card);
+    border: 1px solid var(--pc-border);
+    border-radius: 13px;
+    padding: 12px 14px;
+    box-shadow: var(--pc-shadow-xs);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    text-decoration: none;
+    color: var(--pc-text);
+    transition: border-color 0.14s ease;
+  }
+  .exec-kpi-card:hover {
+    border-color: var(--pc-primary);
+    color: var(--pc-text);
+  }
+  .exec-kpi-total   { border-left: 4px solid var(--pc-primary); }
+  .exec-kpi-overdue { border-left: 4px solid #dc2626; }
+  .exec-kpi-soon    { border-left: 4px solid #d97706; }
+  .exec-kpi-pending { border-left: 4px solid #0284c7; }
+
+  .exec-kpi-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--pc-text-muted);
+  }
+  .exec-kpi-val {
+    font-size: 25px;
+    font-weight: 800;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+    color: var(--pc-text);
+  }
+  .exec-kpi-overdue .exec-kpi-val { color: #dc2626; }
+  .exec-kpi-soon .exec-kpi-val    { color: #d97706; }
+  .exec-kpi-pending .exec-kpi-val { color: var(--pc-primary); }
+
+  /* ── 3. Layout 2 cột Desktop / 1 cột Mobile ── */
+  .exec-main-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+  }
+  .exec-main-grid > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .exec-card {
+    background: var(--pc-bg-card);
+    border: 1px solid var(--pc-border);
+    border-radius: 14px;
+    padding: 14px;
+    box-shadow: var(--pc-shadow-xs);
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  .exec-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .exec-card-title {
+    font-size: 14.5px;
+    font-weight: 800;
+    margin: 0;
+    color: var(--pc-text);
+  }
+  .exec-reset-filter {
+    border: 0;
+    background: transparent;
+    color: var(--pc-primary);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  /* ── 4. Danh sách Lĩnh vực gọn sạch ── */
+  .exec-domain-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .exec-domain-row {
+    border: 1px solid var(--pc-border);
+    border-radius: 12px;
+    padding: 11px 12px;
+    background: var(--pc-bg-subtle);
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    cursor: pointer;
+    transition: border-color 0.14s ease, background 0.14s ease;
+  }
+  .exec-domain-row:hover,
+  .exec-domain-row.is-selected {
+    border-color: var(--pc-primary);
+    background: var(--pc-bg-card);
+  }
+  .exec-domain-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .exec-domain-name {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--pc-text);
+  }
+  .exec-domain-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .exec-domain-total {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: var(--pc-primary);
+  }
+  .exec-drill-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid var(--pc-border);
+    background: var(--pc-bg-card);
+    color: var(--pc-text-muted);
+    text-decoration: none;
+    font-size: 11.5px;
+    flex-shrink: 0;
+  }
+  .exec-drill-link:hover {
+    border-color: var(--pc-primary);
+    color: var(--pc-primary);
+  }
+
+  .exec-stat-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .exec-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 7px;
+    font-size: 11.5px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    background: var(--pc-bg-card);
+    border: 1px solid var(--pc-border);
+    color: var(--pc-text-muted);
+  }
+  .exec-chip-overdue { color: #dc2626; border-color: rgba(220, 38, 38, 0.25); background: rgba(220, 38, 38, 0.08); }
+  .exec-chip-soon    { color: #b45309; border-color: rgba(217, 119, 6, 0.25); background: rgba(217, 119, 6, 0.08); }
+  .exec-chip-pending { color: #2b5396; border-color: rgba(43, 83, 150, 0.22); background: rgba(43, 83, 150, 0.07); }
+
+  /* ── 5. Danh sách Đơn vị cần đôn đốc (1 dòng / đơn vị) ── */
+  .exec-unit-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .exec-unit-row {
+    border: 1px solid var(--pc-border);
+    border-radius: 10px;
+    padding: 9px 11px;
+    background: var(--pc-bg-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    text-decoration: none;
+    color: var(--pc-text);
+    transition: border-color 0.14s ease;
+  }
+  .exec-unit-row:hover {
+    border-color: var(--pc-primary);
+    color: var(--pc-text);
+  }
+  .exec-unit-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+  }
+  .exec-rank {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: var(--pc-bg-card);
+    border: 1px solid var(--pc-border);
+    color: var(--pc-text-muted);
+    font-size: 11px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .exec-rank-hot {
+    background: rgba(220, 38, 38, 0.12);
+    border-color: rgba(220, 38, 38, 0.3);
+    color: #dc2626;
+  }
+  .exec-unit-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--pc-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .exec-unit-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .exec-unit-badges .exec-chip {
+    padding: 2px 7px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  /* ── 6. Khối Báo cáo & Công việc thu gọn ── */
+  .exec-task-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .exec-task-box {
+    background: var(--pc-bg-subtle);
+    border: 1px solid var(--pc-border);
+    border-radius: 10px;
+    padding: 9px 10px;
+    text-align: center;
+    text-decoration: none;
+    color: var(--pc-text);
+  }
+  .exec-task-box span {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--pc-text-muted);
+  }
+  .exec-task-box strong {
+    display: block;
+    font-size: 18px;
+    font-weight: 800;
+    margin-top: 2px;
+  }
+
+  .exec-empty-box {
+    text-align: center;
+    padding: 14px 10px;
+    color: var(--pc-text-muted);
+    font-size: 12.5px;
+    border-radius: 10px;
+    background: var(--pc-bg-subtle);
+  }
+
+  [data-theme="dark"] .exec-chip-overdue { color: #fca5a5; background: rgba(220, 38, 38, 0.2); border-color: rgba(248, 113, 113, 0.35); }
+  [data-theme="dark"] .exec-chip-soon    { color: #fcd34d; background: rgba(217, 119, 6, 0.22); border-color: rgba(251, 191, 36, 0.35); }
+  [data-theme="dark"] .exec-chip-pending { color: #93c5fd; background: rgba(59, 130, 246, 0.2); border-color: rgba(96, 165, 250, 0.35); }
+  [data-theme="dark"] .exec-kpi-overdue .exec-kpi-val { color: #fca5a5; }
+  [data-theme="dark"] .exec-kpi-soon .exec-kpi-val    { color: #fcd34d; }
+
+  @media (max-width: 991.98px) {
+    .exec-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .exec-main-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 767.98px) {
+    .exec-title { font-size: 17px; }
+    .exec-icon-btn { width: var(--pc-control-h-md, 38px); padding: 0; }
+    .exec-icon-btn .exec-btn-text { display: none; }
+    .exec-kpi-grid { gap: 8px; }
+    .exec-kpi-card { padding: 11px 13px; }
+    .exec-kpi-val { font-size: 23px; }
+    .exec-card { padding: 12px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="exec-shell" id="execOverviewApp">
+
+  <!-- ── HEADER GỌN 1 DÒNG ── -->
+  <div class="exec-head">
+    <h1 class="exec-title">Tổng hợp số liệu</h1>
+    <div class="exec-head-actions">
+      <button type="button" class="exec-icon-btn" id="execRefreshBtn" title="Làm mới số liệu" aria-label="Làm mới số liệu">
+        <i class="fa-solid fa-arrows-rotate"></i>
+        <span class="exec-btn-text">Làm mới</span>
+      </button>
+      <a href="/api/executive-summary/export?tab={{ summary.active_tab }}" class="exec-icon-btn exec-icon-btn-primary" id="execExportBtn" title="Xuất báo cáo Excel" aria-label="Xuất báo cáo Excel">
+        <i class="fa-solid fa-file-excel"></i>
+        <span class="exec-btn-text">Xuất Excel</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- ── 4 CHỈ SỐ HỒ SƠ QUAN TRỌNG NHẤT ── -->
+  <section class="exec-kpi-grid" aria-label="Chỉ số hồ sơ trọng tâm">
+    <a href="/dossiers" class="exec-kpi-card exec-kpi-total">
+      <span class="exec-kpi-label">Tổng hồ sơ</span>
+      <strong class="exec-kpi-val" id="kpiDossierTotal">{{ summary.overall.total }}</strong>
+    </a>
+
+    <a href="/dossiers?state=overdue" class="exec-kpi-card exec-kpi-overdue">
+      <span class="exec-kpi-label">Quá hạn</span>
+      <strong class="exec-kpi-val" id="kpiDossierOverdue">{{ summary.overall.overdue }}</strong>
+    </a>
+
+    <a href="/dossiers?state=soon" class="exec-kpi-card exec-kpi-soon">
+      <span class="exec-kpi-label">Sắp đến hạn</span>
+      <strong class="exec-kpi-val" id="kpiDossierSoon">{{ summary.overall.soon }}</strong>
+    </a>
+
+    <a href="/dossiers?state=pending" class="exec-kpi-card exec-kpi-pending">
+      <span class="exec-kpi-label">Đang xử lý</span>
+      <strong class="exec-kpi-val" id="kpiDossierPending">{{ summary.overall.pending }}</strong>
+    </a>
+  </section>
+
+  <!-- ── 2 KHỐI NỘI DUNG TRỌNG TÂM ── -->
+  <div class="exec-main-grid">
+
+    <!-- KHỐI 1: HỒ SƠ THEO LĨNH VỰC + BÁO CÁO CÔNG VIỆC -->
+    <div class="d-flex flex-column gap-3 min-w-0">
+      <section class="exec-card">
+        <div class="exec-card-head">
+          <h2 class="exec-card-title">Hồ sơ theo lĩnh vực</h2>
+          <button type="button" class="exec-reset-filter" id="execResetTabBtn" style="display:none;">Xem tất cả</button>
+        </div>
+        <div class="exec-domain-list" id="execDomainList"></div>
+      </section>
+
+      <section class="exec-card">
+        <div class="exec-card-head">
+          <h2 class="exec-card-title">Công việc</h2>
+          <a href="/tasks" class="exec-drill-link" title="Mở danh sách công việc" aria-label="Mở danh sách công việc">
+            <i class="fa-solid fa-arrow-right"></i>
+          </a>
+        </div>
+        <div class="exec-task-strip">
+          <a href="/tasks" class="exec-task-box">
+            <span>Tổng việc</span>
+            <strong id="miniTaskTotal">{{ summary.tasks.total_tasks }}</strong>
+          </a>
+          <a href="/tasks" class="exec-task-box">
+            <span>Quá hạn</span>
+            <strong class="text-danger" id="miniTaskOverdue">{{ summary.tasks.overdue_tasks }}</strong>
+          </a>
+          <a href="/tasks/report-dashboard" class="exec-task-box">
+            <span>ĐV chưa nộp</span>
+            <strong class="text-warning" id="miniTaskUnreported">{{ summary.tasks.unreported_units }}</strong>
+          </a>
+        </div>
+      </section>
+    </div>
+
+    <!-- KHỐI 2: ĐƠN VỊ CẦN ĐÔN ĐỐC (XẾP HẠNG GỌN 1 DÒNG/ĐƠN VỊ) -->
+    <section class="exec-card" id="execUnitsSection">
+      <div class="exec-card-head">
+        <h2 class="exec-card-title" id="execUnitsTitle">Đơn vị cần đôn đốc</h2>
+        <span class="small text-muted fw-bold" id="execUnitsCountBadge">{{ summary.by_unit|length }} đơn vị</span>
+      </div>
+
+      <div class="mb-2">
+        <input type="search" id="execUnitSearch" class="form-control form-control-sm" placeholder="Tìm nhanh xã, phường, đơn vị...">
+      </div>
+
+      <div class="exec-unit-list" id="execUnitList"></div>
+      <div class="text-center mt-2" id="execShowMoreWrap" style="display:none;">
+        <button type="button" class="pc-btn pc-btn-secondary btn-sm" id="execShowMoreUnitsBtn">Xem thêm</button>
+      </div>
+    </section>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function () {
+  let state = {{ summary|tojson }};
+  let activeTab = state.active_tab || 'all';
+  let showAllUnits = false;
+  let unitQuery = '';
+
+  function escHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function buildDossierLink(tabKey, unitVal) {
+    const params = new URLSearchParams();
+    if (tabKey && tabKey !== 'all') params.set('tab', tabKey);
+    if (unitVal) params.set('unit', unitVal);
+    const qs = params.toString();
+    return qs ? `/dossiers?${qs}` : '/dossiers';
+  }
+
+  function renderKpis() {
+    const ov = (activeTab !== 'all' && state.filtered_overall) ? state.filtered_overall : (state.overall || {});
+    const ts = state.tasks || {};
+    document.getElementById('kpiDossierTotal').textContent = ov.total ?? 0;
+    document.getElementById('kpiDossierOverdue').textContent = ov.overdue ?? 0;
+    document.getElementById('kpiDossierSoon').textContent = ov.soon ?? 0;
+    document.getElementById('kpiDossierPending').textContent = ov.pending ?? 0;
+
+    document.getElementById('miniTaskTotal').textContent = ts.total_tasks ?? 0;
+    document.getElementById('miniTaskOverdue').textContent = ts.overdue_tasks ?? 0;
+    document.getElementById('miniTaskUnreported').textContent = ts.unreported_units ?? 0;
+
+    const resetBtn = document.getElementById('execResetTabBtn');
+    if (resetBtn) {
+      resetBtn.style.display = activeTab !== 'all' ? '' : 'none';
+    }
+    const exportBtn = document.getElementById('execExportBtn');
+    if (exportBtn) {
+      exportBtn.href = '/api/executive-summary/export?tab=' + encodeURIComponent(activeTab);
+    }
+  }
+
+  function renderDomains() {
+    const container = document.getElementById('execDomainList');
+    const tabs = (state.by_tab || []).filter(t => t.total > 0);
+
+    if (!tabs.length) {
+      container.innerHTML = '<div class="exec-empty-box">Chưa có hồ sơ đang theo dõi.</div>';
+      return;
+    }
+
+    container.innerHTML = tabs.map(t => {
+      const chips = [];
+      if (t.overdue > 0) chips.push(`<span class="exec-chip exec-chip-overdue">Quá hạn: ${t.overdue}</span>`);
+      if (t.soon > 0) chips.push(`<span class="exec-chip exec-chip-soon">Sắp hạn: ${t.soon}</span>`);
+      if (t.pending > 0) chips.push(`<span class="exec-chip exec-chip-pending">Đang xử lý: ${t.pending}</span>`);
+      if (!chips.length) chips.push(`<span class="exec-chip">Hoàn thành: ${t.done}</span>`);
+
+      return `<div class="exec-domain-row ${activeTab === t.key ? 'is-selected' : ''}" data-domain-tab="${escHtml(t.key)}">
+        <div class="exec-domain-top">
+          <span class="exec-domain-name">${escHtml(t.label)}</span>
+          <div class="exec-domain-right">
+            <span class="exec-domain-total">${t.total}</span>
+            <a href="${buildDossierLink(t.key, '')}" class="exec-drill-link" title="Mở danh sách ${escHtml(t.label)}" aria-label="Mở danh sách ${escHtml(t.label)}">
+              <i class="fa-solid fa-arrow-right"></i>
+            </a>
+          </div>
+        </div>
+        <div class="exec-stat-chips">${chips.join('')}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderUnits() {
+    const listEl = document.getElementById('execUnitList');
+    const badgeEl = document.getElementById('execUnitsCountBadge');
+    const moreWrap = document.getElementById('execShowMoreWrap');
+    const moreBtn = document.getElementById('execShowMoreUnitsBtn');
+
+    let units = state.by_unit || [];
+    const q = (unitQuery || '').trim().toLowerCase();
+    if (q) {
+      units = units.filter(u => String(u.unit_name || '').toLowerCase().includes(q));
+    }
+
+    badgeEl.textContent = `${units.length} đơn vị`;
+
+    if (!units.length) {
+      listEl.innerHTML = '<div class="exec-empty-box">Không có đơn vị phù hợp.</div>';
+      moreWrap.style.display = 'none';
+      return;
+    }
+
+    const limit = showAllUnits ? units.length : 8;
+    const slice = units.slice(0, limit);
+
+    listEl.innerHTML = slice.map((u, idx) => {
+      const hot = (u.overdue || 0) > 0;
+      const drillVal = u.unit_code || u.unit_name;
+      const badges = [];
+      if (u.overdue > 0) badges.push(`<span class="exec-chip exec-chip-overdue">Quá hạn ${u.overdue}</span>`);
+      if (u.soon > 0) badges.push(`<span class="exec-chip exec-chip-soon">Sắp hạn ${u.soon}</span>`);
+      badges.push(`<span class="exec-chip">${u.total}</span>`);
+
+      return `<a href="${buildDossierLink(activeTab, drillVal)}" class="exec-unit-row">
+        <div class="exec-unit-left">
+          <span class="exec-rank ${hot ? 'exec-rank-hot' : ''}">${idx + 1}</span>
+          <span class="exec-unit-name">${escHtml(u.unit_name)}</span>
+        </div>
+        <div class="exec-unit-badges">${badges.join('')}</div>
+      </a>`;
+    }).join('');
+
+    if (units.length > 8) {
+      moreWrap.style.display = '';
+      moreBtn.textContent = showAllUnits ? 'Thu gọn' : `Xem tất cả (${units.length} đơn vị)`;
+    } else {
+      moreWrap.style.display = 'none';
+    }
+  }
+
+  function renderAll() {
+    renderKpis();
+    renderDomains();
+    renderUnits();
+  }
+
+  async function fetchSummary(tabKey) {
+    const btn = document.getElementById('execRefreshBtn');
+    const icon = btn ? btn.querySelector('i') : null;
+    if (icon) icon.classList.add('fa-spin');
+    try {
+      const params = new URLSearchParams();
+      params.set('tab', tabKey || activeTab || 'all');
+      const resp = await fetch('/api/executive-summary?' + params.toString(), {
+        headers: { 'Accept': 'application/json' },
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      state = await resp.json();
+      activeTab = state.active_tab || 'all';
+      renderAll();
+    } catch (err) {
+      console.error('Lỗi tải tổng hợp lãnh đạo:', err);
+    } finally {
+      if (icon) icon.classList.remove('fa-spin');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    renderAll();
+
+    document.getElementById('execDomainList').addEventListener('click', function (e) {
+      if (e.target.closest('.exec-drill-link')) return;
+      const row = e.target.closest('[data-domain-tab]');
+      if (!row) return;
+      const clickedTab = row.getAttribute('data-domain-tab') || 'all';
+      activeTab = (activeTab === clickedTab) ? 'all' : clickedTab;
+      showAllUnits = false;
+      fetchSummary(activeTab);
+    });
+
+    document.getElementById('execResetTabBtn').addEventListener('click', function () {
+      activeTab = 'all';
+      showAllUnits = false;
+      fetchSummary('all');
+    });
+
+    document.getElementById('execUnitSearch').addEventListener('input', function () {
+      unitQuery = this.value || '';
+      showAllUnits = false;
+      renderUnits();
+    });
+
+    document.getElementById('execShowMoreUnitsBtn').addEventListener('click', function () {
+      showAllUnits = !showAllUnits;
+      renderUnits();
+    });
+
+    document.getElementById('execRefreshBtn').addEventListener('click', function () {
+      fetchSummary(activeTab);
+    });
+  });
+})();
+</script>
+{% endblock %}

@@ -17,6 +17,7 @@ from sqlalchemy.orm import joinedload
 
 from models import (
     AppRole,
+    Notification,
     Task,
     TaskAssignment,
     TaskComment,
@@ -90,61 +91,92 @@ def _purge_task(task):
     for child_task in child_tasks:
         _purge_task(child_task)
 
-    file_names = set()
-    if task.file_path:
-        file_names.add(task.file_path)
+    task_id, task_item_id = _task_scope_identity(task)
+    participant_query = TaskParticipant.query.filter(TaskParticipant.task_id == task_id)
+    assignment_query = TaskAssignment.query.filter(TaskAssignment.task_id == task_id)
+    form_field_query = TaskFormField.query.filter(TaskFormField.task_id == task_id)
+    submission_query = TaskSubmission.query.filter(TaskSubmission.task_id == task_id)
+    if task_item_id:
+        participant_query = participant_query.filter(TaskParticipant.task_item_id == task_item_id)
+        assignment_query = assignment_query.filter(TaskAssignment.task_item_id == task_item_id)
+        form_field_query = form_field_query.filter(TaskFormField.task_item_id == task_item_id)
+        submission_query = submission_query.filter(TaskSubmission.task_item_id == task_item_id)
 
+    assignment_ids = [aid for aid, in assignment_query.with_entities(TaskAssignment.id).all()]
+    if assignment_ids and not task_item_id:
+        submission_query = TaskSubmission.query.filter(
+            db.or_(
+                TaskSubmission.task_id == task_id,
+                TaskSubmission.assignment_id.in_(assignment_ids),
+            )
+        )
+
+    submission_rows = submission_query.all()
+    submission_ids = [s.id for s in submission_rows]
+    submission_files = (
+        TaskSubmissionFile.query.filter(TaskSubmissionFile.submission_id.in_(submission_ids)).all()
+        if submission_ids
+        else []
+    )
+
+    file_paths = set()
+    if task.file_path:
+        file_paths.add(_task_file_path(task.file_path))
     for assignment in _task_assignment_records(task):
         if assignment.result_file:
-            file_names.add(assignment.result_file)
-    for submission in _query_task_scope(TaskSubmission, task).all():
-        attachment_name = (
-            str(getattr(submission, "attachment_name", "") or "").strip()
-            or str(getattr(submission, "attachment_path", "") or "").strip()
-        )
-        if attachment_name:
-            file_names.add(attachment_name)
+            file_paths.add(_task_file_path(assignment.result_file))
+    for submission in submission_rows:
+        for attr in ("attachment_path", "attachment_name"):
+            val = str(getattr(submission, attr, "") or "").strip()
+            if val:
+                file_paths.add(val if os.path.isabs(val) else _task_file_path(val))
+    for sf in submission_files:
+        for candidate in (getattr(sf, "stored_path", None), getattr(sf, "stored_name", None)):
+            val = str(candidate or "").strip()
+            if val:
+                file_paths.add(val if os.path.isabs(val) else _task_file_path(val))
 
-    for file_name in file_names:
-        file_path = _task_file_path(file_name)
-        if os.path.exists(file_path):
+    for file_path in file_paths:
+        if file_path and os.path.exists(file_path):
             try:
                 os.remove(file_path)
             except Exception:
                 current_app.logger.warning(f"Không thể xóa file công việc: {file_path}")
 
-    task_id, task_item_id = _task_scope_identity(task)
-    participant_query = TaskParticipant.query.filter(TaskParticipant.task_id == task_id)
-    submission_query = TaskSubmission.query.filter(TaskSubmission.task_id == task_id)
-    assignment_query = TaskAssignment.query.filter(TaskAssignment.task_id == task_id)
-    form_field_query = TaskFormField.query.filter(TaskFormField.task_id == task_id)
-    if task_item_id:
-        participant_query = participant_query.filter(TaskParticipant.task_item_id == task_item_id)
-        submission_query = submission_query.filter(TaskSubmission.task_item_id == task_item_id)
-    else:
-        participant_query = participant_query.filter(TaskParticipant.task_item_id.is_(None))
-        submission_query = submission_query.filter(TaskSubmission.task_item_id.is_(None))
-    submission_ids = [submission_id for submission_id, in submission_query.with_entities(TaskSubmission.id).all()]
+    # Gỡ mọi khóa ngoại vòng/tự tham chiếu trước khi xóa bản ghi theo thứ tự phụ thuộc
+    assignment_query.update({TaskAssignment.last_submission_id: None}, synchronize_session=False)
+    if not task_item_id:
+        TaskImportDraft.query.filter_by(published_task_id=task.id).update(
+            {TaskImportDraft.published_task_id: None}, synchronize_session=False
+        )
+        TaskItem.query.filter(
+            db.or_(TaskItem.task_id == task.id, TaskItem.source_task_id == task.id)
+        ).update(
+            {TaskItem.parent_item_id: None, TaskItem.linked_item_id: None},
+            synchronize_session=False,
+        )
+
     if submission_ids:
-        TaskSubmissionFile.query.filter(TaskSubmissionFile.submission_id.in_(submission_ids)).delete(synchronize_session=False)
-    # Gỡ tham chiếu last_submission_id trước khi xóa submission để tránh vi phạm
-    # khóa ngoại task_assignment.last_submission_id -> task_submission.id
-    # (PRAGMA foreign_keys=ON được bật ở mọi kết nối SQLite).
-    TaskAssignment.query.filter(
-        TaskAssignment.task_id == task_id,
-        TaskAssignment.last_submission_id.isnot(None),
-    ).update({TaskAssignment.last_submission_id: None}, synchronize_session=False)
-    submission_query.delete(synchronize_session=False)
-    # Xóa assignment sau khi đã xóa submission (submission.assignment_id trỏ vào
-    # assignment) và trước khi xóa task_item (assignment.task_item_id trỏ vào item).
+        TaskSubmissionFile.query.filter(
+            TaskSubmissionFile.submission_id.in_(submission_ids)
+        ).delete(synchronize_session=False)
+        TaskSubmission.query.filter(
+            TaskSubmission.id.in_(submission_ids)
+        ).delete(synchronize_session=False)
+
+    if not task_item_id:
+        TaskComment.query.filter_by(task_id=task.id).delete(synchronize_session=False)
     assignment_query.delete(synchronize_session=False)
     participant_query.delete(synchronize_session=False)
     form_field_query.delete(synchronize_session=False)
-    if getattr(task, "parent_task_id", None):
-        TaskItem.query.filter_by(source_task_id=task.id).delete(synchronize_session=False)
-    else:
-        TaskItem.query.filter_by(task_id=task.id).delete(synchronize_session=False)
-    TaskComment.query.filter_by(task_id=task.id).delete(synchronize_session=False)
+    if not task_item_id:
+        if getattr(task, "parent_task_id", None):
+            TaskItem.query.filter_by(source_task_id=task.id).delete(synchronize_session=False)
+        else:
+            TaskItem.query.filter_by(task_id=task.id).delete(synchronize_session=False)
+        Notification.query.filter_by(link=f"/tasks/{task.id}").delete(synchronize_session=False)
+    db.session.flush()
+    db.session.expire(task)
     db.session.delete(task)
 
 def _ensure_task_schema(run_runtime_backfill=False):

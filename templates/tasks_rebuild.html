@@ -45,26 +45,29 @@
 
 {% block content %}
 <div class="task-workspace-shell">
-    <!-- Header with 1 Single Action Button: Tạo công việc mới -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
-        <div>
-            <h2 class="fw-bold mb-0" style="color: var(--text-main, #1A365D);">
-                <i class="fa-solid fa-list-check me-2 text-primary"></i>Quản Lý Công Việc & Báo Cáo
-            </h2>
-        </div>
+    <!-- Header -->
+    <header class="pc-page-header task-page-header">
+        <h1 class="pc-page-title mb-0">Quản lý công việc</h1>
         {% if is_lead or is_admin %}
-        <div>
-            <button class="pc-btn pc-btn-primary btn-lg px-4 shadow-sm" type="button" data-bs-toggle="modal" data-bs-target="#chooseTaskTypeModal">
-                <i class="fa-solid fa-plus me-2"></i>Tạo công việc mới
+        <div class="pc-page-actions">
+            <button type="button" class="pc-btn pc-btn-primary" data-bs-toggle="modal" data-bs-target="#chooseTaskTypeModal">
+                <i class="fa-solid fa-plus me-1"></i>Tạo công việc
             </button>
         </div>
         {% endif %}
-    </div>
+    </header>
 
-    <!-- Thanh tìm kiếm nhanh -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-        <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 420px;">
-            <input type="text" id="taskSearchInput" class="form-control form-control-sm" placeholder="Tìm kiếm công việc, đơn vị...">
+    <!-- Bộ lọc theo kiểu công việc & tìm kiếm -->
+    <div class="task-filter-toolbar d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+        <div class="task-filter-left d-flex flex-wrap align-items-center gap-2">
+            <div class="task-mode-filter-pills" role="tablist" aria-label="Lọc danh sách theo hình thức">
+                <button type="button" class="task-filter-pill active" data-mode-filter="all" onclick="filterTasksByMode('all', this)">Tất cả</button>
+                <button type="button" class="task-filter-pill" data-mode-filter="OUTLINE" onclick="filterTasksByMode('OUTLINE', this)">Theo đề cương</button>
+                <button type="button" class="task-filter-pill" data-mode-filter="FORM" onclick="filterTasksByMode('FORM', this)">Theo biểu mẫu</button>
+            </div>
+            <div class="task-search-wrap" style="width: 280px; max-width: 100%;">
+                <input type="text" id="taskSearchInput" class="form-control form-control-sm" placeholder="Tìm kiếm công việc, đơn vị...">
+            </div>
         </div>
         <div class="text-muted small">
             Tổng số: <strong id="taskTotalCount">{{ tasks|length }}</strong> công việc
@@ -73,88 +76,91 @@
 
     <!-- Bảng danh sách công việc chính -->
     {% if tasks and tasks|length > 0 %}
-    <div class="pc-card p-0 shadow-sm border overflow-hidden mb-4" style="border-radius: 12px;">
-        <div class="table-responsive">
-            <table class="table pc-table align-middle mb-0" id="taskMainTable">
-                <thead class="table-light">
+    <div class="pc-card p-0 overflow-hidden mb-4">
+        <div class="table-responsive w-100">
+            <table class="table pc-table pc-table-hover align-middle mb-0" id="taskMainTable">
+                <colgroup>
+                    <col style="width: 44px;">
+                    <col>
+                    <col style="width: 15%;">
+                    <col style="width: 132px;">
+                    <col style="width: 150px;">
+                    <col style="width: 152px;">
+                    <col style="width: 136px;">
+                </colgroup>
+                <thead>
                     <tr>
-                        <th style="width: 50px;" class="text-center">#</th>
-                        <th style="min-width: 280px;">Tên việc</th>
-                        <th style="width: 180px;">Đơn vị giao</th>
-                        <th style="width: 140px;">Thời gian giao</th>
-                        <th style="width: 160px;">Thời hạn báo cáo</th>
-                        <th style="width: 160px;">Kiểu báo cáo</th>
-                        <th style="width: 140px;" class="text-center">Thao tác</th>
+                        <th class="text-center">#</th>
+                        <th>Tên việc</th>
+                        <th>Đơn vị giao</th>
+                        <th>Thời gian giao</th>
+                        <th>Thời hạn báo cáo</th>
+                        <th>Kiểu báo cáo</th>
+                        <th class="text-end pe-3">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody id="taskTableBody">
                     {% for task in tasks %}
-                    <tr class="task-row-item" data-title="{{ task.title|lower }}" data-author="{{ (task.author_name or '')|lower }}">
-                        <td class="text-center text-muted fw-bold">{{ loop.index }}</td>
+                    {% set _tone = task.workspace_tone if task.workspace_tone in ['success', 'danger', 'warning', 'info', 'primary'] else 'neutral' %}
+                    <tr class="task-row-item" data-mode="{{ task.task_mode or 'FILE' }}" data-title="{{ task.title|lower }}" data-author="{{ (task.author_name or '')|lower }}">
+                        <td class="text-center text-muted fw-semibold">{{ loop.index }}</td>
                         <td>
-                            <a href="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" class="fw-bold text-decoration-none text-primary fs-6 d-block mb-1">
+                            <a href="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" class="fw-bold text-decoration-none text-primary d-block mb-1 text-break">
                                 {{ task.title }}
                             </a>
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="badge bg-{{ task.workspace_tone }}-subtle text-{{ task.workspace_tone }} border border-{{ task.workspace_tone }}-subtle">
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <span class="pc-badge pc-badge-{{ _tone }}">
                                     {{ task.workspace_status_text }}
                                 </span>
                                 <small class="text-muted">
-                                    <i class="fa-solid fa-chart-pie me-1"></i>{{ task.submitted_assignments }}/{{ task.assignee_count }} đơn vị nộp ({{ task.progress_percent }}%)
+                                    {{ task.submitted_assignments }}/{{ task.assignee_count }} đơn vị nộp ({{ task.progress_percent }}%)
                                 </small>
                             </div>
                         </td>
                         <td>
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="fa-solid fa-building text-muted"></i>
-                                <span class="fw-semibold">{{ task.author_name or task.domain_display or 'Cơ quan chỉ đạo' }}</span>
-                            </div>
+                            <span class="fw-medium">{{ task.author_name or task.domain_display or 'Cơ quan chỉ đạo' }}</span>
                         </td>
-                        <td>
-                            <small class="text-muted">
-                                <i class="fa-regular fa-calendar-days me-1"></i>
+                        <td class="text-nowrap">
+                            <span class="text-muted small">
                                 {% if task.created_at %}
                                     {{ task.created_at.strftime('%d/%m/%Y') }}
                                 {% else %}
                                     --
                                 {% endif %}
-                            </small>
+                            </span>
                         </td>
-                        <td>
-                            <div class="d-flex align-items-center gap-1">
-                                <i class="fa-regular fa-clock {% if task.is_overdue %}text-danger{% else %}text-muted{% endif %}"></i>
-                                <span class="{% if task.is_overdue %}text-danger fw-bold{% else %}text-dark{% endif %}">
-                                    {{ task.workspace_deadline_text or 'Không có hạn' }}
-                                </span>
-                            </div>
+                        <td class="text-nowrap">
+                            <span class="{% if task.is_overdue %}text-danger fw-bold{% else %}text-muted{% endif %} small">
+                                {{ task.workspace_deadline_text or 'Không đặt hạn' }}
+                            </span>
                         </td>
-                        <td>
+                        <td class="text-nowrap">
                             {% if task.task_mode == 'OUTLINE' %}
-                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
-                                    <i class="fa-solid fa-file-contract me-1"></i>Đề cương văn bản
-                                </span>
+                                <span class="pc-badge pc-badge-primary">Đề cương văn bản</span>
                             {% elif task.task_mode == 'FORM' %}
-                                <span class="badge bg-success-subtle text-success border border-success-subtle">
-                                    <i class="fa-solid fa-table-cells me-1"></i>Biểu mẫu số liệu
-                                </span>
+                                <span class="pc-badge pc-badge-success">Biểu mẫu số liệu</span>
                             {% else %}
-                                <span class="badge bg-secondary-subtle text-secondary">
-                                    {{ task.task_mode_label or 'Báo cáo' }}
-                                </span>
+                                <span class="pc-badge pc-badge-neutral">{{ task.task_mode_label or 'Báo cáo' }}</span>
                             {% endif %}
                         </td>
-                        <td class="text-center">
-                            <div class="d-inline-flex gap-1">
-                                <a href="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" class="pc-btn pc-btn-secondary btn-sm" title="Xem chi tiết & Báo cáo">
-                                    <i class="fa-solid fa-eye me-1"></i>Xem
-                                </a>
+                        <td class="text-end pe-3">
+                            <div class="d-inline-flex align-items-center justify-content-end gap-1">
+                                <a href="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" class="pc-btn pc-btn-secondary btn-sm" title="Xem chi tiết &amp; báo cáo">Xem</a>
                                 {% if task.can_edit %}
-                                <button class="pc-btn pc-btn-secondary btn-sm" type="button" onclick="openEditConfigModal({{ task.id }})" title="Sửa cấu hình">
+                                <button class="pc-btn pc-btn-secondary btn-sm" type="button" data-task-config='{{ {
+                                    "title": task.title or "",
+                                    "deadline": task.deadline.strftime("%Y-%m-%d") if task.deadline else "",
+                                    "category": task.category or "",
+                                    "domain": task.domain or "",
+                                    "task_type": task.task_type or "",
+                                    "priority": task.priority or "",
+                                    "description": task.content or ""
+                                } | tojson | forceescape }}' onclick="openEditConfigModal({{ task.id }}, this)" title="Sửa cấu hình" aria-label="Sửa cấu hình">
                                     <i class="fa-solid fa-pen"></i>
                                 </button>
                                 {% endif %}
                                 {% if task.can_delete %}
-                                <button class="pc-btn pc-btn-secondary btn-sm text-danger" type="button" onclick="openDeleteConfirmModal({{ task.id }})" title="Xóa">
+                                <button class="pc-btn pc-btn-secondary btn-sm text-danger" type="button" onclick="openDeleteConfirmModal({{ task.id }})" title="Xóa" aria-label="Xóa công việc">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
                                 {% endif %}
@@ -168,108 +174,54 @@
     </div>
     {% else %}
     <div class="pc-card pc-empty py-5 text-center my-4">
-        <div class="pc-empty-icon mb-3"><i class="fa-solid fa-inbox text-muted" style="font-size: 3rem;"></i></div>
         <div class="pc-empty-title fs-5 fw-bold mb-2">Chưa có công việc nào</div>
-        <p class="text-muted small mb-0">Hiện tại chưa có công việc báo cáo nào được tạo trong hệ thống.</p>
+        <p class="text-muted small mb-0">{% if is_lead or is_admin %}Bấm nút &ldquo;+ Tạo công việc&rdquo; để giao việc theo đề cương hoặc biểu mẫu.{% else %}Chưa có công việc báo cáo nào trong hệ thống.{% endif %}</p>
     </div>
     {% endif %}
 </div>
 
-<!-- MODAL CHỌN HÌNH THỨC TẠO VIỆC (2 HƯỚNG DUY NHẤT) -->
-{% if is_lead or is_admin %}
-<div class="modal fade" id="chooseTaskTypeModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content border-0 shadow-lg" style="border-radius: 14px;">
-      <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
-        <div>
-          <h5 class="modal-title fw-bold text-primary fs-4">Chọn Hình Thức Giao Việc</h5>
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body p-4">
-        <div class="row g-3">
-          <!-- Hướng 1: Phân công theo đề cương văn bản -->
-          <div class="col-md-6">
-            <a href="/outline-giao-viec" class="card h-100 p-4 text-decoration-none border-2 task-choice-card shadow-sm" style="border-radius: 12px; border-color: #CBD5E0; transition: all 0.2s;">
-              <div class="d-flex align-items-center mb-4">
-                <div class="choice-icon bg-primary-subtle text-primary p-3 rounded-circle me-3">
-                  <i class="fa-solid fa-file-contract fs-2"></i>
-                </div>
-                <div>
-                  <h6 class="fw-bold mb-0 text-dark fs-5">Giao theo đề cương</h6>
-                </div>
-              </div>
-              <div class="mt-auto">
-                <span class="btn btn-outline-primary btn-sm w-100 fw-bold py-2">
-                  Bắt đầu <i class="fa-solid fa-arrow-right ms-1"></i>
-                </span>
-              </div>
-            </a>
-          </div>
-
-          <!-- Hướng 2: Giao theo biểu mẫu số liệu Excel -->
-          <div class="col-md-6">
-            <a href="javascript:void(0)" onclick="openCreateFormWizard()" class="card h-100 p-4 text-decoration-none border-2 task-choice-card shadow-sm" style="border-radius: 12px; border-color: #CBD5E0; transition: all 0.2s;">
-              <div class="d-flex align-items-center mb-4">
-                <div class="choice-icon bg-success-subtle text-success p-3 rounded-circle me-3">
-                  <i class="fa-solid fa-table-cells fs-2"></i>
-                </div>
-                <div>
-                  <h6 class="fw-bold mb-0 text-dark fs-5">Giao theo biểu mẫu</h6>
-                </div>
-              </div>
-              <div class="mt-auto">
-                <span class="btn btn-outline-success btn-sm w-100 fw-bold py-2">
-                  Bắt đầu <i class="fa-solid fa-arrow-right ms-1"></i>
-                </span>
-              </div>
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-function openCreateFormWizard() {
-    var chooseModalEl = document.getElementById('chooseTaskTypeModal');
-    var chooseModal = bootstrap.Modal.getInstance(chooseModalEl);
-    if (chooseModal) chooseModal.hide();
-    
-    var createModalEl = document.getElementById('createTaskModal');
-    if (createModalEl) {
-        var createModal = new bootstrap.Modal(createModalEl);
-        createModal.show();
-        var formCard = document.querySelector('[data-task-type="FORM"]');
-        if (formCard) formCard.click();
-    }
-}
-</script>
-{% endif %}
-
-<script>
-// Tìm kiếm nhanh trên bảng công việc (áp dụng cho mọi vai trò)
-document.getElementById('taskSearchInput')?.addEventListener('input', function() {
-    var query = this.value.toLowerCase().trim();
-    var rows = document.querySelectorAll('#taskTableBody .task-row-item');
-    var visibleCount = 0;
-    rows.forEach(function(row) {
-        var title = row.getAttribute('data-title') || '';
-        var author = row.getAttribute('data-author') || '';
-        if (title.includes(query) || author.includes(query)) {
-            row.style.display = '';
-            visibleCount++;
-        } else {
-            row.style.display = 'none';
-        }
-    });
-    var countEl = document.getElementById('taskTotalCount');
-    if (countEl) countEl.textContent = visibleCount;
-});
-</script>
-
 <style>
+    @media (max-width: 767.98px) {
+        .task-workspace-shell .task-page-header {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 8px !important;
+            flex-wrap: nowrap !important;
+        }
+        .task-workspace-shell .task-page-header .pc-page-title {
+            font-size: 1.25rem !important;
+            margin: 0 !important;
+            white-space: nowrap;
+        }
+        .task-workspace-shell .task-page-header .pc-page-actions {
+            width: auto !important;
+            flex-shrink: 0;
+        }
+        .task-workspace-shell .task-page-header .pc-btn {
+            padding: 0 12px !important;
+            font-size: 13px !important;
+        }
+        .task-workspace-shell .task-filter-left {
+            width: 100%;
+        }
+        .task-workspace-shell .task-mode-filter-pills {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            width: 100%;
+            gap: 6px;
+        }
+        .task-workspace-shell .task-filter-pill {
+            text-align: center;
+            justify-content: center;
+            padding: 0 4px !important;
+            font-size: 12px !important;
+        }
+        .task-workspace-shell .task-search-wrap {
+            width: 100% !important;
+        }
+    }
     .wizard-outline-group {
         border: 1px solid rgba(148, 163, 184, 0.22);
         border-radius: 12px;
@@ -1043,21 +995,21 @@ document.getElementById('taskSearchInput')?.addEventListener('input', function()
     .wizard-steps {
         display: flex;
         align-items: center;
-        gap: 0;
+        gap: 6px;
     }
 
     .wizard-step {
         display: flex;
         align-items: center;
-        gap: 10px;
-        flex: 1 1 0;
+        gap: 9px;
+        flex: 0 1 auto;
         min-width: 0;
     }
 
     .wizard-step-dot {
         flex: 0 0 auto;
-        width: 32px;
-        height: 32px;
+        width: 30px;
+        height: 30px;
         border-radius: 50%;
         display: inline-flex;
         align-items: center;
@@ -1066,7 +1018,7 @@ document.getElementById('taskSearchInput')?.addEventListener('input', function()
         border: 2px solid #e2e8f0;
         color: #94a3b8;
         font-weight: 700;
-        font-size: 0.85rem;
+        font-size: 0.82rem;
         transition: background-color 0.15s ease-out, border-color 0.15s ease-out, color 0.15s ease-out;
     }
 
@@ -1079,20 +1031,16 @@ document.getElementById('taskSearchInput')?.addEventListener('input', function()
 
     .wizard-step-title {
         font-weight: 600;
-        font-size: 0.9rem;
+        font-size: 0.84rem;
         color: #64748b;
         white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
         transition: color 0.15s ease-out;
     }
 
     .wizard-step-sub {
         font-size: 0.72rem;
         color: #94a3b8;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        white-space: normal;
     }
 
     .wizard-step.is-active .wizard-step-dot {
@@ -1186,6 +1134,44 @@ document.getElementById('taskSearchInput')?.addEventListener('input', function()
         }
     }
 
+    @media (min-width: 992px) {
+        #taskMainTable {
+            width: 100%;
+            table-layout: fixed;
+        }
+
+        #taskMainTable thead th {
+            white-space: nowrap;
+            padding: 0.72rem 0.65rem;
+        }
+
+        #taskMainTable tbody td {
+            padding: 0.85rem 0.65rem;
+            white-space: normal;
+            vertical-align: middle;
+        }
+
+        #taskMainTable .pc-btn.btn-sm {
+            padding: 0.36rem 0.56rem;
+            font-size: 0.8rem;
+            gap: 0.25rem;
+        }
+
+        #taskMainTable .pc-badge {
+            white-space: nowrap;
+        }
+    }
+
+    @media (max-width: 991.98px) {
+        .task-workspace-shell {
+            overflow-x: clip;
+        }
+        #taskMainTable {
+            width: max-content;
+            min-width: 760px;
+        }
+    }
+
     [data-theme="dark"] .btn-icon-corner.btn-danger:hover i {
         color: #f87171;
     }
@@ -1262,455 +1248,282 @@ document.getElementById('taskSearchInput')?.addEventListener('input', function()
             grid-template-columns: 1fr;
         }
     }
+
+    /* ── Giao diện Modal Giao việc theo biểu mẫu (chuẩn Linear / pc-*) ── */
+    .pc-form-wizard-panel {
+        background: var(--pc-bg-subtle);
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-md);
+        padding: 16px 18px;
+    }
+
+    .pc-form-field-card {
+        background: var(--pc-bg-card);
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-md);
+        padding: 14px 16px;
+        transition: border-color 0.15s ease;
+    }
+
+    .pc-form-field-card:focus-within {
+        border-color: var(--pc-primary);
+    }
+
+    .pc-form-field-index {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 24px;
+        height: 24px;
+        padding: 0 7px;
+        border-radius: 6px;
+        background: var(--pc-bg-subtle);
+        border: 1px solid var(--pc-border);
+        color: var(--pc-text-muted);
+        font-size: 0.74rem;
+        font-weight: 700;
+    }
+
+    .pc-form-seg {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 4px;
+        border-radius: var(--pc-radius-md);
+        background: var(--pc-bg-card);
+        border: 1px solid var(--pc-border);
+    }
+
+    .pc-form-seg-btn {
+        border: none;
+        background: transparent;
+        color: var(--pc-text-muted);
+        padding: 6px 12px;
+        border-radius: var(--pc-radius-sm);
+        font-size: 0.84rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .pc-form-seg-btn.is-active {
+        background: var(--pc-primary);
+        color: #fff;
+    }
+
+    .pc-form-unit-scroll {
+        max-height: 360px;
+        overflow-y: auto;
+        background: var(--pc-bg-card);
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-md);
+        padding: 10px 12px;
+    }
+
+    .pc-form-unit-group-title {
+        font-size: 0.74rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--pc-text-muted);
+        margin: 10px 0 6px;
+    }
+
+    .pc-form-unit-group-title:first-child {
+        margin-top: 0;
+    }
+
+    .pc-form-unit-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+        gap: 6px;
+    }
+
+    .pc-form-unit-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-sm);
+        background: var(--pc-bg-subtle);
+        font-size: 0.84rem;
+        color: var(--pc-text);
+        cursor: pointer;
+        margin: 0;
+    }
+
+    .pc-form-unit-option:has(input:checked) {
+        border-color: var(--pc-primary);
+        background: var(--pc-info-bg);
+    }
+
+    .pc-excel-dropzone {
+        border: 1.5px dashed var(--pc-border-strong, #94a3b8);
+        border-radius: var(--pc-radius-md);
+        background: var(--pc-bg-subtle);
+        padding: 18px 16px;
+        text-align: center;
+        transition: border-color 0.15s ease, background 0.15s ease;
+        cursor: pointer;
+    }
+    .pc-excel-dropzone:hover,
+    .pc-excel-dropzone.is-dragover {
+        border-color: var(--pc-primary);
+        background: var(--pc-info-bg);
+    }
+    .pc-excel-preview-table th,
+    .pc-excel-preview-table td {
+        border: 1px solid var(--pc-border);
+        padding: 6px 8px;
+        font-size: 0.8rem;
+        vertical-align: middle;
+    }
+    .pc-excel-preview-table thead th {
+        background: var(--pc-bg-subtle);
+        font-weight: 700;
+        text-align: center;
+    }
+    .pc-excel-col-bar {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+        gap: 8px;
+    }
+    .pc-excel-col-chip {
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-sm);
+        padding: 6px 8px;
+        background: var(--pc-bg-card);
+        font-size: 0.78rem;
+    }
+
+    .task-mode-filter-pills {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .task-filter-pill {
+        border: 1px solid var(--pc-border);
+        background: var(--pc-bg-card);
+        color: var(--pc-text-muted);
+        border-radius: 999px;
+        height: var(--pc-control-h-sm, 34px);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 13px;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        line-height: 1;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .task-filter-pill:hover {
+        border-color: var(--pc-primary);
+        color: var(--pc-text);
+    }
+    .task-filter-pill.active {
+        background: var(--pc-primary);
+        border-color: var(--pc-primary);
+        color: #fff;
+    }
+
+    .pc-chooser-card {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100%;
+        padding: 20px;
+        border-radius: 16px;
+        border: 1.5px solid var(--pc-border);
+        background: var(--pc-bg-subtle);
+        color: var(--pc-text);
+        text-decoration: none;
+        cursor: pointer;
+        transition: border-color 0.16s ease, background-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+    }
+    .pc-chooser-card:hover {
+        border-color: var(--pc-primary);
+        background: var(--pc-primary-soft);
+        transform: translateY(-2px);
+        box-shadow: var(--pc-shadow-md);
+        color: var(--pc-text);
+        text-decoration: none;
+    }
+    .pc-chooser-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--pc-text);
+        margin-bottom: 6px;
+    }
+    .pc-chooser-desc {
+        font-size: 0.85rem;
+        color: var(--pc-text-muted);
+        line-height: 1.5;
+        margin-bottom: 14px;
+    }
+    .pc-chooser-cta {
+        font-size: 0.84rem;
+        font-weight: 700;
+        color: var(--pc-primary);
+    }
+    [data-theme="dark"] #chooseTaskTypeModal .modal-content,
+    [data-theme="dark"] #editConfigModal .modal-content,
+    [data-theme="dark"] #deleteTaskConfirmModal .modal-content {
+        background-color: #111b2e !important;
+        border-color: rgba(255, 255, 255, 0.14);
+    }
 </style>
 
 {% if is_lead or is_admin %}
-<div class="modal fade" id="createTaskModal" tabindex="-1" aria-hidden="true">            <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
+<!-- MODAL CHỌN HÌNH THỨC GIAO VIỆC -->
+<div class="modal fade" id="chooseTaskTypeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
-            <form method="POST" enctype="multipart/form-data" id="createTaskForm">
-                <div class="modal-header d-block">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <h5 class="modal-title mb-0">Tạo công việc mới</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Chọn hình thức giao việc</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <a href="/outline-giao-viec" class="pc-chooser-card">
+                            <div>
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="pc-badge pc-badge-primary">Word / PDF</span>
+                                    <i class="fa-solid fa-file-lines text-primary fs-5"></i>
+                                </div>
+                                <div class="pc-chooser-title">Giao việc theo đề cương</div>
+                                <div class="pc-chooser-desc">Nạp văn bản đề cương (.docx, .pdf), tách mục phân công theo đơn vị và tổng hợp thành báo cáo Word.</div>
+                            </div>
+                            <div class="pc-chooser-cta">Chọn &amp; bắt đầu &rarr;</div>
+                        </a>
                     </div>
-                    <div class="wizard-steps mt-3" id="wizardSteps">
-                        <div class="wizard-step is-active" data-wizard-step-label="1">
-                            <span class="wizard-step-dot"><span class="wizard-step-num">1</span></span>
-                            <div class="wizard-step-text">
-                                <span class="wizard-step-title">Loại công việc</span>
-                                <span class="wizard-step-sub">Chọn cách thu thập kết quả</span>
+                    <div class="col-md-6">
+                        <a href="/bieu-mau-giao-viec" class="pc-chooser-card">
+                            <div>
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="pc-badge pc-badge-success">Excel / Số liệu</span>
+                                    <i class="fa-solid fa-table text-success fs-5"></i>
+                                </div>
+                                <div class="pc-chooser-title">Giao việc theo biểu mẫu</div>
+                                <div class="pc-chooser-desc">Nạp file Excel (.xlsx) hoặc kẻ bảng trực quan, cài đặt công thức và tự sinh dòng theo từng đơn vị.</div>
                             </div>
-                        </div>
-                        <span class="wizard-step-line" data-wizard-step-line="2"></span>
-                        <div class="wizard-step" data-wizard-step-label="2">
-                            <span class="wizard-step-dot"><span class="wizard-step-num">2</span></span>
-                            <div class="wizard-step-text">
-                                <span class="wizard-step-title">Tải nguồn</span>
-                                <span class="wizard-step-sub">Đề cương / biểu mẫu / file</span>
-                            </div>
-                        </div>
-                        <span class="wizard-step-line" data-wizard-step-line="3"></span>
-                        <div class="wizard-step" data-wizard-step-label="3">
-                            <span class="wizard-step-dot"><span class="wizard-step-num">3</span></span>
-                            <div class="wizard-step-text">
-                                <span class="wizard-step-title">Cấu hình</span>
-                                <span class="wizard-step-sub">Mục, trường, người nhận</span>
-                            </div>
-                        </div>
-                        <span class="wizard-step-line" data-wizard-step-line="4"></span>
-                        <div class="wizard-step" data-wizard-step-label="4">
-                            <span class="wizard-step-dot"><span class="wizard-step-num">4</span></span>
-                            <div class="wizard-step-text">
-                                <span class="wizard-step-title">Phát hành</span>
-                                <span class="wizard-step-sub">Thông tin chung &amp; xuất việc</span>
-                            </div>
-                        </div>
+                            <div class="pc-chooser-cta">Chọn &amp; bắt đầu &rarr;</div>
+                        </a>
                     </div>
                 </div>
-                <div class="modal-body">
-                    <select class="d-none" name="task_mode" id="taskModeSelect">
-                        <option value="OUTLINE">Theo đề cương</option>
-                        <option value="FILE">Nộp file</option>
-                        <option value="FORM">Biểu mẫu</option>
-                    </select>
-                    <input type="hidden" name="form_provider" id="wizardFormProvider" value="internal">
-                    <textarea class="d-none" name="google_form_builder_json" id="wizardGoogleBuilderJson"></textarea>
-
-                    <div data-wizard-pane="1">
-                        <div class="fw-bold mb-3">Chọn hình thức công việc / báo cáo bạn muốn giao</div>
-                        <div class="row g-3">
-                            <div class="col-lg-6">
-                                <a href="/outline-giao-viec" class="card w-100 h-100 text-start p-3 border-2 task-type-card text-decoration-none is-selected" data-task-type="OUTLINE">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div class="fs-3 text-primary"><i class="fa-solid fa-file-contract" aria-hidden="true"></i></div>
-                                        <span class="badge bg-primary text-white">Đề cương văn bản</span>
-                                    </div>
-                                    <div class="fw-bold mt-2 fs-5 text-primary">Theo đề cương văn bản</div>
-                                    <div class="small text-muted mt-1">Tải văn bản chỉ đạo, bóc tách nhiệm vụ và phân công cơ quan thực hiện.</div>
-                                </a>
-                            </div>
-                            <div class="col-lg-6">
-                                <button type="button" class="card w-100 h-100 text-start p-3 border-2 task-type-card" data-task-type="FORM">
-                                    <div class="fs-3 text-success"><i class="fa-solid fa-table-cells" aria-hidden="true"></i></div>
-                                    <div class="fw-bold mt-2 fs-5">Biểu mẫu số liệu / Excel</div>
-                                    <div class="small text-muted mt-1">Thiết lập các trường/cột chỉ tiêu số liệu → các đơn vị nhập liệu trực tiếp → hệ thống tự động cộng dồn, tổng hợp số liệu realtime và xuất bảng tính Excel.</div>
-                                </button>
-                            </div>
-                            <!-- Đã bỏ hình thức Nộp file tự do theo định hướng chuẩn hóa GovTech Đề án 06 -->
-                        </div>
-                    </div>
-
-                    <div data-wizard-pane="2" class="d-none">
-                        <div data-wizard-source="OUTLINE" class="d-none">
-                            <div class="border rounded-3 p-4 bg-light-subtle text-center">
-                                <div class="fs-1 text-primary mb-2"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
-                                <h5 class="fw-bold text-primary mb-2">Phân Công Nhiệm Vụ Theo Đề Cương Văn Bản</h5>
-                                <p class="text-muted mb-3 mx-auto" style="max-width: 580px;">
-                                    Hệ thống bóc tách tự động các mục tiêu, nhiệm vụ từ văn bản chỉ đạo của tỉnh (Word, PDF) và hỗ trợ phân công cơ quan chủ trì, phối hợp nhanh chóng, chính xác.
-                                </p>
-                                <a href="/outline-giao-viec" class="btn btn-primary btn-lg px-4 shadow-sm">
-                                    <i class="fa-solid fa-arrow-right-to-bracket me-2"></i>Mở Phân Công Theo Đề Cương
-                                </a>
-                            </div>
-                        </div>
-                        <div data-wizard-source="FILE" class="d-none">
-                            <div class="border rounded-3 p-3 bg-light-subtle">
-                                <div class="fw-bold mb-1">Tệp hướng dẫn / mẫu (không bắt buộc)</div>
-                                <p class="small text-muted mb-3">Giao việc trực tiếp cho đơn vị / cán bộ. Người nhận sẽ nộp nội dung và file minh chứng. Bạn có thể kèm file mẫu hoặc công văn hướng dẫn.</p>
-                                <input class="form-control" type="file" name="task_file" id="wizardTaskFile" style="max-width: 420px;">
-                            </div>
-                        </div>
-                        <div data-wizard-source="FORM" class="d-none">
-                            <div class="border rounded-3 p-3 bg-light-subtle mb-3">
-                                <div class="fw-bold mb-2">Nguồn biểu mẫu</div>
-                                <div class="d-flex flex-wrap gap-3">
-                                    <label class="d-flex align-items-center gap-2">
-                                        <input type="radio" name="form_source_choice" value="builder" checked>
-                                        <span>Tự dựng / tải Excel mẫu</span>
-                                    </label>
-                                    <label class="d-flex align-items-center gap-2">
-                                        <input type="radio" name="form_source_choice" value="google">
-                                        <span>Google Form thật</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div data-form-source-pane="builder" class="border rounded-3 p-3 bg-light-subtle">
-                                <p class="small text-muted mb-2">Nếu có file Excel mẫu (.xlsx), nạp để tạo sẵn các trường, sau đó chỉnh sửa ở bước 3. Không có file thì bấm Tiếp tục và tự dựng trường.</p>
-                                <div class="d-flex flex-wrap gap-2 align-items-center">
-                                    <input class="form-control" type="file" id="wizardFormExcelFile" accept=".xlsx,.xls" style="max-width: 420px;">
-                                    <button class="btn btn-outline-primary" type="button" id="wizardFormExcelBtn">Nạp trường từ Excel</button>
-                                </div>
-                            </div>
-                            <div data-form-source-pane="google" class="d-none border rounded-3 p-3 bg-light-subtle">
-                                <p class="small text-muted mb-2">Dán link Google Form đã có. Các câu hỏi của biểu mẫu sẽ được khai báo ở bước 3 (giống nguyên lý Google Form) và đồng bộ phản hồi vào hệ thống.</p>
-                                <div class="mb-2">
-                                    <label class="form-label fw-bold">Link Google Form</label>
-                                    <input class="form-control" type="url" name="google_form_url" id="wizardGoogleFormUrl" placeholder="https://docs.google.com/forms/d/..." style="max-width: 520px;">
-                                </div>
-                                <div class="row g-3">
-                                    <div class="col-md-5">
-                                        <label class="form-label fw-bold">Cách ghép phản hồi với người nhận</label>
-                                        <select class="form-select" name="google_form_match_mode" id="wizardGoogleMatchMode">
-                                            <option value="unit">Theo đơn vị báo cáo</option>
-                                            <option value="respondent_email">Theo email người trả lời</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-7">
-                                        <label class="form-label fw-bold">Trường đối sánh (câu hỏi chứa đơn vị)</label>
-                                        <input class="form-control" type="text" name="google_form_match_field" placeholder="Ví dụ: Đơn vị báo cáo">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div data-wizard-pane="3" class="d-none">
-                        <div data-wizard-config="OUTLINE" class="d-none">
-                            <div class="border rounded-3 p-3 bg-light-subtle">
-                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <div class="fw-bold">Danh sách nội dung</div>
-                                        <button class="btn btn-outline-primary btn-sm" type="button" id="wizardAddOutlineRowBtn">+ Thêm nội dung</button>
-                                    </div>
-                                    <div id="wizardOutlineTableBar" class="d-none"></div>
-                                </div>
-                                <div id="wizardOutlineTableView" class="d-none mb-2"></div>
-                                <div id="wizardOutlineRows" class="d-grid gap-2"></div>
-                                <div class="border rounded-3 p-3 mt-3 bg-white">
-                                    <div class="fw-semibold mb-2">Gán hàng loạt cho dòng đã tích</div>
-                                    <div class="row g-2 align-items-end">
-                                        <div class="col-lg-7">
-                                            <label class="form-label small fw-semibold mb-1">Gán theo đơn vị</label>
-                                            <div data-wizard-assign="unit">
-                                                <div class="dropdown">
-                                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="wizardBulkUnitDropdown">
-                                                        <i class="fa-solid fa-building me-1"></i>
-                                                        <span data-wizard-unit-dropdown-label>Chọn đơn vị…</span>
-                                                    </button>
-                                                    <div class="dropdown-menu p-2" style="max-height: 300px; overflow:auto; min-width: 340px;">
-                                                        <div class="d-flex justify-content-between align-items-center px-2 py-1">
-                                                            <label class="small d-flex align-items-center gap-2 mb-0">
-                                                                <input type="checkbox" data-wizard-unit-check-all class="form-check-input">
-                                                                <span>Tích tất cả</span>
-                                                            </label>
-                                                            <button type="button" class="btn btn-link btn-sm p-0 text-danger" data-wizard-unit-clear>Bỏ hết</button>
-                                                        </div>
-                                                        <hr class="my-1">
-                                                        {% for item in pro_units %}
-                                                        <label class="dropdown-item d-flex align-items-center gap-2 small py-1">
-                                                            <input type="checkbox" data-wizard-unit-checkbox value="{{ item.value }}" data-label="{{ item.name }}" class="form-check-input">
-                                                            <span>{{ item.name }}</span>
-                                                        </label>
-                                                        {% endfor %}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-5 d-flex gap-2 align-items-center">
-                                            <button class="btn btn-sm btn-outline-secondary" type="button" id="wizardSelectAllRowsBtn">Tích tất cả dòng</button>
-                                            <button class="btn btn-sm btn-outline-primary" type="button" id="wizardApplyAssignBtn">Gán cho dòng tích</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div data-wizard-config="FILE" class="d-none">
-                            <div class="border rounded-3 p-3 bg-light-subtle">
-                                <div class="fw-bold mb-1">Giao cho ai</div>
-                                <p class="small text-muted mb-3">Chọn đối tượng nhận việc. Người nhận sẽ nộp nội dung và file minh chứng.</p>
-                                <div class="border rounded p-3 bg-white" id="fileAssignmentBox">
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold">Kiểu phân công</label>
-                                        <select class="form-select" name="assign_type" id="createAssignType">
-                                            <option value="unit">Theo đơn vị</option>
-                                            <option value="role">Theo vai trò</option>
-                                            <option value="user">Theo cá nhân</option>
-                                        </select>
-                                    </div>
-                                    <div class="mb-3 d-none" data-assign-box="role">
-                                        <label class="form-label fw-bold">Vai trò nhận việc</label>
-                                        <div class="border rounded p-2" style="max-height: 200px; overflow:auto;">
-                                            {% for role in roles %}
-                                            <label class="d-flex gap-2 align-items-center mb-2">
-                                                <input type="checkbox" name="assignee_role_ids" value="{{ role.id }}">
-                                                <span>{{ role.name }}</span>
-                                            </label>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                    <div class="mb-3 d-none" data-assign-box="user">
-                                        <label class="form-label fw-bold">Cán bộ nhận việc</label>
-                                        <div class="border rounded p-2" style="max-height: 220px; overflow:auto;">
-                                            {% for user in users %}
-                                            <label class="d-flex gap-2 align-items-center mb-2">
-                                                <input type="checkbox" name="target_users" value="{{ user.id }}">
-                                                <span>{{ user.fullname }}{% if user.unit_area_display %} - {{ user.unit_area_display }}{% endif %}</span>
-                                            </label>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div data-wizard-config="FORM" class="d-none">
-                            <div class="border rounded-3 p-3 bg-light-subtle">
-                                <div class="fw-bold mb-1">Cấu hình biểu mẫu</div>
-                                <p class="small text-muted mb-3">Giống nguyên lý Google Form: mỗi trường là một câu hỏi; người nhận chỉ thấy phần được giao. Trường bảng cho phép nhập nhiều dòng như bảng tính Excel.</p>
-                                <div class="border rounded p-3 bg-white" id="formBuilderBox">
-                                    <div id="formFieldList" class="d-grid gap-3"></div>
-                                    <button class="btn btn-outline-primary btn-sm mt-3" type="button" id="addFormFieldBtn">Thêm trường</button>
-                                    <template id="formFieldTemplate">
-                                        <div class="border rounded p-3 form-field-item">
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                                <strong>Trường biểu mẫu</strong>
-                                                <button type="button" class="btn btn-sm btn-outline-danger" data-remove-form-field>Xóa</button>
-                                            </div>
-                                            <div class="mb-2">
-                                                <label class="form-label fw-bold">Nhãn trường</label>
-                                                <input class="form-control" type="text" name="form_field_label">
-                                            </div>
-                                            <div class="mb-2">
-                                                <label class="form-label fw-bold">Kiểu dữ liệu</label>
-                                                <select class="form-select" name="form_field_type">
-                                                    <option value="text">Văn bản ngắn</option>
-                                                    <option value="number">Số liệu</option>
-                                                    <option value="textarea">Đoạn văn</option>
-                                                    <option value="radio">Một lựa chọn</option>
-                                                    <option value="checkbox">Nhiều lựa chọn</option>
-                                                    <option value="table">Bảng</option>
-                                                </select>
-                                            </div>
-                                            <div class="mb-2">
-                                                <label class="form-label fw-bold">Tùy chọn / cột bảng</label>
-                                                <textarea class="form-control" name="form_field_options" rows="3" placeholder="Radio/checkbox: mỗi dòng một lựa chọn&#10;Table: nhập cột, phân tách bằng dấu phẩy"></textarea>
-                                            </div>
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" data-required-checkbox>
-                                                <label class="form-check-label">Bắt buộc</label>
-                                            </div>
-                                        </div>
-                                    </template>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div data-wizard-pane="4" class="d-none">
-                        <div class="row g-3">
-                            <div class="col-lg-8">
-                                <label class="form-label fw-bold">Tiêu đề công việc</label>
-                                <input class="form-control" type="text" name="title" id="wizardTitle" required placeholder="Ví dụ: Tổng hợp báo cáo tuần ...">
-                            </div>
-                            <div class="col-lg-4">
-                                <label class="form-label fw-bold">Hạn nộp / chu kỳ báo cáo</label>
-                                <select class="form-select mb-2" name="report_period_kind">
-                                    <option value="one_time">Báo cáo đột xuất / một lần</option>
-                                    <option value="periodic">Báo cáo định kỳ</option>
-                                    <option value="milestone">Báo cáo theo mốc / giai đoạn</option>
-                                    <option value="ongoing">Công việc thường xuyên (duy trì)</option>
-                                </select>
-                                <div data-report-deadline-panel>
-                                    <input class="form-control" type="date" name="deadline">
-                                    <div class="form-text">Hạn nộp báo cáo đột xuất / một lần.</div>
-                                </div>
-                                <div class="d-none" data-report-period-panel>
-                                    <select class="form-select form-select-sm mb-2" name="report_period">
-                                        <option value="week">Hàng tuần</option>
-                                        <option value="month" selected>Hàng tháng</option>
-                                        <option value="quarter">Hàng quý</option>
-                                        <option value="year">Hàng năm</option>
-                                    </select>
-                                    <div class="d-flex gap-2 mb-2" data-report-week-anchor>
-                                        <span class="small text-muted align-self-center text-nowrap">Hạn nộp</span>
-                                        <select class="form-select form-select-sm" name="report_weekday">
-                                            <option value="0">Thứ 2</option>
-                                            <option value="1">Thứ 3</option>
-                                            <option value="2">Thứ 4</option>
-                                            <option value="3">Thứ 5</option>
-                                            <option value="4" selected>Thứ 6</option>
-                                            <option value="5">Thứ 7</option>
-                                            <option value="6">Chủ nhật</option>
-                                        </select>
-                                    </div>
-                                    <div class="d-flex gap-2 mb-2" data-report-day-anchor>
-                                        <span class="small text-muted align-self-center text-nowrap">Hạn nộp</span>
-                                        <input class="form-control form-control-sm" type="number" name="report_day_of_month" min="1" max="28" value="5" title="Ngày hạn nộp trong kỳ">
-                                        <select class="form-select form-select-sm d-none" name="report_month_of_year">
-                                            {% for m in range(1, 13) %}
-                                            <option value="{{ m }}" {% if m == 12 %}selected{% endif %}>Tháng {{ m }}</option>
-                                            {% endfor %}
-                                        </select>
-                                        <span class="small text-muted align-self-center text-nowrap d-none" data-report-day-suffix>hàng kỳ</span>
-                                    </div>
-                                    <div class="d-flex gap-2">
-                                        <input class="form-control form-control-sm" type="date" name="report_start_date" title="Bắt đầu áp dụng (tùy chọn)">
-                                        <input class="form-control form-control-sm" type="date" name="report_end_date" title="Kết thúc (tùy chọn)">
-                                    </div>
-                                    <div class="form-text">Báo cáo lặp lại theo kỳ; hạn nộp từng kỳ tự tính.</div>
-                                </div>
-                                <div class="d-none" data-report-milestone-panel>
-                                    <textarea class="form-control form-control-sm" name="report_milestones" rows="2" placeholder="Mỗi dòng một ngày (vd: 30/08/2026)&#10;15/09/2026&#10;31/12/2026"></textarea>
-                                    <div class="form-text">Mỗi mốc thời gian là một lần báo cáo.</div>
-                                </div>
-                                <div class="d-none text-muted small" data-report-ongoing-panel>Không đặt hạn — theo dõi liên tục.</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold">Lĩnh vực</label>
-                                <select class="form-select" name="category">
-                                    <option value="">Chọn lĩnh vực</option>
-                                    {% for item in task_fields %}
-                                    <option value="{{ item.value }}">{{ item.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold">Đội nghiệp vụ</label>
-                                <select class="form-select" name="unit_name">
-                                    <option value="">Chọn đội nghiệp vụ</option>
-                                    {% for item in pro_units %}
-                                    <option value="{{ item.value }}">{{ item.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold">Loại công việc</label>
-                                <select class="form-select" name="task_type">
-                                    <option value="">Công việc thường xuyên</option>
-                                    {% for item in task_types %}
-                                    <option value="{{ item.value }}">{{ item.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold">Mức độ ưu tiên</label>
-                                <select class="form-select" name="priority">
-                                    <option value="">Trung bình</option>
-                                    {% for item in priority_items %}
-                                    <option value="{{ item.value }}">{{ item.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label fw-bold">Mô tả / yêu cầu</label>
-                                <textarea class="form-control" name="description" rows="3" placeholder="Mô tả nội dung, yêu cầu, hướng dẫn cho người nhận việc..."></textarea>
-                            </div>
-                            <div class="col-12">
-                                <details class="border rounded-3 p-3 bg-light-subtle">
-                                    <summary class="fw-semibold">Phạm vi xem &amp; quản lý (tùy chọn)</summary>
-                                    <div class="row g-3 mt-1">
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-bold">Ai được xem công việc</label>
-                                            <select class="form-select" name="viewer_scope_mode" data-scope-mode="viewer">
-                                                <option value="none">Chỉ người được giao</option>
-                                                <option value="role">Theo vai trò</option>
-                                                <option value="user">Theo cá nhân</option>
-                                            </select>
-                                            <div class="border rounded-2 p-2 mt-2 d-none" data-scope-box="viewer" style="max-height: 180px; overflow:auto;">
-                                                {% for role in roles %}
-                                                <label class="d-flex gap-2 align-items-center small py-1">
-                                                    <input type="checkbox" name="viewer_role_ids" value="{{ role.id }}">
-                                                    <span>{{ role.name }}</span>
-                                                </label>
-                                                {% endfor %}
-                                                <hr class="my-2">
-                                                {% for user in users %}
-                                                <label class="d-flex gap-2 align-items-center small py-1">
-                                                    <input type="checkbox" name="viewer_user_ids" value="{{ user.id }}">
-                                                    <span>{{ user.fullname }}</span>
-                                                </label>
-                                                {% endfor %}
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-bold">Ai quản lý / duyệt công việc</label>
-                                            <select class="form-select" name="manager_scope_mode" data-scope-mode="manager">
-                                                <option value="none">Chỉ quản trị</option>
-                                                <option value="role">Theo vai trò</option>
-                                                <option value="user">Theo cá nhân</option>
-                                            </select>
-                                            <div class="border rounded-2 p-2 mt-2 d-none" data-scope-box="manager" style="max-height: 180px; overflow:auto;">
-                                                {% for role in roles %}
-                                                <label class="d-flex gap-2 align-items-center small py-1">
-                                                    <input type="checkbox" name="manager_role_ids" value="{{ role.id }}">
-                                                    <span>{{ role.name }}</span>
-                                                </label>
-                                                {% endfor %}
-                                                <hr class="my-2">
-                                                {% for user in users %}
-                                                <label class="d-flex gap-2 align-items-center small py-1">
-                                                    <input type="checkbox" name="manager_user_ids" value="{{ user.id }}">
-                                                    <span>{{ user.fullname }}</span>
-                                                </label>
-                                                {% endfor %}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </details>
-                            </div>
-                            <div class="col-12">
-                                <div class="alert alert-info border mb-0" id="wizardSummary"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer d-flex justify-content-between">
-                    <button type="button" class="btn btn-outline-secondary" id="wizardBackBtn" disabled>Quay lại</button>
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
-                        <button type="button" class="btn btn-primary pc-btn" id="wizardNextBtn">Tiếp tục</button>
-                        <button type="submit" class="btn btn-primary d-none" id="wizardSubmitBtn">Xuất việc</button>
-                    </div>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
-
 
 <div class="modal fade" id="editConfigModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <form method="POST" id="editConfigForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-header">
                     <h5 class="modal-title">Sửa cấu hình công việc</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -1735,11 +1548,13 @@ document.getElementById('taskSearchInput')?.addEventListener('input', function()
                             </div>
                             <div class="d-none" data-report-period-panel>
                                 <select class="form-select form-select-sm mb-2" name="report_period">
+                                    <option value="day">Hàng ngày</option>
                                     <option value="week">Hàng tuần</option>
                                     <option value="month" selected>Hàng tháng</option>
                                     <option value="quarter">Hàng quý</option>
                                     <option value="year">Hàng năm</option>
                                 </select>
+                                <div class="small text-muted mb-2 d-none" data-report-daily-anchor>Lặp lại hàng ngày — hạn chốt từng ngày.</div>
                                 <div class="d-flex gap-2 mb-2" data-report-week-anchor>
                                     <span class="small text-muted align-self-center text-nowrap">Hạn nộp</span>
                                     <select class="form-select form-select-sm" name="report_weekday">
@@ -1795,7 +1610,7 @@ document.getElementById('taskSearchInput')?.addEventListener('input', function()
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Loại công việc</label>
                             <select class="form-select" name="task_type">
-                                <option value="">Công việc thường xuyên</option>
+                                <option value="">-- Chọn loại công việc --</option>
                                 {% for item in task_types %}
                                 <option value="{{ item.value }}">{{ item.name }}</option>
                                 {% endfor %}
@@ -1804,7 +1619,7 @@ document.getElementById('taskSearchInput')?.addEventListener('input', function()
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Mức độ ưu tiên</label>
                             <select class="form-select" name="priority">
-                                <option value="">Trung bình</option>
+                                <option value="">-- Chọn mức độ ưu tiên --</option>
                                 {% for item in priority_items %}
                                 <option value="{{ item.value }}">{{ item.name }}</option>
                                 {% endfor %}
@@ -1878,34 +1693,6 @@ document.getElementById('taskSearchInput')?.addEventListener('input', function()
     </div>
 </div>
 
-<div class="modal fade" id="wizardRowAssignModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Gán mục cho đơn vị</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-            </div>
-            <div class="modal-body">
-                <div data-wzrow-section="unit">
-                    <label class="form-label fw-bold">Đơn vị nhận việc</label>
-                    <div class="border rounded-3 p-2" style="max-height: 220px; overflow:auto;">
-                        {% for item in pro_units %}
-                        <label class="d-flex align-items-center gap-2 px-2 py-2 border-bottom">
-                            <input type="checkbox" class="mt-1" data-wzrow-unit-checkbox value="{{ item.value }}" data-label="{{ item.name }}">
-                            <span class="small">{{ item.name }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
-                <button type="button" class="btn btn-primary pc-btn" id="applyWizardRowAssignBtn">Áp dụng</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <div class="modal fade" id="deleteTaskConfirmModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -1919,7 +1706,7 @@ document.getElementById('taskSearchInput')?.addEventListener('input', function()
             </div>
             <div class="modal-footer">
                 <form id="deleteTaskForm" method="POST" action="">
-                    <input type="hidden" name="csrf_token" value="">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
                     <button type="submit" class="btn btn-danger">Xóa</button>
                 </form>
@@ -1928,1506 +1715,53 @@ document.getElementById('taskSearchInput')?.addEventListener('input', function()
     </div>
 </div>
 
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Lọc và tìm kiếm danh sách công việc (áp dụng cho mọi vai trò)
+let activeTaskModeFilter = 'all';
+
+function applyTaskListFilters() {
+    const query = (document.getElementById('taskSearchInput')?.value || '').toLowerCase().trim();
+    const rows = document.querySelectorAll('#taskTableBody .task-row-item');
+    let visibleCount = 0;
+    rows.forEach((row) => {
+        const title = row.getAttribute('data-title') || '';
+        const author = row.getAttribute('data-author') || '';
+        const mode = row.getAttribute('data-mode') || '';
+        const matchQuery = !query || title.includes(query) || author.includes(query);
+        const matchMode = activeTaskModeFilter === 'all' || mode === activeTaskModeFilter;
+        const show = matchQuery && matchMode;
+        row.style.display = show ? '' : 'none';
+        if (show) visibleCount += 1;
+    });
+    const countEl = document.getElementById('taskTotalCount');
+    if (countEl) countEl.textContent = String(visibleCount);
+}
+
+window.filterTasksByMode = function (mode, btnEl) {
+    activeTaskModeFilter = mode || 'all';
+    document.querySelectorAll('.task-filter-pill').forEach((b) => b.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+    applyTaskListFilters();
+};
+
+document.getElementById('taskSearchInput')?.addEventListener('input', applyTaskListFilters);
+</script>
+
+{% if is_lead or is_admin %}
 <script>
 (() => {
-    const createForm = document.getElementById('createTaskForm');
-    const modeSelect = document.getElementById('taskModeSelect');
-    const formProvider = document.getElementById('wizardFormProvider');
-    const googleBuilderJson = document.getElementById('wizardGoogleBuilderJson');
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-    let currentStep = 1;
-    let wizardMode = 'OUTLINE';
-    let wizardTableSchema = null;
-    let wizardTableViewEnabled = false;
-    let wizardTableViewSuspend = false;
-    // Độ rộng cột người dùng kéo chỉnh (key = data-col-index) — giữ qua các lần render
-    let wizardTableUserColWidths = {};
-    const WIZARD_UNITS = {{ pro_units | tojson }};
-    const WIZARD_TABLE_ROLES = [
-        { value: 'stt', label: 'Số thứ tự' },
-        { value: 'content', label: 'Nội dung' },
-        { value: 'lead', label: 'Đơn vị chủ trì' },
-        { value: 'coordinate', label: 'Đơn vị phối hợp' },
-        { value: 'deadline', label: 'Thời gian' },
-        { value: 'product', label: 'Sản phẩm, kết quả' },
-        { value: 'note', label: 'Ghi chú' },
-        { value: 'other', label: 'Cột khác' },
-    ];
-
-    function escapeHtml(value) {
-        return String(value == null ? '' : value).replace(/[&<>"']/g, (ch) => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-        }[ch]));
-    }
-
-    const wizardPanes = {
-        1: document.querySelector('[data-wizard-pane="1"]'),
-        2: document.querySelector('[data-wizard-pane="2"]'),
-        3: document.querySelector('[data-wizard-pane="3"]'),
-        4: document.querySelector('[data-wizard-pane="4"]'),
-    };
-    const wizardBackBtn = document.getElementById('wizardBackBtn');
-    const wizardNextBtn = document.getElementById('wizardNextBtn');
-    const wizardSubmitBtn = document.getElementById('wizardSubmitBtn');
-    const outlineRowsBox = document.getElementById('wizardOutlineRows');
-    const wizardOutlineGroups = new Map(); // heading -> { block, body }
-    const formFieldList = document.getElementById('formFieldList');
-    const formFieldTemplate = document.getElementById('formFieldTemplate');
-    const addFormFieldBtn = document.getElementById('addFormFieldBtn');
-    const assignType = document.getElementById('createAssignType');
-    const wizardOutlineFileList = document.getElementById('wizardOutlineFileList');
-    const wizardAddOutlineFileBtn = document.getElementById('wizardAddOutlineFileBtn');
-    const wizardOutlineParseBtn = document.getElementById('wizardOutlineParseBtn');
-    const wizardOutlineStatus = document.getElementById('wizardOutlineStatus');
-    const wizardFormExcelFile = document.getElementById('wizardFormExcelFile');
-    const wizardFormExcelBtn = document.getElementById('wizardFormExcelBtn');
-    const wizardSummary = document.getElementById('wizardSummary');
-
-    // ---------- wizard navigation ----------
-    function setStep(step) {
-        currentStep = step;
-        Object.entries(wizardPanes).forEach(([key, element]) => {
-            if (!element) return;
-            element.classList.toggle('d-none', Number(key) !== step);
-        });
-        document.querySelectorAll('[data-wizard-step-label]').forEach((label) => {
-            const num = Number(label.dataset.wizardStepLabel);
-            label.classList.toggle('is-active', num === step);
-            label.classList.toggle('is-completed', num < step);
-        });
-        document.querySelectorAll('[data-wizard-step-line]').forEach((line) => {
-            line.classList.toggle('is-completed', Number(line.dataset.wizardStepLine) <= step);
-        });
-        if (wizardBackBtn) wizardBackBtn.disabled = step === 1;
-        if (wizardNextBtn) wizardNextBtn.classList.toggle('d-none', step === 4);
-        if (wizardSubmitBtn) wizardSubmitBtn.classList.toggle('d-none', step !== 4);
-        if (step === 3) {
-            // Pane vừa hiển thị -> tính lại kích thước textarea cho khớp nội dung
-            const growCards = () => outlineRowsBox?.querySelectorAll('textarea[name="item_content"]').forEach(autoGrowOutlineTextarea);
-            requestAnimationFrame(growCards);
-            setTimeout(growCards, 80);
-            scheduleGrowWizardTableTextareas(document.getElementById('wizardOutlineTableView'));
-        }
-        syncWizardSummary();
-    }
-
-    function syncWizardForMode() {
-        document.querySelectorAll('[data-wizard-source]').forEach((element) => {
-            element.classList.toggle('d-none', element.dataset.wizardSource !== wizardMode);
-        });
-        document.querySelectorAll('[data-wizard-config]').forEach((element) => {
-            element.classList.toggle('d-none', element.dataset.wizardConfig !== wizardMode);
-        });
-        if (modeSelect) modeSelect.value = wizardMode;
-        syncWizardSummary();
-    }
-
-    function syncWizardSummary() {
-        if (!wizardSummary) return;
-        const modeLabel = { OUTLINE: 'Theo đề cương', FILE: 'Nộp file / văn bản', FORM: 'Biểu mẫu / bảng số' }[wizardMode] || wizardMode;
-        let detail = '';
-        if (wizardMode === 'OUTLINE') {
-            const rows = Array.from(outlineRowsBox?.querySelectorAll('[data-wz-row]') || []);
-            const assigned = rows.filter((row) => effectiveWizardRowDomains(row).length);
-            detail = `${rows.length} nội dung, ${assigned.length} nội dung đã gán đơn vị`;
-        } else if (wizardMode === 'FORM') {
-            const fields = Array.from(formFieldList?.querySelectorAll('.form-field-item') || []);
-            const source = document.querySelector('input[name="form_source_choice"]:checked')?.value || 'builder';
-            const sourceLabel = { builder: 'Tự dựng / Excel', google: 'Google Form thật' }[source] || source;
-            detail = `${fields.length} trường biểu mẫu (${sourceLabel})`;
-        } else {
-            const roleIds = Array.from(document.querySelectorAll('input[name="assignee_role_ids"]:checked')).length;
-            const userIds = Array.from(document.querySelectorAll('input[name="target_users"]:checked')).length;
-            detail = `Giao theo ${assignType?.value === 'role' ? 'vai trò' : assignType?.value === 'user' ? 'cá nhân' : 'đơn vị'}` + (roleIds ? ` (${roleIds} vai trò)` : '') + (userIds ? ` (${userIds} cán bộ)` : '');
-        }
-        const title = document.querySelector('#createTaskModal input[name="title"]')?.value?.trim();
-        wizardSummary.innerHTML = `<b>${modeLabel}</b> — ${detail}${title ? `<br>Tiêu đề: ${title.replace(/</g, '&lt;')}` : ''}`;
-    }
-
-    // ---------- step 1: type cards ----------
-    document.querySelectorAll('[data-task-type]').forEach((card) => {
-        card.addEventListener('click', (e) => {
-            wizardMode = card.dataset.taskType;
-            if (wizardMode === 'OUTLINE') {
-                e.preventDefault();
-                window.location.href = '/outline-giao-viec';
-                return;
-            }
-            document.querySelectorAll('[data-task-type]').forEach((other) => {
-                other.classList.toggle('is-selected', other === card);
-                other.classList.toggle('border-primary', other === card);
-                other.classList.toggle('bg-primary-subtle', other === card);
-            });
-            if (modeSelect) modeSelect.value = wizardMode;
-            if (wizardMode === 'FORM' && !formFieldList?.querySelector('.form-field-item')) {
-                addFormField();
-            }
-            setStep(2);
-        });
-    });
-
-    wizardNextBtn?.addEventListener('click', () => {
-        if (wizardMode === 'OUTLINE') {
-            window.location.href = '/outline-giao-viec';
-            return;
-        }
-        if (currentStep === 2 && wizardMode === 'FORM' && !formFieldList?.querySelector('.form-field-item')) {
-            addFormField();
-        }
-        setStep(Math.min(currentStep + 1, 4));
-    });
-    wizardBackBtn?.addEventListener('click', () => setStep(Math.max(currentStep - 1, 1)));
-
-    document.getElementById('wizardAddOutlineRowBtn')?.addEventListener('click', () => {
-        if (wizardMode !== 'OUTLINE') return;
-        addWizardOutlineRow({});
-        syncWizardSummary();
-    });
-
-    // ---------- step 2: outline parse ----------
-    wizardAddOutlineFileBtn?.addEventListener('click', () => {
-        const row = document.createElement('div');
-        row.className = 'd-flex gap-2 align-items-center';
-        row.dataset.wzOutlineFileRow = '';
-        const label = document.createElement('span');
-        label.className = 'small fw-semibold text-muted';
-        label.style.minWidth = '90px';
-        label.textContent = 'File phụ';
-        const input = document.createElement('input');
-        input.className = 'form-control form-control-sm outline-file-input';
-        input.type = 'file';
-        input.accept = '.docx,.txt,.pdf';
-        input.dataset.wzOutlineFile = '';
-        const remove = document.createElement('button');
-        remove.type = 'button';
-        remove.className = 'btn btn-sm btn-outline-danger';
-        remove.title = 'Bỏ file này';
-        remove.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
-        remove.addEventListener('click', () => row.remove());
-        row.append(label, input, remove);
-        wizardOutlineFileList?.appendChild(row);
-    });
-
-    async function parseOutlineFile() {
-        const fileInputs = Array.from(document.querySelectorAll('[data-wz-outline-file]'));
-        const files = fileInputs.map((input) => input.files && input.files[0]).filter(Boolean);
-        if (!files.length) {
-            wizardOutlineStatus.textContent = 'Cần chọn ít nhất một file đề cương (.docx / .txt / .pdf) trước.';
-            wizardOutlineStatus.classList.add('text-danger');
-            return;
-        }
-        wizardOutlineStatus.textContent = 'Đang phân tích đề cương...';
-        wizardOutlineStatus.classList.remove('text-danger');
-        const formData = new FormData();
-        files.forEach((file) => formData.append('outline_file', file));
-        try {
-            const response = await fetch('{{ url_for("tasks_bp.parse_outline_file_for_create") }}', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: { 'X-CSRF-Token': csrfToken },
-                body: formData,
-            });
-            let payload = null;
-            try {
-                payload = await response.json();
-            } catch (jsonError) {
-                // Server trả về trang lỗi (500 HTML) thay vì JSON
-                wizardOutlineStatus.textContent = 'Máy chủ gặp lỗi khi phân tích (HTTP ' + response.status + '). Vui lòng kiểm tra nhật ký server hoặc thử lại sau.';
-                wizardOutlineStatus.classList.add('text-danger');
-                return;
-            }
-            if (!response.ok || !payload?.ok) {
-                throw new Error(payload?.error || 'Không phân tích được đề cương.');
-            }
-            clearWizardOutlineRows();
-            const createdRowEls = [];
-            (payload.rows || []).forEach((row, i) => {
-                const parentIndex = (typeof row.parent_row_index === 'number' && row.parent_row_index >= 0 && row.parent_row_index < createdRowEls.length) ? row.parent_row_index : null;
-                const parentEl = parentIndex !== null ? createdRowEls[parentIndex] : null;
-                createdRowEls.push(addWizardOutlineRow(row, parentEl));
-            });
-            setupWizardTableEditor();
-            const mergedNote = payload.merged ? ` Đã gộp nội dung trùng giữa ${files.length} file.` : '';
-            wizardOutlineStatus.textContent = `Đã tách ${(payload.rows || []).length} nội dung từ đề cương, gom theo ${wizardOutlineGroups.size} mục. Kiểm tra, gán đơn vị và chọn hình thức báo cáo ở bước 3 rồi Tiếp tục.${mergedNote}`;
-            wizardOutlineStatus.classList.add('text-success');
-            syncWizardSummary();
-        } catch (error) {
-            wizardOutlineStatus.textContent = error.message || 'Không phân tích được đề cương.';
-            wizardOutlineStatus.classList.add('text-danger');
-        }
-    }
-    wizardOutlineParseBtn?.addEventListener('click', parseOutlineFile);
-
-    // ---------- step 2: form source ----------
-    function syncFormSource() {
-        const source = document.querySelector('input[name="form_source_choice"]:checked')?.value || 'builder';
-        document.querySelectorAll('[data-form-source-pane]').forEach((pane) => {
-            pane.classList.toggle('d-none', pane.dataset.formSourcePane !== source);
-        });
-        if (formProvider) formProvider.value = source === 'google' ? 'google' : 'internal';
-    }
-    document.querySelectorAll('input[name="form_source_choice"]').forEach((radio) => {
-        radio.addEventListener('change', syncFormSource);
-    });
-
-    async function loadFormFields(formData) {
-        try {
-            const response = await fetch('{{ url_for("tasks_bp.preview_form_template_fields_for_create") }}', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: { 'X-CSRF-Token': csrfToken },
-                body: formData,
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload?.ok) {
-                throw new Error(payload?.error || 'Không nạp được trường biểu mẫu.');
-            }
-            clearFormFields();
-            (payload.fields || []).forEach((field) => {
-                addFormField({
-                    label: field.field_label || '',
-                    type: field.field_type || 'text',
-                    options: field.field_options || '',
-                    required: Boolean(field.is_required),
-                });
-            });
-            if (!formFieldList?.querySelector('.form-field-item')) {
-                addFormField();
-            }
-            wizardOutlineStatus.textContent = `Đã nạp ${(payload.fields || []).length} trường. Kiểm tra và chỉnh sửa rồi bấm Tiếp tục.`;
-            wizardOutlineStatus.classList.add('text-success');
-            syncWizardSummary();
-        } catch (error) {
-            wizardOutlineStatus.textContent = error.message || 'Không nạp được trường biểu mẫu.';
-            wizardOutlineStatus.classList.add('text-danger');
-        }
-    }
-    wizardFormExcelBtn?.addEventListener('click', () => {
-        if (!wizardFormExcelFile?.files?.length) {
-            wizardOutlineStatus.textContent = 'Cần chọn file Excel mẫu (.xlsx) trước.';
-            wizardOutlineStatus.classList.add('text-danger');
-            return;
-        }
-        const formData = new FormData();
-        formData.append('excel_file', wizardFormExcelFile.files[0]);
-        loadFormFields(formData);
-    });
-
-    // ---------- outline rows ----------
-    function wizardUnitNameMap() {
-        return new Map(Array.from(document.querySelectorAll('[data-wizard-unit-checkbox]')).map((cb) => [cb.value, cb.dataset.label || cb.value]));
-    }
-
-    function formatWizardAssignmentSummary(payload) {
-        if (payload.assignType === 'unit' && payload.unitDomains.length) {
-            const unitMap = wizardUnitNameMap();
-            return 'Đơn vị: ' + payload.unitDomains.map((value) => unitMap.get(String(value)) || String(value)).join(', ');
-        }
-        return 'Chưa gán người nhận';
-    }
-
-    function wizardRowParentElement(row) {
-        return (row && typeof row._wzParentEl !== 'undefined') ? row._wzParentEl : null;
-    }
-
-    function syncWizardOutlineRowIndexes() {
-        if (!outlineRowsBox) return;
-        const rows = Array.from(outlineRowsBox.querySelectorAll('[data-wz-row]'));
-        rows.forEach((row, index) => {
-            const attachment = row.querySelector('input[name="item_attachment_required"]');
-            if (attachment) attachment.value = String(index);
-            const parentInput = row.querySelector('input[name="item_parent"]');
-            if (parentInput) {
-                const parentEl = wizardRowParentElement(row);
-                const parentIndex = parentEl ? rows.indexOf(parentEl) : -1;
-                parentInput.value = parentIndex >= 0 ? String(parentIndex) : '';
-            }
-            const inheritInput = row.querySelector('input[name="item_inherit"]');
-            const inheritCheckbox = row.querySelector('[data-wz-inherit]');
-            if (inheritInput) {
-                inheritInput.value = (inheritCheckbox && inheritCheckbox.checked) ? String(index) : '';
-            }
-        });
-    }
-
-    function effectiveWizardRowDomains(row, visited) {
-        if (!row) return [];
-        const own = (row.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean);
-        if (own.length) return own;
-        const inheritCheckbox = row.querySelector('[data-wz-inherit]');
-        if (inheritCheckbox && inheritCheckbox.checked) {
-            const parentEl = wizardRowParentElement(row);
-            if (parentEl && (!visited || !visited.has(parentEl))) {
-                const nextVisited = visited ? new Set(visited) : new Set();
-                nextVisited.add(row);
-                return effectiveWizardRowDomains(parentEl, nextVisited);
-            }
-        }
-        return [];
-    }
-
-    function updateWizardOutlineRowAssignment(row, payload) {
-        row.querySelector('input[name="item_assign_type"]').value = payload.assignType || '';
-        row.querySelector('input[name="item_domain"]').value = payload.domain || '';
-        row.querySelector('input[name="item_domains"]').value = (payload.unitDomains || []).join(',');
-        row.querySelector('input[name="item_role_ids"]').value = (payload.roleIds || []).join(',');
-        row.querySelector('input[name="item_user_ids"]').value = (payload.userIds || []).join(',');
-        const checkbox = row.querySelector('[data-wz-inherit]');
-        if (checkbox) checkbox.checked = false;
-        const assignBtn = row.querySelector('[data-wz-row-assign]');
-        if (assignBtn) assignBtn.disabled = false;
-        const summary = row.querySelector('[data-wz-row-summary]');
-        if (summary) summary.textContent = formatWizardAssignmentSummary(payload);
-        syncWizardOutlineRowIndexes();
-        propagateWizardInheritedChildren(row);
-        syncWizardSummary();
-        if (wizardTableViewEnabled && !wizardTableViewSuspend) renderWizardTableView();
-    }
-
-    function propagateWizardInheritedChildren(parentRow) {
-        if (!outlineRowsBox) return;
-        const parentDomains = (parentRow.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean);
-        Array.from(outlineRowsBox.querySelectorAll('[data-wz-row]')).forEach((child) => {
-            if (wizardRowParentElement(child) !== parentRow) return;
-            const inheritCheckbox = child.querySelector('[data-wz-inherit]');
-            const summary = child.querySelector('[data-wz-row-summary]');
-            if (inheritCheckbox && inheritCheckbox.checked) {
-                if (summary) {
-                    summary.textContent = parentDomains.length
-                        ? 'Kế thừa mục cha: ' + parentDomains.map((v) => wizardUnitNameMap().get(String(v)) || String(v)).join(', ')
-                        : 'Kế thừa mục cha (chưa gán)';
-                }
-            }
-        });
-    }
-
-
-    function renderHierarchyItem(container, rowData) {
-        const level = rowData.level || 3;
-        const number = rowData.number || '';
-        const title = rowData.title || '';
-        const fullHeading = rowData.heading || title;
-        const contentLines = rowData.content_lines || [];
-        const contentValue = rowData.content || '';
-        
-        // Parse content lines from content if not provided
-        let lines = contentLines;
-        if (lines.length === 0 && contentValue) {
-            lines = contentValue.split('\n').filter(l => l.trim());
-        }
-        
-        const levelClass = level === 1 ? 'wizard-heading-level-1' : 
-                          level === 2 ? 'wizard-heading-level-2' : 'wizard-heading-level-3';
-        
-        // Create heading element
-        const headingDiv = document.createElement('div');
-        headingDiv.className = levelClass;
-        headingDiv.innerHTML = `<div class="heading-title">${number ? number + '. ' : ''}${title}</div>`;
-        container.appendChild(headingDiv);
-        
-        // Create content lines container if there are lines
-        if (lines.length > 0) {
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'wizard-content-lines';
-            lines.forEach((line, idx) => {
-                const lineDiv = document.createElement('div');
-                lineDiv.className = 'content-line';
-                lineDiv.textContent = line.trim();
-                contentDiv.appendChild(lineDiv);
-            });
-            container.appendChild(contentDiv);
-        }
-        
-        // Hidden inputs for form submission
-        const hiddenHeading = document.createElement('input');
-        hiddenHeading.type = 'hidden';
-        hiddenHeading.name = 'item_heading';
-        hiddenHeading.value = fullHeading;
-        container.appendChild(hiddenHeading);
-        
-        const hiddenTitle = document.createElement('input');
-        hiddenTitle.type = 'hidden';
-        hiddenTitle.name = 'item_title';
-        hiddenTitle.value = title;
-        container.appendChild(hiddenTitle);
-        
-        const hiddenContent = document.createElement('input');
-        hiddenContent.type = 'hidden';
-        hiddenContent.name = 'item_content';
-        hiddenContent.value = contentValue;
-        container.appendChild(hiddenContent);
-        
-        const hiddenLevel = document.createElement('input');
-        hiddenLevel.type = 'hidden';
-        hiddenLevel.name = 'item_level';
-        hiddenLevel.value = String(level);
-        container.appendChild(hiddenLevel);
-        
-        const hiddenNumber = document.createElement('input');
-        hiddenNumber.type = 'hidden';
-        hiddenNumber.name = 'item_number';
-        hiddenNumber.value = number;
-        container.appendChild(hiddenNumber);
-        
-        const hiddenIsHeading = document.createElement('input');
-        hiddenIsHeading.type = 'hidden';
-        hiddenIsHeading.name = 'item_is_heading';
-        hiddenIsHeading.value = '1';
-        container.appendChild(hiddenIsHeading);
-    }
-
-    function wizardRowGroupBody(row) {
-        return (row && typeof row._wzGroupBody !== 'undefined') ? row._wzGroupBody : null;
-    }
-
-    // ---------- bảng đề cương: cột + ô ----------
-    function normalizeUnitText(value) {
-        return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-            .replace(/[.,;:()\[\]"'“”‘’]/g, ' ').replace(/[\s\-_/|]+/g, ' ').trim();
-    }
-
-    function wizardTableContentIndex() {
-        if (!wizardTableSchema) return null;
-        const col = wizardTableSchema.find((c) => c.role === 'content');
-        return col ? Number(col.index) : null;
-    }
-
-    function syncWizardTableCellsJson(row) {
-        const hidden = row.querySelector('input[name="item_table_cells"]');
-        if (hidden && row._wzTableCells) hidden.value = JSON.stringify(row._wzTableCells);
-    }
-
-    function matchWizardRowUnitFromLead(row, leadText) {
-        const norm = normalizeUnitText(leadText);
-        if (!norm) return;
-        let best = null;
-        (WIZARD_UNITS || []).forEach((unit) => {
-            const name = normalizeUnitText(unit.name);
-            if (name.length >= 3 && norm.includes(name) && (!best || name.length > best.normLen)) {
-                best = { value: String(unit.value), normLen: name.length };
-            }
-        });
-        if (best) {
-            updateWizardOutlineRowAssignment(row, { assignType: 'unit', domain: '', unitDomains: [best.value], roleIds: [], userIds: [] });
-        }
-    }
-
-    function renderWizardTableStrip(row) {
-        const strip = row.querySelector('[data-wz-table-strip]');
-        const cells = row._wzTableCells;
-        const schema = row._wzTableSchema || wizardTableSchema;
-        if (!strip || !cells || !schema || !schema.length) return;
-        const visible = schema.filter((col) => col.visible && col.role !== 'content');
-        strip.innerHTML = visible.map((col) => {
-            const idx = String(col.index);
-            const value = cells[idx] || '';
-            if (col.role === 'lead') {
-                return `<label class="tcell d-inline-flex align-items-center gap-1"><b>${escapeHtml(col.header)}:</b> <input class="form-control form-control-sm" style="width:auto;min-width:200px;" data-wz-table-lead value="${escapeHtml(value)}" title="Sửa tên đơn vị chủ trì; hệ thống tự gán lại cho đơn vị khớp"></label>`;
-            }
-            return `<span class="tcell"><b>${escapeHtml(col.header)}:</b> <span>${escapeHtml(value)}</span></span>`;
-        }).join('');
-        strip.querySelectorAll('[data-wz-table-lead]').forEach((input) => {
-            input.addEventListener('change', () => {
-                const leadCol = (row._wzTableSchema || wizardTableSchema || []).find((c) => c.role === 'lead');
-                if (leadCol) {
-                    row._wzTableCells[String(leadCol.index)] = input.value;
-                    syncWizardTableCellsJson(row);
-                    matchWizardRowUnitFromLead(row, input.value);
-                }
-            });
-        });
-    }
-
-    function rebuildWizardTableRows() {
-        if (!outlineRowsBox) return;
-        outlineRowsBox.querySelectorAll('[data-wz-row]').forEach((row) => {
-            if (!row._wzTableCells) return;
-            const contentIdx = wizardTableContentIndex();
-            const textarea = row.querySelector('textarea[name="item_content"]');
-            if (textarea && contentIdx !== null && row._wzTableCells[String(contentIdx)] !== undefined) {
-                textarea.value = row._wzTableCells[String(contentIdx)];
-                autoGrowOutlineTextarea(textarea);
-            }
-            renderWizardTableStrip(row);
-            syncWizardTableCellsJson(row);
-        });
-        if (wizardTableViewEnabled) renderWizardTableView();
-    }
-
-    function syncWizardTableSchemaInput() {
-        const hidden = document.querySelector('#wizardOutlineTableBar input[name="item_table_schema"]');
-        if (hidden && wizardTableSchema) hidden.value = JSON.stringify(wizardTableSchema);
-    }
-
-    function renderWizardTableBar() {
-        const bar = document.getElementById('wizardOutlineTableBar');
-        if (!bar) return;
-        if (!wizardTableSchema || !wizardTableSchema.length) {
-            bar.classList.add('d-none');
-            bar.innerHTML = '';
-            return;
-        }
-        bar.classList.remove('d-none');
-        const visibleCount = wizardTableSchema.filter((c) => c.visible).length;
-        bar.innerHTML = `
-            <div class="dropdown">
-                <button class="btn btn-outline-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Chọn cột hiển thị cho đơn vị nhận và sửa vai trò cột">
-                    <i class="fa-solid fa-table-columns"></i>Cấu trúc bảng
-                    <span class="badge text-bg-secondary" id="wizardTableVisibleCount">${visibleCount}/${wizardTableSchema.length}</span>
-                </button>
-                <div class="dropdown-menu dropdown-menu-end p-2 shadow" style="min-width: 360px; max-width: 440px;">
-                    <div class="small text-muted px-2 pb-2">Tích cột để hiển thị cho đơn vị nhận; sửa vai trò cột nếu nhận diện sai — cột "Đơn vị chủ trì" sẽ gán sẵn cho từng dòng.</div>
-                    ${wizardTableSchema.map((col) => `
-                        <div class="dropdown-item d-flex align-items-center gap-2 px-2 py-1">
-                            <input type="checkbox" class="form-check-input mt-0 flex-shrink-0" data-wz-table-col-visible data-col="${col.index}" ${col.visible ? 'checked' : ''} title="Hiển thị cột này cho đơn vị nhận">
-                            <select class="form-select form-select-sm flex-shrink-0" style="width: 132px;" data-wz-table-col-role data-col="${col.index}" title="Vai trò của cột">
-                                ${WIZARD_TABLE_ROLES.map((role) => `<option value="${role.value}" ${role.value === col.role ? 'selected' : ''}>${role.label}</option>`).join('')}
-                            </select>
-                            <span class="small text-truncate flex-grow-1">${escapeHtml(col.header)}</span>
-                        </div>
-                    `).join('')}
-                    <input type="hidden" name="item_table_schema" value="${escapeHtml(JSON.stringify(wizardTableSchema))}">
-                </div>
-            </div>
-        `;
-        bar.querySelectorAll('[data-wz-table-col-visible]').forEach((checkbox) => {
-            checkbox.addEventListener('change', () => {
-                const col = wizardTableSchema.find((c) => c.index === Number(checkbox.dataset.col));
-                if (col) col.visible = checkbox.checked;
-                syncWizardTableSchemaInput();
-                updateWizardTableBarVisibleCount(bar);
-                rebuildWizardTableRows();
-            });
-        });
-        bar.querySelectorAll('[data-wz-table-col-role]').forEach((select) => {
-            select.addEventListener('change', () => {
-                const col = wizardTableSchema.find((c) => c.index === Number(select.dataset.col));
-                if (col) col.role = select.value;
-                syncWizardTableSchemaInput();
-                rebuildWizardTableRows();
-            });
-        });
-    }
-
-    function updateWizardTableBarVisibleCount(bar) {
-        const el = (bar || document.getElementById('wizardOutlineTableBar'))?.querySelector('#wizardTableVisibleCount');
-        if (!el || !wizardTableSchema) return;
-        el.textContent = `${wizardTableSchema.filter((c) => c.visible).length}/${wizardTableSchema.length}`;
-    }
-
-    function setupWizardTableEditor() {
-        let schema = null;
-        let tableRowCount = 0;
-        let totalRowCount = 0;
-        if (outlineRowsBox) {
-            outlineRowsBox.querySelectorAll('[data-wz-row]').forEach((row) => {
-                totalRowCount += 1;
-                if (row._wzTableSchema) {
-                    schema = schema || row._wzTableSchema;
-                    tableRowCount += 1;
-                }
-            });
-        }
-        wizardTableSchema = schema;
-        // Chế độ bảng chỉ bật khi TẤT CẢ các dòng đều là dòng bảng
-        wizardTableViewEnabled = Boolean(schema) && totalRowCount > 0 && tableRowCount === totalRowCount;
-        renderWizardTableBar();
-        if (schema) rebuildWizardTableRows();
-        renderWizardTableView();
-    }
-
-    function wizardTableVisibleColumns() {
-        if (!wizardTableSchema) return [];
-        return wizardTableSchema.filter((col) => col.visible);
-    }
-
-    function wizardTableSectionTitle(headingValue) {
-        const parts = String(headingValue || '').split(' » ').map((p) => p.trim()).filter(Boolean);
-        if (!parts.length) return '';
-        const last = parts[parts.length - 1];
-        return parts.length > 1 ? parts.slice(0, -1).join(' » ') + ' » ' + last : last;
-    }
-
-    function renderWizardTableView() {
-        const container = document.getElementById('wizardOutlineTableView');
-        if (!container) return;
-        if (!wizardTableViewEnabled || !wizardTableSchema || !outlineRowsBox) {
-            container.classList.add('d-none');
-            container.innerHTML = '';
-            if (outlineRowsBox) outlineRowsBox.classList.remove('d-none');
-            return;
-        }
-        container.classList.remove('d-none');
-        outlineRowsBox.classList.add('d-none');
-        const visibleCols = wizardTableVisibleColumns();
-        const unitNameMap = wizardUnitNameMap();
-        const totalCols = visibleCols.length + 3; // ô tích + hình thức + gán
-
-        const headerCells = [
-            '<th class="text-center" style="width:34px;" scope="col"><input class="form-check-input mt-0" type="checkbox" data-wz-table-view-check-all title="Tích tất cả dòng"></th>',
-        ].concat(
-            visibleCols.map((col) => {
-                const colClass = col.role === 'content' ? 'wz-col-content' : col.role === 'lead' ? 'wz-col-lead' : 'wz-col-other';
-                const savedW = wizardTableUserColWidths[col.index];
-                return `<th class="${colClass}" data-col-index="${col.index}" ${savedW ? `style="width:${savedW}px;"` : ''} scope="col">
-                    <div class="text-center fw-semibold" style="font-size: 0.85rem;">${escapeHtml(col.header || '')}</div>
-                    <span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span>
-                </th>`;
-            })
-        ).concat([
-            '<th class="wz-col-report" data-col-index="report" ' + (wizardTableUserColWidths.report ? `style="width:${wizardTableUserColWidths.report}px;"` : '') + ' scope="col"><div class="text-center fw-semibold" style="font-size: 0.85rem;">Hình thức báo cáo</div><span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span></th>',
-            '<th class="wz-col-assign" data-col-index="assign" ' + (wizardTableUserColWidths.assign ? `style="width:${wizardTableUserColWidths.assign}px;"` : '') + ' scope="col"><div class="text-center fw-semibold" style="font-size: 0.85rem;">Gán cho ai</div><span class="wz-col-resizer" title="Kéo để chỉnh độ rộng cột"></span></th>',
-        ]);
-
-        let bodyHtml = '';
-        // Nhóm mục (section) + dòng trong nhóm, sau đó dòng đứng riêng
-        const renderRowCard = (card) => {
-            const cells = card._wzTableCells || {};
-            const rowCheck = card.querySelector('[data-wz-row-check]');
-            const cellEls = visibleCols.map((col) => {
-                const idx = String(col.index);
-                const value = cells[idx] || '';
-                if (col.role === 'content') {
-                    return `<td class="p-1 wz-col-content"><textarea class="form-control form-control-sm wizard-table-cell-ta" data-wz-table-cell data-col="${col.index}" rows="1">${escapeHtml(value)}</textarea></td>`;
-                }
-                if (col.role === 'lead') {
-                    const assigned = (card.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean);
-                    const names = assigned.map((v) => unitNameMap.get(String(v)) || String(v)).filter(Boolean);
-                    const display = names.join(', ');
-                    // Đồng bộ ô bảng (xuất tổng hợp) với danh sách đơn vị đã gán
-                    if (names.length && card._wzTableCells && card._wzTableCells[String(col.index)] !== display) {
-                        card._wzTableCells[String(col.index)] = display;
-                        const cellsInput = card.querySelector('input[name="item_table_cells"]');
-                        if (cellsInput) cellsInput.value = JSON.stringify(card._wzTableCells);
-                    }
-                    return `<td class="p-1 wz-col-lead">
-                        <textarea class="form-control form-control-sm wizard-table-cell-ta" data-wz-table-cell data-col="${col.index}" rows="1" title="Tất cả đơn vị được gán">${escapeHtml(display || value)}</textarea>
-                    </td>`;
-                }
-                return `<td class="p-1 wz-col-other"><textarea class="form-control form-control-sm wizard-table-cell-ta" data-wz-table-cell data-col="${col.index}" rows="1">${escapeHtml(value)}</textarea></td>`;
-            });
-            const reportKind = card.querySelector('[name="item_report_kind"]')?.value || 'narrative';
-            const secondaryBadge = card.querySelector('[data-wz-report-secondary]')
-                ? '<span class="badge bg-warning-subtle text-warning-emphasis small">Phụ</span> ' : '';
-            return `<tr data-wz-table-view-row>
-                <td class="text-center">${rowCheck ? '<input class="form-check-input mt-0" type="checkbox" data-wz-table-view-check>' : ''}</td>
-                ${cellEls.join('')}
-                <td class="p-1">
-                    <select class="form-select form-select-sm" data-wz-table-view-kind style="width:100%;">
-                        <option value="narrative" ${reportKind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
-                        <option value="number" ${reportKind === 'number' ? 'selected' : ''}>Báo cáo số</option>
-                    </select>
-                </td>
-                <td class="p-1 wz-col-assign">
-                    <div class="d-flex gap-1 align-items-center">
-                        ${secondaryBadge}
-                        <button type="button" class="btn btn-sm btn-outline-secondary btn-icon-eq" data-wz-table-view-assign title="Gán cho ai"><i class="fa-solid fa-user-plus"></i></button>
-                        <button type="button" class="btn btn-sm btn-outline-danger btn-icon-eq" data-wz-table-view-remove title="Xóa"><i class="fa-solid fa-trash"></i></button>
-                    </div>
-                </td>
-            </tr>`;
-        };
-
-        // Không hiển thị dòng tiêu đề mục (nội dung gốc đã có trong file đề cương) — chỉ hiện dòng dữ liệu
-        wizardTableViewCards().forEach((card) => {
-            bodyHtml += renderRowCard(card);
-        });
-
-        container.innerHTML = `
-            <div class="table-responsive border rounded-3 bg-white">
-                <table class="table table-bordered pc-table table-sm align-middle mb-0 wizard-outline-table">
-                    <thead scope="col"><tr>${headerCells.join('')}</tr></thead>
-                    <tbody>${bodyHtml || '<tr><td colspan="' + totalCols + '" class="text-center text-muted py-3">Chưa có dòng nào.</td></tr>'}</tbody>
-                </table>
-            </div>
-        `;
-        // Đợi layout xong rồi mới đo — nếu đo ngay sau innerHTML, scrollHeight chưa phản ánh nội dung
-        scheduleGrowWizardTableTextareas(container);
-        wireWizardTableView(container);
-    }
-
-    function wireWizardTableView(container) {
-        // Header: tích tất cả
-        container.querySelector('[data-wz-table-view-check-all]')?.addEventListener('change', (e) => {
-            container.querySelectorAll('[data-wz-table-view-check]').forEach((cb) => { cb.checked = e.target.checked; });
-        });
-        // Bỏ/tích hiển thị cột giờ nằm trong droplist "Cấu trúc bảng" (wizardOutlineTableBar)
-        // Ô dữ liệu: nội dung / cột thường -> cập nhật cells + hidden JSON
-        container.querySelectorAll('[data-wz-table-cell]').forEach((input) => {
-            input.addEventListener('input', () => {
-                const card = wizardTableViewCardFor(input);
-                if (!card || !card._wzTableCells) return;
-                card._wzTableCells[String(input.dataset.col)] = input.value;
-                syncWizardTableCellsJson(card);
-                if (input.dataset.col === String(wizardTableContentIndex())) {
-                    const cardTa = card.querySelector('textarea[name="item_content"]');
-                    if (cardTa) cardTa.value = input.value;
-                }
-                if (input.classList.contains('wizard-table-cell-ta')) growWizardTableCell(input);
-                syncWizardSummary();
-            });
-        });
-        // Cột đơn vị chủ trì: ô text hiển thị tất cả đơn vị đã gán (gán qua nút Gán cuối dòng)
-        // Hình thức báo cáo
-        container.querySelectorAll('[data-wz-table-view-kind]').forEach((select) => {
-            select.addEventListener('change', () => {
-                const card = wizardTableViewCardFor(select);
-                if (!card) return;
-                const cardSelect = card.querySelector('[name="item_report_kind"]');
-                if (cardSelect) {
-                    cardSelect.value = select.value;
-                    cardSelect.dispatchEvent(new Event('change'));
-                }
-            });
-        });
-        // Gán cho ai (mở modal gán nhiều đơn vị)
-        container.querySelectorAll('[data-wz-table-view-assign]').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                const card = wizardTableViewCardFor(btn);
-                if (card) openWizardRowAssign(card);
-            });
-        });
-        // Xóa dòng
-        container.querySelectorAll('[data-wz-table-view-remove]').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                const card = wizardTableViewCardFor(btn);
-                if (!card) return;
-                const groupBody = wizardRowGroupBody(card);
-                card.remove();
-                syncWizardOutlineRowIndexes();
-                syncWizardSummary();
-                if (groupBody && !groupBody.querySelector('[data-wz-row]')) {
-                    const block = groupBody.parentElement;
-                    if (block && block.classList.contains('wizard-outline-group')) block.remove();
-                }
-                renderWizardTableView();
-            });
-        });
-        // Dòng tích -> đồng bộ với card checkbox (gán hàng loạt)
-        container.querySelectorAll('[data-wz-table-view-check]').forEach((cb, i) => {
-            const cards = wizardTableViewCards();
-            const card = cards[i];
-            if (card) {
-                cb.addEventListener('change', () => {
-                    const cardCb = card.querySelector('[data-wz-row-check]');
-                    if (cardCb) cardCb.checked = cb.checked;
-                });
-            }
-        });
-        // Kéo thả chỉnh độ rộng cột (kiểu Excel)
-        container.querySelectorAll('thead th').forEach((th) => {
-            const resizer = th.querySelector('.wz-col-resizer');
-            const key = th.dataset.colIndex;
-            if (!resizer || key === undefined) return;
-            resizer.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const startX = e.clientX;
-                const startW = th.getBoundingClientRect().width;
-                const minW = 48;
-                const onMove = (ev) => {
-                    const w = Math.max(minW, startW + (ev.clientX - startX));
-                    th.style.width = w + 'px';
-                    wizardTableUserColWidths[key] = w;
-                };
-                const onUp = () => {
-                    document.removeEventListener('mousemove', onMove);
-                    document.removeEventListener('mouseup', onUp);
-                    document.body.style.cursor = '';
-                    document.body.style.userSelect = '';
-                    // Cột đổi độ rộng -> tính lại chiều cao các ô text cho khớp nội dung mới
-                    scheduleGrowWizardTableTextareas(container);
-                };
-                document.addEventListener('mousemove', onMove);
-                document.addEventListener('mouseup', onUp);
-                document.body.style.cursor = 'col-resize';
-                document.body.style.userSelect = 'none';
-            });
-        });
-    }
-
-    function wizardTableViewCardFor(element) {
-        const tr = element.closest('[data-wz-table-view-row]');
-        if (!tr) return null;
-        const cards = wizardTableViewCards();
-        const idx = Array.from(tr.parentElement.children).indexOf(tr);
-        // tr.parentElement là tbody chứa cả section rows -> lọc chỉ dòng dữ liệu
-        const dataRows = Array.from(tr.parentElement.children).filter((el) => el.hasAttribute('data-wz-table-view-row'));
-        const dataIndex = dataRows.indexOf(tr);
-        return cards[dataIndex] || null;
-    }
-
-    function wizardTableViewCards() {
-        const cards = [];
-        wizardOutlineGroups.forEach((group) => {
-            group.body.querySelectorAll('[data-wz-row]').forEach((card) => cards.push(card));
-        });
-        Array.from(outlineRowsBox.children).forEach((el) => {
-            if (el.classList && el.classList.contains('wizard-outline-row') && !el.closest('.wizard-outline-group')) {
-                cards.push(el);
-            }
-        });
-        return cards;
-    }
-
-    function unitNameOf(value) {
-        const unit = (WIZARD_UNITS || []).find((u) => String(u.value) === String(value));
-        return unit ? unit.name : '';
-    }
-
-    function addWizardOutlineRow(rowData = {}, parentRowEl = null) {
-        if (!outlineRowsBox) return;
-        const row = document.createElement('div');
-        const isChild = Boolean(parentRowEl);
-        row.className = 'border rounded-2 p-3 bg-white wizard-outline-row' + (isChild ? ' wizard-outline-row-child' : '');
-        row.dataset.wzRow = '1';
-        row._wzParentEl = parentRowEl || null;
-
-        const titleValue = String(rowData.title || '').replace(/"/g, '&quot;');
-        const contentValue = String(rowData.content || rowData.title || '').replace(/"/g, '&quot;');
-        const headingValue = String(rowData.heading || '').replace(/"/g, '&quot;');
-        const headingParts = String(rowData.heading || '').split(' » ').map((part) => part.trim()).filter(Boolean);
-        const section = headingParts.length ? headingParts[headingParts.length - 1] : '';
-        const breadcrumb = headingParts.slice(0, -1).join(' » ');
-        const standalone = Boolean(section) && String(rowData.title || '').trim() === section;
-        const isManual = !headingValue && !parentRowEl;
-        const numberFields = Array.isArray(rowData.number_fields) ? rowData.number_fields : [];
-        const hasNumbers = numberFields.length > 0 || Boolean(rowData.has_numbers);
-        const reportKind = (rowData.report_kind === 'number' || (!rowData.report_kind && hasNumbers)) ? 'number' : 'narrative';
-        const numberFieldsJson = JSON.stringify(numberFields).replace(/"/g, '&quot;');
-        const inherited = isChild && !(rowData.assign_type || (rowData.unit_domains || []).length || (rowData.role_ids || []).length || (rowData.user_ids || []).length);
-        row.innerHTML = `
-            <div class="wizard-outline-row-grid">
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <label class="form-label small fw-semibold mb-0">Nội dung đề cương</label>
-                    ${isChild ? '<span class="badge bg-info-subtle text-info-emphasis"><i class="fa-solid fa-level-down fa-rotate-90 me-1"></i>Nội dung con</span>' : ''}
-                    ${rowData.report_secondary ? `<span class="badge bg-warning-subtle text-warning-emphasis" title="${escapeHtml((rowData.sources || []).join(', '))}"><i class="fa-solid fa-files me-1"></i>Báo cáo phụ (${(rowData.sources || []).length} file)</span>` : ''}
-                </div>
-                <div class="d-flex gap-2 align-items-center wizard-outline-row-main">
-                    <div class="flex-shrink-0 d-flex align-items-center">
-                        <input class="form-check-input" type="checkbox" data-wz-row-check title="Tích dòng để gán hàng loạt">
-                    </div>
-                    <textarea class="form-control form-control-sm wizard-row-textarea" name="item_content" rows="1" ${isManual ? '' : 'readonly'} placeholder="Nội dung đề cương" style="word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap; ${isManual ? '' : 'background-color: var(--bs-secondary-bg);'}">${contentValue}</textarea>
-                    <div class="flex-shrink-0 d-flex gap-2 align-items-center flex-wrap justify-content-end wizard-row-actions">
-                        <select class="form-select form-select-sm" name="item_report_kind" data-report-kind-toggle aria-label="Hình thức báo cáo" style="width: 132px;">
-                            <option value="narrative" ${reportKind === 'number' ? '' : 'selected'}>Báo cáo lời</option>
-                            <option value="number" ${reportKind === 'number' ? 'selected' : ''}>Báo cáo số</option>
-                        </select>
-                        ${isChild ? `
-                            <div class="form-check form-check-inline mb-0">
-                                <input class="form-check-input" type="checkbox" data-wz-inherit ${inherited ? 'checked' : ''} title="Kế thừa gán từ mục cha">
-                                <label class="form-check-label small">Kế thừa cha</label>
-                            </div>
-                        ` : ''}
-                        <button type="button" class="btn btn-sm btn-outline-secondary" data-wz-row-assign title="Gán cho ai" ${inherited ? 'disabled' : ''}><i class="fa-solid fa-user-plus"></i></button>
-                        <button type="button" class="btn btn-sm btn-outline-danger" data-wz-row-remove title="Xóa"><i class="fa-solid fa-trash"></i></button>
-                    </div>
-                </div>
-                <div class="small fw-medium text-primary" data-wz-row-summary></div>
-                ${rowData.report_secondary ? `
-                <div class="small">
-                    <label class="form-check form-check-inline mb-0">
-                        <input class="form-check-input" type="checkbox" data-wz-report-secondary checked title="Bỏ tích để tách nội dung này thành báo cáo riêng, không gộp chung">
-                        <span class="form-check-label">Báo cáo phụ — đơn vị điền 1 lần, tự động áp dụng cho tất cả file</span>
-                    </label>
-                </div>
-                ` : ''}
-                <input type="hidden" name="item_title" value="${titleValue}">
-                <input type="hidden" name="item_heading" value="${headingValue}">
-                <input type="hidden" name="item_assign_type">
-                <input type="hidden" name="item_domain">
-                <input type="hidden" name="item_domains">
-                <input type="hidden" name="item_role_ids">
-                <input type="hidden" name="item_user_ids">
-                <input type="hidden" name="item_number_fields" value="${numberFieldsJson}">
-                <input type="hidden" name="item_parent">
-                <input type="hidden" name="item_inherit" value="${isChild ? (inherited ? '1' : '0') : '0'}">
-                <input type="hidden" name="item_report_secondary" value="${rowData.report_secondary ? '1' : '0'}">
-                <input type="hidden" name="item_sources" value="${escapeHtml((rowData.sources || []).join(','))}">
-                <input type="hidden" name="item_deadline" value="${escapeHtml(String(rowData.deadline || ''))}">
-            </div>
-            <div class="number-fields-preview ${reportKind === 'number' ? '' : 'd-none'} mt-2 p-2 bg-light rounded" data-number-preview>
-                ${numberFields.length > 0 ? `
-                    <div class="small mb-1"><i class="fa-solid fa-pen-to-square me-1"></i><strong>Văn bản sau khi xóa số liệu</strong> — đơn vị sẽ điền số vào chỗ trống:</div>
-                    <textarea class="form-control outline-skeleton-input mb-1" data-wz-skeleton rows="2" title="Sửa trực tiếp; dùng [...] để đánh dấu chỗ đơn vị điền số">${escapeHtml(String(rowData.skeleton || ''))}</textarea>
-                    <div class="small text-muted mb-2"><i class="fa-solid fa-pen me-1"></i>Có thể sửa trực tiếp. Dùng [...] để đánh dấu vị trí cần đơn vị điền số; sửa nhãn và đơn vị của từng ô bên dưới.</div>
-                    <div class="row g-2 number-fields-grid">
-                        ${numberFields.map((field, idx) => `
-                            <div class="col-md-6">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">${idx + 1}</span>
-                                    <input type="text" class="form-control" data-wz-number-label value="${escapeHtml(field.label || '')}" placeholder="Nhãn số liệu" title="Nhãn số liệu">
-                                    <input type="text" class="form-control" style="width: 90px;" data-wz-number-unit value="${escapeHtml(field.unit || '')}" placeholder="Đơn vị" title="Đơn vị (vd: %, người, tỷ đồng)">
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                ` : ''}
-                ${hasNumbers && numberFields.length === 0 ? `<div class="small text-muted"><i class="fa-solid fa-circle-info me-1"></i>Đã phát hiện số liệu trong nội dung. Chọn "Báo cáo số" để đơn vị điền số vào chỗ trống.</div>` : ''}
-            </div>
-            ${rowData.table_cells ? `
-                <div class="table-cells-strip mt-2 d-flex flex-wrap gap-2" data-wz-table-strip></div>
-                <input type="hidden" name="item_table_cells" value="${escapeHtml(JSON.stringify(rowData.table_cells))}">
-            ` : ''}
-        `;
-        if (rowData.table_cells) {
-            row._wzTableCells = Object.assign({}, rowData.table_cells);
-            row._wzTableSchema = rowData.table_schema || null;
-        }
-        updateWizardOutlineRowAssignment(row, {
-            assignType: isChild && inherited ? '' : (rowData.assign_type || ''),
-            domain: isChild && inherited ? '' : (rowData.domain || ''),
-            unitDomains: isChild && inherited ? [] : (rowData.unit_domains || []),
-            roleIds: isChild && inherited ? [] : (rowData.role_ids || []),
-            userIds: isChild && inherited ? [] : (rowData.user_ids || []),
-        });
-        if (isChild && inherited) {
-            setWizardRowInherit(row, true);
-        }
-        const inheritCheckbox = row.querySelector('[data-wz-inherit]');
-        if (inheritCheckbox) {
-            inheritCheckbox.addEventListener('change', () => {
-                setWizardRowInherit(row, inheritCheckbox.checked);
-                syncWizardSummary();
-            });
-        }
-        row.querySelector('[data-wz-row-remove]')?.addEventListener('click', () => {
-            const groupBody = wizardRowGroupBody(row);
-            row.remove();
-            syncWizardOutlineRowIndexes();
-            syncWizardSummary();
-            if (groupBody && !groupBody.querySelector('[data-wz-row]')) {
-                const block = groupBody.parentElement;
-                if (block && block.classList.contains('wizard-outline-group')) block.remove();
-            }
-        });
-        row.querySelector('[data-wz-row-assign]')?.addEventListener('click', () => openWizardRowAssign(row));
-        const contentTextarea = row.querySelector('textarea[name="item_content"]');
-        if (contentTextarea) {
-            contentTextarea.addEventListener('input', () => {
-                if (isManual) {
-                    const hiddenTitle = row.querySelector('input[name="item_title"]');
-                    if (hiddenTitle) hiddenTitle.value = contentTextarea.value;
-                }
-                if (row._wzTableCells) {
-                    const contentIdx = wizardTableContentIndex();
-                    if (contentIdx !== null) {
-                        row._wzTableCells[String(contentIdx)] = contentTextarea.value;
-                        syncWizardTableCellsJson(row);
-                    }
-                }
-                autoGrowOutlineTextarea(contentTextarea);
-                syncWizardSummary();
-            });
-        }
-        if (row._wzTableCells) {
-            // Nội dung của dòng bảng = ô cột "Nội dung" (có thể sửa trực tiếp)
-            const rowSchema = row._wzTableSchema;
-            const contentIdx = rowSchema ? Number((rowSchema.find((c) => c.role === 'content') || {}).index) : null;
-            if (contentTextarea && contentIdx !== null && row._wzTableCells[String(contentIdx)] !== undefined) {
-                contentTextarea.value = row._wzTableCells[String(contentIdx)];
-            }
-            if (contentTextarea) {
-                contentTextarea.removeAttribute('readonly');
-                contentTextarea.style.backgroundColor = '';
-            }
-            renderWizardTableStrip(row);
-        }
-        const reportKindSelect = row.querySelector('[data-report-kind-toggle]');
-        if (reportKindSelect) {
-            reportKindSelect.addEventListener('change', () => {
-                const preview = row.querySelector('[data-number-preview]');
-                if (preview) {
-                    preview.classList.toggle('d-none', reportKindSelect.value !== 'number');
-                }
-                // Đồng bộ nội dung lưu theo hình thức báo cáo:
-                // - Báo cáo số: lưu bản mẫu (đã xóa số, chứa [...])
-                // - Báo cáo lời: lưu văn bản gốc có số
-                const hiddenContent = row.querySelector('textarea[name="item_content"]');
-                if (hiddenContent) {
-                    if (reportKindSelect.value === 'number') {
-                        const skeletonText = row.querySelector('[data-wz-skeleton]')?.value || '';
-                        if (skeletonText) hiddenContent.value = skeletonText;
-                    } else if (rowData.content) {
-                        hiddenContent.value = rowData.content;
-                    }
-                }
-            });
-        }
-        // Đồng bộ nhãn/đơn vị đã sửa vào hidden item_number_fields
-        const syncNumberFieldsJson = () => {
-            const hidden = row.querySelector('input[name="item_number_fields"]');
-            if (!hidden || !hidden.value) return;
-            let fields = [];
-            try { fields = JSON.parse(hidden.value); } catch (e) { return; }
-            const labels = row.querySelectorAll('[data-wz-number-label]');
-            const units = row.querySelectorAll('[data-wz-number-unit]');
-            fields.forEach((field, idx) => {
-                if (labels[idx]) field.label = labels[idx].value;
-                if (units[idx]) field.unit = units[idx].value;
-            });
-            hidden.value = JSON.stringify(fields);
-        };
-        row.querySelectorAll('[data-wz-number-label], [data-wz-number-unit]').forEach((input) => {
-            input.addEventListener('input', syncNumberFieldsJson);
-        });
-        // Dựng lại các ô sửa nhãn/đơn vị theo danh sách trường mới (sau khi sửa văn bản mẫu)
-        const renderNumberFieldEditors = (fields) => {
-            const grid = row.querySelector('.number-fields-grid');
-            if (!grid) return;
-            grid.innerHTML = fields.map((field, idx) => `
-                <div class="col-md-6">
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text">${idx + 1}</span>
-                        <input type="text" class="form-control" data-wz-number-label value="${escapeHtml(field.label || '')}" placeholder="Nhãn số liệu" title="Nhãn số liệu">
-                        <input type="text" class="form-control" style="width: 90px;" data-wz-number-unit value="${escapeHtml(field.unit || '')}" placeholder="Đơn vị" title="Đơn vị (vd: %, người, tỷ đồng)">
-                    </div>
-                </div>
-            `).join('');
-            grid.querySelectorAll('[data-wz-number-label], [data-wz-number-unit]').forEach((input) => {
-                input.addEventListener('input', syncNumberFieldsJson);
-            });
-        };
-        // Cho phép sửa trực tiếp văn bản sau khi xóa số liệu: mỗi [...] là 1 ô trống
-        const skeletonTextarea = row.querySelector('[data-wz-skeleton]');
-        if (skeletonTextarea) {
-            skeletonTextarea.addEventListener('input', () => {
-                const skeletonText = skeletonTextarea.value;
-                rowData.skeleton = skeletonText;
-                const hiddenFields = row.querySelector('input[name="item_number_fields"]');
-                if (hiddenFields) {
-                    let oldFields = [];
-                    try { oldFields = JSON.parse(hiddenFields.value) || []; } catch (e) { oldFields = []; }
-                    const markers = [...skeletonText.matchAll(/\[\.\.\.\]/g)];
-                    const newFields = markers.map((m, idx) => {
-                        const old = oldFields[idx] || {};
-                        return {
-                            blank_id: (old.blank_id !== undefined && old.blank_id !== null) ? old.blank_id : (idx + 1),
-                            label: old.label || 'Số liệu',
-                            value: old.value || '',
-                            unit: old.unit || '',
-                            kind: old.kind || 'blank',
-                            start: m.index,
-                            end: m.index + 5,
-                        };
-                    });
-                    hiddenFields.value = JSON.stringify(newFields);
-                    renderNumberFieldEditors(newFields);
-                }
-                const hiddenContent = row.querySelector('textarea[name="item_content"]');
-                if (hiddenContent && skeletonText) {
-                    const kindSel = row.querySelector('[name="item_report_kind"]');
-                    if (kindSel && kindSel.value === 'number') hiddenContent.value = skeletonText;
-                }
-                autoGrowOutlineTextarea(skeletonTextarea);
-                syncWizardSummary();
-            });
-        }
-        // Với dòng báo cáo số, nội dung lưu là bản mẫu (đã xóa số) chứ không phải văn bản gốc
-        const skeletonOnInit = row.querySelector('[data-wz-skeleton]');
-        const hiddenContentOnInit = row.querySelector('textarea[name="item_content"]');
-        if (skeletonOnInit && hiddenContentOnInit && reportKind === 'number' && skeletonOnInit.value) {
-            hiddenContentOnInit.value = skeletonOnInit.value;
-        }
-        const reportSecondaryCheckbox = row.querySelector('[data-wz-report-secondary]');
-        if (reportSecondaryCheckbox) {
-            reportSecondaryCheckbox.addEventListener('change', () => {
-                const hidden = row.querySelector('input[name="item_report_secondary"]');
-                if (hidden) hidden.value = reportSecondaryCheckbox.checked ? '1' : '0';
-            });
-        }
-        // Đặt dòng vào nhóm mục tương ứng (hoặc đứng độc lập nếu là mục tự thân / thêm tay)
-        if (isChild && parentRowEl && wizardRowGroupBody(parentRowEl)) {
-            wizardRowGroupBody(parentRowEl).appendChild(row);
-            row._wzGroupBody = wizardRowGroupBody(parentRowEl);
-        } else if (!isChild && section && !standalone && !isManual) {
-            let group = wizardOutlineGroups.get(headingValue);
-            if (!group) {
-                const block = document.createElement('div');
-                block.className = 'wizard-outline-group';
-                const header = document.createElement('div');
-                header.className = 'wizard-outline-group-header';
-                header.innerHTML = `
-                    <div class="wizard-outline-group-marker">${wizardOutlineGroups.size + 1}</div>
-                    <div class="wizard-outline-group-titles">
-                        ${breadcrumb ? `<div class="wizard-outline-group-breadcrumb" title="${breadcrumb.replace(/"/g, '&quot;')}">${breadcrumb}</div>` : ''}
-                        <div class="wizard-outline-group-title">${section}</div>
-                    </div>
-                `;
-                const body = document.createElement('div');
-                body.className = 'wizard-outline-group-body';
-                block.appendChild(header);
-                block.appendChild(body);
-                outlineRowsBox.appendChild(block);
-                group = { block, body };
-                wizardOutlineGroups.set(headingValue, group);
-            }
-            group.body.appendChild(row);
-            row._wzGroupBody = group.body;
-        } else {
-            outlineRowsBox.appendChild(row);
-            row._wzGroupBody = null;
-        }
-        if (isChild) {
-            propagateWizardInheritedChildren(parentRowEl);
-        }
-        autoGrowOutlineTextarea(row.querySelector('textarea[name="item_content"]'));
-        syncWizardOutlineRowIndexes();
-        syncWizardSummary();
-        return row;
-    }
-
-    function autoGrowOutlineTextarea(ta) {
-        if (!ta) return;
-        ta.style.height = 'auto';
-        const maxHeight = 520;
-        const sh = ta.scrollHeight;
-        if (!sh) {
-            // Chưa có layout (pane đang ẩn) — không đặt height 0px
-            ta.style.height = '';
-            return;
-        }
-        const height = Math.min(sh, maxHeight);
-        ta.style.height = height + 'px';
-        ta.style.overflowY = sh > maxHeight ? 'auto' : 'hidden';
-    }
-
-    function autoGrowWizardTableCellWidth(ta) {
-        // Bảng dùng table-layout: fixed + width 100% -> cột nội dung chiếm phần còn lại vừa phải,
-        // các cột khác luôn nằm gọn trong màn hình. Ô text lấp đầy cột, nội dung hiện trọn vẹn
-        // nhờ wrap + tự tăng chiều cao (giới hạn để bảng không bị "kéo dài" quá mức).
-        if (!ta || !ta.isConnected) return;
-        ta.style.width = '100%';
-    }
-
-    function growWizardTableCell(ta) {
-        if (!ta) return;
-        autoGrowWizardTableCellWidth(ta);
-        autoGrowOutlineTextarea(ta);
-        if (ta.scrollHeight > 160) {
-            ta.style.height = '160px';
-            ta.style.overflowY = 'auto';
-        }
-    }
-
-    function scheduleGrowWizardTableTextareas(container) {
-        if (!container) return;
-        const grow = () => container.querySelectorAll('.wizard-table-cell-ta').forEach(growWizardTableCell);
-        requestAnimationFrame(grow);
-        // Phòng khi môi trường không chạy rAF (webview/headless) — chạy lại sau 80ms
-        setTimeout(grow, 80);
-    }
-
-    function setWizardRowInherit(row, on) {
-        const assignBtn = row.querySelector('[data-wz-row-assign]');
-        const summary = row.querySelector('[data-wz-row-summary]');
-        const checkbox = row.querySelector('[data-wz-inherit]');
-        if (checkbox) checkbox.checked = on;
-        if (assignBtn) assignBtn.disabled = on;
-        if (on) {
-            row.querySelector('input[name="item_assign_type"]').value = '';
-            row.querySelector('input[name="item_domain"]').value = '';
-            row.querySelector('input[name="item_domains"]').value = '';
-            row.querySelector('input[name="item_role_ids"]').value = '';
-            row.querySelector('input[name="item_user_ids"]').value = '';
-        }
-        const parentEl = wizardRowParentElement(row);
-        const parentDomains = parentEl ? (parentEl.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean) : [];
-        if (on) {
-            if (summary) {
-                summary.textContent = parentDomains.length
-                    ? 'Kế thừa mục cha: ' + parentDomains.map((v) => wizardUnitNameMap().get(String(v)) || String(v)).join(', ')
-                    : 'Kế thừa mục cha (chưa gán)';
-            }
-        } else if (summary) {
-            summary.textContent = 'Chưa gán người nhận';
-        }
-        syncWizardOutlineRowIndexes();
-    }
-
-    function clearWizardOutlineRows() {
-        if (!outlineRowsBox) return;
-        outlineRowsBox.innerHTML = '';
-        wizardOutlineGroups.clear();
-        wizardTableSchema = null;
-        wizardTableViewEnabled = false;
-        const tableView = document.getElementById('wizardOutlineTableView');
-        if (tableView) {
-            tableView.classList.add('d-none');
-            tableView.innerHTML = '';
-        }
-    }
-
-    // ---------- per-row assign modal (chỉ gán theo đơn vị) ----------
-    let wizardRowTarget = null;
-    const wizardRowAssignModalEl = document.getElementById('wizardRowAssignModal');
-
-    function openWizardRowAssign(row) {
-        wizardRowTarget = row;
-        const current = {
-            unitDomains: (row.querySelector('input[name="item_domains"]')?.value || '').split(',').filter(Boolean),
-        };
-        document.querySelectorAll('[data-wzrow-unit-checkbox]').forEach((cb) => { cb.checked = current.unitDomains.includes(cb.value); });
-        if (wizardRowAssignModalEl && window.bootstrap) {
-            bootstrap.Modal.getOrCreateInstance(wizardRowAssignModalEl).show();
-        }
-    }
-
-    document.getElementById('applyWizardRowAssignBtn')?.addEventListener('click', () => {
-        if (!wizardRowTarget) return;
-        const unitDomains = Array.from(document.querySelectorAll('[data-wzrow-unit-checkbox]:checked')).map((cb) => cb.value);
-        updateWizardOutlineRowAssignment(wizardRowTarget, { assignType: 'unit', domain: '', unitDomains, roleIds: [], userIds: [] });
-        if (wizardRowAssignModalEl && window.bootstrap) {
-            bootstrap.Modal.getOrCreateInstance(wizardRowAssignModalEl).hide();
-        }
-    });
-
-    // ---------- bulk assign (chỉ gán theo đơn vị) ----------
-    function wizardBulkUnitLabel() {
-        const labelEl = document.querySelector('[data-wizard-unit-dropdown-label]');
-        if (!labelEl) return;
-        const checked = Array.from(document.querySelectorAll('[data-wizard-unit-checkbox]:checked'));
-        if (!checked.length) {
-            labelEl.textContent = 'Chọn đơn vị…';
-            return;
-        }
-        const names = checked.map((cb) => cb.dataset.label || cb.value);
-        labelEl.textContent = names.length > 3 ? `${names.slice(0, 3).join(', ')} +${names.length - 3} đơn vị` : names.join(', ');
-    }
-    document.querySelectorAll('[data-wizard-unit-checkbox]').forEach((cb) => {
-        cb.addEventListener('change', wizardBulkUnitLabel);
-    });
-    document.querySelector('[data-wizard-unit-check-all]')?.addEventListener('change', (event) => {
-        document.querySelectorAll('[data-wizard-unit-checkbox]').forEach((cb) => { cb.checked = event.target.checked; });
-        wizardBulkUnitLabel();
-    });
-    document.querySelector('[data-wizard-unit-clear]')?.addEventListener('click', () => {
-        document.querySelectorAll('[data-wizard-unit-checkbox]').forEach((cb) => { cb.checked = false; });
-        const checkAll = document.querySelector('[data-wizard-unit-check-all]');
-        if (checkAll) checkAll.checked = false;
-        wizardBulkUnitLabel();
-    });
-    document.getElementById('wizardSelectAllRowsBtn')?.addEventListener('click', () => {
-        outlineRowsBox?.querySelectorAll('[data-wz-row-check]').forEach((cb) => { cb.checked = true; });
-        const tableView = document.getElementById('wizardOutlineTableView');
-        if (tableView) tableView.querySelectorAll('[data-wz-table-view-check]').forEach((cb) => { cb.checked = true; });
-    });
-    document.getElementById('wizardApplyAssignBtn')?.addEventListener('click', () => {
-        const unitDomains = Array.from(document.querySelectorAll('[data-wizard-unit-checkbox]:checked')).map((cb) => cb.value);
-        if (!unitDomains.length) {
-            pcAlert('Cần chọn ít nhất một đơn vị nhận việc trước khi gán.', 'warning');;
-            return;
-        }
-        wizardTableViewSuspend = true;
-        outlineRowsBox?.querySelectorAll('[data-wz-row]').forEach((row) => {
-            const checkbox = row.querySelector('[data-wz-row-check]');
-            if (checkbox && checkbox.checked) {
-                updateWizardOutlineRowAssignment(row, { assignType: 'unit', domain: '', unitDomains, roleIds: [], userIds: [] });
-            }
-        });
-        wizardTableViewSuspend = false;
-        if (wizardTableViewEnabled) renderWizardTableView();
-    });
-
-    // ---------- form fields ----------
-    function addFormField(fieldData = {}) {
-        if (!formFieldTemplate || !formFieldList) return;
-        const clone = formFieldTemplate.content.firstElementChild.cloneNode(true);
-        const requiredCheckbox = clone.querySelector('[data-required-checkbox]');
-        if (requiredCheckbox) {
-            const requiredInput = document.createElement('input');
-            requiredInput.type = 'hidden';
-            requiredInput.name = 'form_field_required';
-            requiredInput.value = '';
-            clone.appendChild(requiredInput);
-            requiredCheckbox.addEventListener('change', () => {
-                const items = Array.from(formFieldList.querySelectorAll('.form-field-item'));
-                requiredInput.value = requiredCheckbox.checked ? String(items.indexOf(clone)) : '';
-            });
-        }
-        clone.querySelector('[data-remove-form-field]')?.addEventListener('click', () => {
-            clone.remove();
-            syncFormRequiredIndexes();
-            syncWizardSummary();
-        });
-        const labelInput = clone.querySelector('input[name="form_field_label"]');
-        if (labelInput) labelInput.value = fieldData.label || '';
-        const typeSelect = clone.querySelector('select[name="form_field_type"]');
-        if (typeSelect && fieldData.type) {
-            const option = Array.from(typeSelect.options).find((opt) => opt.value === fieldData.type);
-            if (option) typeSelect.selectedIndex = option.index;
-        }
-        const optionsTextarea = clone.querySelector('textarea[name="form_field_options"]');
-        if (optionsTextarea) optionsTextarea.value = fieldData.options || '';
-        if (fieldData.required && requiredCheckbox) requiredCheckbox.checked = true;
-        labelInput?.addEventListener('input', syncWizardSummary);
-        formFieldList.appendChild(clone);
-        syncFormRequiredIndexes();
-        syncWizardSummary();
-    }
-
-    function clearFormFields() {
-        if (!formFieldList) return;
-        formFieldList.innerHTML = '';
-    }
-
-    function syncFormRequiredIndexes() {
-        if (!formFieldList) return;
-        Array.from(formFieldList.querySelectorAll('.form-field-item')).forEach((item, index) => {
-            const hidden = item.querySelector('input[type="hidden"][name="form_field_required"]');
-            const checkbox = item.querySelector('[data-required-checkbox]');
-            if (hidden && checkbox) {
-                hidden.value = checkbox.checked ? String(index) : '';
-            }
-        });
-    }
-    addFormFieldBtn?.addEventListener('click', () => addFormField());
-
-    // ---------- file assignment ----------
-    function syncAssignType() {
-        const mode = assignType?.value || 'unit';
-        document.querySelectorAll('[data-assign-box]').forEach((node) => {
-            node.classList.toggle('d-none', node.dataset.assignBox !== mode);
-        });
-        syncWizardSummary();
-    }
-    assignType?.addEventListener('change', syncAssignType);
-
-    // ---------- scope toggles ----------
-    document.querySelectorAll('[data-scope-mode]').forEach((select) => {
-        select.addEventListener('change', () => {
-            const key = select.dataset.scopeMode;
-            const box = document.querySelector(`[data-scope-box="${key}"]`);
-            if (box) box.classList.toggle('d-none', select.value === 'none');
-        });
-    });
-
-    // ---------- build google builder json ----------
-    function buildGoogleBuilderSchema() {
-        const items = Array.from(formFieldList?.querySelectorAll('.form-field-item') || []).map((item, index) => {
-            const label = item.querySelector('input[name="form_field_label"]')?.value?.trim() || `Câu hỏi ${index + 1}`;
-            const type = item.querySelector('select[name="form_field_type"]')?.value || 'text';
-            const required = Boolean(item.querySelector('[data-required-checkbox]')?.checked);
-            const kindMap = { text: 'text', number: 'text', textarea: 'textarea', radio: 'radio', checkbox: 'checkbox', table: 'text' };
-            const kind = kindMap[type] || 'text';
-            const itemSchema = { kind, title: label, required };
-            if (kind === 'radio' || kind === 'checkbox') {
-                const options = (item.querySelector('textarea[name="form_field_options"]')?.value || '').split('\n').map((line) => line.trim()).filter(Boolean);
-                if (options.length) itemSchema.options = options;
-            }
-            return itemSchema;
-        });
-        const title = document.querySelector('#createTaskModal input[name="title"]')?.value?.trim() || 'Biểu mẫu';
-        return {
-            form_info: { title, description: document.querySelector('#createTaskModal textarea[name="description"]')?.value?.trim() || '' },
-            publish_settings: { isPublished: false, isAcceptingResponses: true },
-            matching: {
-                mode: document.querySelector('select[name="google_form_match_mode"]')?.value || 'unit',
-                match_field: document.querySelector('input[name="google_form_match_field"]')?.value?.trim() || '',
-            },
-            items,
-        };
-    }
-
-    // ---------- submit ----------
-    createForm?.addEventListener('submit', (event) => {
-        event.preventDefault();
-        const title = document.querySelector('#createTaskModal input[name="title"]')?.value?.trim();
-        if (!title) {
-            pcAlert('Cần nhập tiêu đề công việc ở bước 4.', 'warning');;
-            setStep(4);
-            return;
-        }
-        if (wizardMode === 'OUTLINE') {
-            const rows = Array.from(outlineRowsBox?.querySelectorAll('[data-wz-row]') || []);
-            const blank = rows.findIndex((row) => !((row.querySelector('input[name="item_title"]')?.value || '').trim() || (row.querySelector('textarea[name="item_content"]')?.value || '').trim()));
-            if (blank !== -1) {
-                pcAlert(`Dòng ${blank + 1} chưa có nội dung.`, 'warning');;
-                setStep(3);
-                return;
-            }
-            const unassigned = rows.findIndex((row) => !effectiveWizardRowDomains(row).length);
-            if (unassigned !== -1) {
-                pcAlert(`Mục ${unassigned + 1} chưa gán đơn vị nhận. Bấm Gán trên dòng đó (hoặc gán mục cha nếu là nội dung con kế thừa).`, 'warning');;
-                setStep(3);
-                return;
-            }
-        }
-        if (wizardMode === 'FORM') {
-            const fields = Array.from(formFieldList?.querySelectorAll('.form-field-item') || []);
-            const blankLabel = fields.findIndex((item) => !(item.querySelector('input[name="form_field_label"]')?.value || '').trim());
-            if (!fields.length || blankLabel !== -1) {
-                pcAlert('Biểu mẫu cần ít nhất một trường có nhãn rõ ràng.', 'warning');;
-                setStep(3);
-                return;
-            }
-            const source = document.querySelector('input[name="form_source_choice"]:checked')?.value || 'builder';
-            if (source === 'google') {
-                const url = document.querySelector('input[name="google_form_url"]')?.value?.trim() || '';
-                if (!url) {
-                    pcAlert('Cần dán link Google Form ở bước 2.', 'warning');;
-                    setStep(2);
-                    return;
-                }
-                if (formProvider) formProvider.value = 'google';
-                if (googleBuilderJson) googleBuilderJson.value = JSON.stringify(buildGoogleBuilderSchema());
-            } else {
-                if (formProvider) formProvider.value = 'internal';
-                if (googleBuilderJson) googleBuilderJson.value = '';
-            }
-        }
-        if (wizardMode === 'FILE') {
-            const roleIds = Array.from(document.querySelectorAll('input[name="assignee_role_ids"]:checked')).length;
-            const userIds = Array.from(document.querySelectorAll('input[name="target_users"]:checked')).length;
-            const assignMode = assignType?.value || 'unit';
-            if ((assignMode === 'role' && !roleIds) || (assignMode === 'user' && !userIds)) {
-                pcAlert('Cần chọn ít nhất một đối tượng nhận việc ở bước 3.', 'warning');;
-                setStep(3);
-                return;
-            }
-        }
-        createForm.submit();
-    });
-
-    // ---------- init ----------
-    document.getElementById('createTaskModal')?.addEventListener('show.bs.modal', () => {
-        currentStep = 1;
-        wizardMode = modeSelect?.value || 'OUTLINE';
-        document.querySelectorAll('[data-task-type]').forEach((card) => {
-            const selected = card.dataset.taskType === wizardMode;
-            card.classList.toggle('is-selected', selected);
-            card.classList.toggle('border-primary', selected);
-            card.classList.toggle('bg-primary-subtle', selected);
-        });
-        syncWizardForMode();
-        syncFormSource();
-        syncAssignType();
-        setStep(1);
-    });
-
-    syncWizardForMode();
-    syncFormSource();
-    syncAssignType();
-    setStep(1);
-    if (!outlineRowsBox?.querySelector('[data-wz-row]')) {
-        addWizardOutlineRow({});
-    }
-    if (!formFieldList?.querySelector('.form-field-item')) {
-        addFormField();
-    }
-})();
-
-
-    // ---------- edit config scope toggles ----------
-    document.querySelectorAll('[data-edit-scope-mode]').forEach(function(select) {
-        select.addEventListener('change', function() {
-            var key = this.dataset.editScopeMode;
-            var box = document.querySelector('[data-edit-scope-box="' + key + '"]');
+    document.querySelectorAll('[data-edit-scope-mode]').forEach((select) => {
+        select.addEventListener('change', function () {
+            const box = document.querySelector('[data-edit-scope-box="' + this.dataset.editScopeMode + '"]');
             if (box) box.classList.toggle('d-none', this.value === 'none');
         });
     });
-    // ---------- delete task confirm ----------
-    window.openDeleteConfirmModal = function(tid) {
+
+    window.openDeleteConfirmModal = function (tid) {
         const modal = document.getElementById('deleteTaskConfirmModal');
         if (!modal) return;
         const form = document.getElementById('deleteTaskForm');
@@ -3437,27 +1771,122 @@ document.getElementById('taskSearchInput')?.addEventListener('input', function()
         const text = document.getElementById('deleteTaskConfirmText');
         if (text) text.textContent = 'Bạn có chắc chắn muốn xóa công việc #' + tid + '?';
         if (window.bootstrap) {
-            bootstrap.Modal.getOrCreateInstance(modal).show();
+            window.bootstrap.Modal.getOrCreateInstance(modal).show();
         }
     };
 
-    // ---------- edit config modal ----------
-    var editConfigModalInstance = null;
-    var currentEditTaskId = null;
+    let editConfigBaseline = '';
+    let editConfigBypassClose = false;
 
-    window.openEditConfigModal = function(tid) {
-        currentEditTaskId = tid;
+    function isEditConfigDirty() {
+        const form = document.getElementById('editConfigForm');
+        const modal = document.getElementById('editConfigModal');
+        if (!form || !modal || !modal.classList.contains('show')) return false;
+        if (typeof window.pcSerializeForm !== 'function') return false;
+        return window.pcSerializeForm(form) !== editConfigBaseline;
+    }
+
+    window.openEditConfigModal = function (tid, triggerBtn) {
         const form = document.getElementById('editConfigForm');
         if (form) {
             form.action = '{{ url_for("tasks_bp.edit_task_config", tid=0) }}'.replace('/0', '/' + tid);
+            let cfg = {};
+            try {
+                if (triggerBtn?.dataset?.taskConfig) {
+                    cfg = JSON.parse(triggerBtn.dataset.taskConfig);
+                }
+            } catch (_err) {
+                cfg = {};
+            }
+            const setField = (selector, val) => {
+                const el = form.querySelector(selector);
+                if (el) el.value = val || '';
+            };
+            setField('input[name="title"]', cfg.title);
+            setField('input[name="deadline"]', cfg.deadline);
+            setField('select[name="category"]', cfg.category);
+            setField('select[name="domain"]', cfg.domain);
+            setField('select[name="task_type"]', cfg.task_type);
+            setField('select[name="priority"]', cfg.priority);
+            setField('textarea[name="description"]', cfg.description);
+            const typeSelect = form.querySelector('select[name="task_type"]');
+            const kindSelect = form.querySelector('select[name="report_period_kind"]');
+            if (kindSelect && typeSelect) {
+                const label = typeSelect.selectedOptions[0] ? typeSelect.selectedOptions[0].textContent : typeSelect.value;
+                kindSelect.value = REPORT_KIND_FROM_TYPE(label, typeSelect.value);
+            }
+            syncReportPeriodPanel(form);
+            editConfigBaseline = typeof window.pcSerializeForm === 'function' ? window.pcSerializeForm(form) : '';
+            editConfigBypassClose = false;
         }
         const modal = document.getElementById('editConfigModal');
-        if (!modal) return;
-        if (window.bootstrap) {
-            editConfigModalInstance = bootstrap.Modal.getOrCreateInstance(modal);
-            editConfigModalInstance.show();
+        if (modal && window.bootstrap) {
+            window.bootstrap.Modal.getOrCreateInstance(modal).show();
         }
     };
+
+    const editConfigModalEl = document.getElementById('editConfigModal');
+    const editConfigFormEl = document.getElementById('editConfigForm');
+    let editConfigGuard = null;
+    if (editConfigFormEl) {
+        editConfigFormEl.addEventListener('submit', () => {
+            editConfigBypassClose = true;
+            editConfigGuard?.disable();
+        });
+    }
+    if (editConfigModalEl) {
+        editConfigModalEl.addEventListener('shown.bs.modal', () => {
+            if (editConfigFormEl && typeof window.pcSerializeForm === 'function') {
+                editConfigBaseline = window.pcSerializeForm(editConfigFormEl);
+            }
+            editConfigBypassClose = false;
+        });
+        editConfigModalEl.addEventListener('hide.bs.modal', (e) => {
+            if (editConfigBypassClose || !isEditConfigDirty() || typeof window.pcPromptUnsavedExit !== 'function') {
+                return;
+            }
+            e.preventDefault();
+            window.pcPromptUnsavedExit({
+                title: 'Lưu cấu hình công việc?',
+                text: 'Bạn đã thay đổi thông tin cấu hình. Bạn có muốn lưu thay đổi trước khi đóng không?',
+                saveText: 'Lưu thay đổi',
+                discardText: 'Không lưu, thoát',
+                stayText: 'Tiếp tục sửa',
+            }).then((choice) => {
+                if (choice === 'save' && editConfigFormEl) {
+                    editConfigBypassClose = true;
+                    editConfigGuard?.disable();
+                    if (typeof editConfigFormEl.requestSubmit === 'function') editConfigFormEl.requestSubmit();
+                    else editConfigFormEl.submit();
+                } else if (choice === 'discard') {
+                    editConfigBypassClose = true;
+                    window.bootstrap?.Modal?.getInstance(editConfigModalEl)?.hide();
+                }
+            });
+        });
+        editConfigModalEl.addEventListener('hidden.bs.modal', () => {
+            editConfigBypassClose = false;
+            editConfigBaseline = '';
+        });
+    }
+    editConfigGuard = typeof window.pcAttachUnsavedGuard === 'function'
+        ? window.pcAttachUnsavedGuard({
+            isDirty: isEditConfigDirty,
+            onSaveAndExit: () => {
+                if (!editConfigFormEl) return true;
+                editConfigBypassClose = true;
+                editConfigGuard?.disable();
+                if (typeof editConfigFormEl.requestSubmit === 'function') editConfigFormEl.requestSubmit();
+                else editConfigFormEl.submit();
+                return false;
+            },
+            title: 'Lưu cấu hình công việc?',
+            text: 'Bạn đã thay đổi thông tin cấu hình. Bạn có muốn lưu thay đổi trước khi rời trang không?',
+            saveText: 'Lưu thay đổi',
+            discardText: 'Không lưu, thoát',
+            stayText: 'Tiếp tục sửa',
+        })
+        : null;
 
     // ---------- cách báo cáo theo loại công việc ----------
     const REPORT_KIND_FROM_TYPE = (label, value) => {
@@ -3469,6 +1898,7 @@ document.getElementById('taskSearchInput')?.addEventListener('input', function()
     };
 
     function syncReportPeriodPanel(formEl) {
+        if (!formEl) return;
         const kindSelect = formEl.querySelector('select[name="report_period_kind"]');
         if (!kindSelect) return;
         const kind = kindSelect.value || 'one_time';
@@ -3482,17 +1912,20 @@ document.getElementById('taskSearchInput')?.addEventListener('input', function()
             if (el) el.classList.toggle('d-none', key !== kind);
         });
         const period = formEl.querySelector('select[name="report_period"]')?.value || 'month';
+        const dailyAnchor = formEl.querySelector('[data-report-daily-anchor]');
         const weekAnchor = formEl.querySelector('[data-report-week-anchor]');
         const dayAnchor = formEl.querySelector('[data-report-day-anchor]');
         const monthOfYear = formEl.querySelector('select[name="report_month_of_year"]');
         const daySuffix = formEl.querySelector('[data-report-day-suffix]');
+        if (dailyAnchor) dailyAnchor.classList.toggle('d-none', period !== 'day');
         if (weekAnchor) weekAnchor.classList.toggle('d-none', period !== 'week');
-        if (dayAnchor) dayAnchor.classList.toggle('d-none', period === 'week');
+        if (dayAnchor) dayAnchor.classList.toggle('d-none', period === 'day' || period === 'week');
         if (monthOfYear) monthOfYear.classList.toggle('d-none', period !== 'year');
         if (daySuffix) daySuffix.classList.toggle('d-none', period !== 'year');
     }
 
     function setupReportPeriodPanel(formEl) {
+        if (!formEl) return;
         const kindSelect = formEl.querySelector('select[name="report_period_kind"]');
         if (!kindSelect) return;
         let userTouched = false;
@@ -3511,9 +1944,8 @@ document.getElementById('taskSearchInput')?.addEventListener('input', function()
         if (label) kindSelect.value = REPORT_KIND_FROM_TYPE(label, typeSelect ? typeSelect.value : '');
         syncReportPeriodPanel(formEl);
     }
-    setupReportPeriodPanel(document.getElementById('createTaskForm'));
     setupReportPeriodPanel(document.getElementById('editConfigForm'));
+})();
 </script>
-
 {% endif %}
 {% endblock %}

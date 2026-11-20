@@ -123,9 +123,24 @@
     --pc-z-modal: 1055;
     --pc-z-toast: 1080;
 
+    /* Unified Control Scale (ui-ux-pro-max / Vercel / shadcn 4px grid) */
+    --pc-control-h-sm: 34px;
+    --pc-control-h-md: 40px;
+    --pc-control-h-lg: 46px;
+    --pc-control-radius: 10px;
+    --pc-control-radius-sm: 8px;
+
     /* Focus */
     --pc-focus-ring: 0 0 0 3px var(--pc-primary-ring);
     --pc-focus-ring-danger: 0 0 0 3px rgba(220, 38, 38, .20);
+}
+
+@media (max-width: 767.98px) {
+    :root {
+        --pc-control-h-sm: 34px;
+        --pc-control-h-md: 38px;
+        --pc-control-h-lg: 44px;
+    }
 }
 
 [data-theme="dark"] {
@@ -244,30 +259,72 @@ a:hover { color: var(--pc-primary-strong); }
 .form-check-input:checked { background-color: var(--pc-primary); border-color: var(--pc-primary); }
 .form-check-input:focus { border-color: var(--pc-primary); box-shadow: var(--pc-focus-ring); }
 
-/* Đồng bộ toàn cục select/input Bootstrap với design system (mọi droplist trong app) */
+/* Đồng bộ toàn cục select/input Bootstrap theo Unified Control Scale (40px md / 34px sm) */
 .form-select, .form-control {
+    box-sizing: border-box;
     border: 1px solid var(--pc-border-strong);
-    border-radius: var(--pc-radius-md);
-    padding: .65rem .875rem;
-    min-height: 44px;
-    font-size: var(--pc-text-body);
+    border-radius: var(--pc-control-radius);
+    padding: 0 .75rem;
+    height: var(--pc-control-h-md);
+    min-height: var(--pc-control-h-md);
+    font-size: .875rem;
+    line-height: normal;
     font-family: inherit;
     color: var(--pc-text);
     background-color: var(--pc-bg-card);
 }
-.form-select { font-weight: 600; }
-.form-select[multiple] { min-height: 9.5rem; font-weight: 400; }
-.form-select-sm, .form-control-sm { min-height: 32px; padding: .3rem .6rem; font-size: var(--pc-text-sm); }
+textarea.form-control,
+textarea.pc-input {
+    height: auto;
+    min-height: 88px;
+    padding: .6rem .75rem;
+    line-height: 1.5;
+}
+input[type="file"].form-control {
+    padding: .42rem .75rem;
+    line-height: 1.4;
+}
+.form-select {
+    font-weight: 600;
+    padding: 0 2.25rem 0 .75rem;
+    line-height: calc(var(--pc-control-h-md) - 2px);
+}
+.form-select[multiple] { height: auto; min-height: 9.5rem; font-weight: 400; padding: .5rem .75rem; line-height: 1.5; }
+.form-control-sm {
+    height: var(--pc-control-h-sm);
+    min-height: var(--pc-control-h-sm);
+    padding: 0 .65rem;
+    border-radius: var(--pc-control-radius-sm);
+    font-size: var(--pc-text-sm);
+}
+.form-select-sm {
+    height: var(--pc-control-h-sm);
+    min-height: var(--pc-control-h-sm);
+    padding: 0 2rem 0 .65rem;
+    border-radius: var(--pc-control-radius-sm);
+    font-size: var(--pc-text-sm);
+    line-height: calc(var(--pc-control-h-sm) - 2px);
+}
+.form-control-lg, .form-select-lg {
+    height: var(--pc-control-h-lg);
+    min-height: var(--pc-control-h-lg);
+    font-size: 1rem;
+}
 
-/* Mọi <select> bỏ chrome gốc của trình duyệt (Safari vẽ viền/mũi tên hệ thống),
+/* Mọi <select> bỏ chrome gốc của trình duyệt (Safari/Chromium vẽ mũi tên hệ thống),
    thay bằng mũi tên chevron theo token — áp cả select không có class */
 select {
     appearance: none;
     -webkit-appearance: none;
+    -moz-appearance: none;
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
     background-repeat: no-repeat;
-    background-position: right .875rem center;
-    background-size: 16px 12px;
+    background-position: right .82rem center;
+    background-size: 14px 11px;
+}
+select::picker-icon { display: none; }
+[data-theme="dark"] select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
 }
 select:focus { outline: none; }
 select[multiple] { background-image: none; }
@@ -312,19 +369,22 @@ input[type="file"]::file-selector-button:hover {
 
 /* ---------- 4. Components ---------- */
 
-/* Buttons */
+/* Buttons — đồng nhất chiều cao tuyệt đối với Input/Select (40px md / 34px sm / 46px lg) */
 .pc-btn {
+    box-sizing: border-box;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: .5rem;
+    gap: .45rem;
     font-family: inherit;
     font-weight: 600;
-    font-size: var(--pc-text-body);
-    line-height: 1.2;
+    font-size: .875rem;
+    line-height: 1;
     letter-spacing: .01em;
-    padding: .7rem 1.25rem;
-    border-radius: var(--pc-radius-md);
+    height: var(--pc-control-h-md);
+    min-height: var(--pc-control-h-md);
+    padding: 0 1rem;
+    border-radius: var(--pc-control-radius);
     border: 1px solid transparent;
     cursor: pointer;
     text-decoration: none;
@@ -352,9 +412,21 @@ input[type="file"]::file-selector-button:hover {
 .pc-btn-danger { background: var(--pc-danger); color: #fff; }
 .pc-btn-danger:hover { background: var(--pc-danger-text); color: #fff; box-shadow: var(--pc-shadow-sm); }
 
-.pc-btn-sm { padding: .45rem .875rem; font-size: var(--pc-text-sm); border-radius: var(--pc-radius-sm); }
-.pc-btn-lg { padding: .9rem 1.5rem; font-size: var(--pc-text-h3); border-radius: var(--pc-radius-lg); }
-.pc-btn-icon { min-width: 44px; padding-inline: .7rem; }
+.pc-btn-sm, .pc-btn.btn-sm {
+    height: var(--pc-control-h-sm);
+    min-height: var(--pc-control-h-sm);
+    padding: 0 .75rem;
+    font-size: var(--pc-text-sm);
+    border-radius: var(--pc-control-radius-sm);
+}
+.pc-btn-lg {
+    height: var(--pc-control-h-lg);
+    min-height: var(--pc-control-h-lg);
+    padding: 0 1.4rem;
+    font-size: var(--pc-text-h3);
+    border-radius: var(--pc-radius-lg);
+}
+.pc-btn-icon { width: var(--pc-control-h-md); min-width: var(--pc-control-h-md); padding: 0; }
 .pc-btn-loading { pointer-events: none; opacity: .75; }
 
 /* Forms */
@@ -369,25 +441,70 @@ input[type="file"]::file-selector-button:hover {
     margin-bottom: .5rem;
 }
 .pc-input, .pc-select {
+    box-sizing: border-box;
     display: block;
     width: 100%;
+    height: var(--pc-control-h-md);
+    min-height: var(--pc-control-h-md);
     background: var(--pc-bg-subtle);
     color: var(--pc-text);
     border: 1px solid var(--pc-border);
-    border-radius: var(--pc-radius-md);
-    padding: .65rem .875rem;
-    font-size: var(--pc-text-body);
+    border-radius: var(--pc-control-radius);
+    padding: 0 .75rem;
+    font-size: .875rem;
+    line-height: normal;
     font-family: inherit;
     transition: border-color var(--pc-dur-fast) var(--pc-ease),
                 box-shadow var(--pc-dur-fast) var(--pc-ease),
                 background-color var(--pc-dur-fast) var(--pc-ease);
 }
 .pc-select {
-    min-height: 44px;
     background-color: var(--pc-bg-card);
     border-color: var(--pc-border-strong);
     font-weight: 600;
-    padding-right: 2.4rem;
+    padding: 0 2.25rem 0 .75rem;
+    line-height: calc(var(--pc-control-h-md) - 2px);
+}
+.pc-input.form-control-sm,
+.pc-select.form-select-sm {
+    height: var(--pc-control-h-sm);
+    min-height: var(--pc-control-h-sm);
+    border-radius: var(--pc-control-radius-sm);
+    font-size: var(--pc-text-sm);
+}
+.pc-select.form-select-sm {
+    padding: 0 2rem 0 .65rem;
+    line-height: calc(var(--pc-control-h-sm) - 2px);
+}
+/* Đồng nhất search box, select wrapper và section tab toàn hệ thống về đúng 40px */
+.pc06-search-control {
+    box-sizing: border-box;
+    height: var(--pc-control-h-md) !important;
+    min-height: var(--pc-control-h-md) !important;
+    padding: 0 .75rem !important;
+    border-radius: var(--pc-control-radius) !important;
+    font-size: .875rem;
+}
+.pc06-search-control input {
+    height: 100%;
+    font-size: .875rem;
+    line-height: normal;
+}
+.pc06-select-control .form-select {
+    height: var(--pc-control-h-md) !important;
+    min-height: var(--pc-control-h-md) !important;
+    border-radius: var(--pc-control-radius) !important;
+    padding: 0 2.25rem 0 .75rem !important;
+    font-size: .875rem;
+}
+.pc06-section-menu-tab {
+    box-sizing: border-box;
+    height: var(--pc-control-h-md) !important;
+    min-height: var(--pc-control-h-md) !important;
+    padding: 0 1rem !important;
+    border-radius: var(--pc-control-radius) !important;
+    font-size: .875rem;
+    line-height: 1;
 }
 .pc-input::placeholder { color: var(--pc-text-subtle); }
 .pc-input:focus, .pc-select:focus {
@@ -498,11 +615,193 @@ input[type="file"]::file-selector-button:hover {
 
 /* Modal — override Bootstrap (dùng class .pc-modal trực tiếp cũng được) */
 .modal-content, .pc-modal {
-    background: var(--pc-bg-card);
+    --bs-modal-bg: var(--pc-bg-card);
+    background: var(--pc-bg-card) !important;
+    background-color: var(--pc-bg-card) !important;
     color: var(--pc-text);
     border: 1px solid var(--pc-border);
     border-radius: var(--pc-radius-xl);
     box-shadow: var(--pc-shadow-overlay);
+    opacity: 1 !important;
+}
+.modal-header, .modal-body, .modal-footer {
+    background-color: var(--pc-bg-card);
+}
+[data-theme="dark"] .modal-content,
+[data-theme="dark"] .pc-modal {
+    --bs-modal-bg: #111b2e;
+    background: #111b2e !important;
+    background-color: #111b2e !important;
+    border-color: var(--pc-border) !important;
+    color: var(--pc-text) !important;
+    opacity: 1 !important;
+}
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-body,
+[data-theme="dark"] .modal-footer {
+    background-color: #111b2e !important;
+}
+.modal.show .modal-dialog {
+    animation: none !important;
+}
+.modal.fade,
+.modal-backdrop.fade {
+    transition: none !important;
+}
+.modal.fade .modal-dialog {
+    transform: none !important;
+    transition: none !important;
+}
+[data-theme="dark"] .modal-backdrop.show {
+    background-color: #020617;
+    opacity: .82 !important;
+}
+.main-content, #main-content {
+    min-width: 0;
+    overflow-x: clip;
+}
+.top-navbar .desktop-brand {
+    padding: 0 !important;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+}
+@media (max-width: 575.98px) {
+    .top-navbar .nav-container {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+        gap: 6px;
+    }
+    .top-navbar .nav-left {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        gap: 6px !important;
+        align-items: center;
+    }
+    .top-navbar .nav-left > button {
+        margin-right: 0 !important;
+        flex-shrink: 0;
+    }
+    .top-navbar .desktop-brand {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        gap: 0 !important;
+        justify-content: center;
+        text-align: center;
+        padding: 0 !important;
+        height: 34px;
+    }
+    .top-navbar .desktop-brand > div {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+    }
+    .top-navbar .desktop-brand-badge {
+        width: 30px !important;
+        height: 30px !important;
+        padding: 0 !important;
+        flex-shrink: 0;
+    }
+    .top-navbar .desktop-brand strong {
+        font-size: .88rem !important;
+        line-height: 1 !important;
+        margin: 0 !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .top-navbar .nav-right {
+        gap: 6px !important;
+        flex-shrink: 0;
+    }
+    .top-navbar .nav-right .dropdown {
+        margin: 0 !important;
+    }
+    .top-navbar .notif-trigger {
+        width: 34px;
+        height: 34px;
+    }
+    .top-navbar .notif-icon-wrap {
+        width: 32px;
+        height: 32px;
+    }
+    .top-navbar .notif-bell-icon {
+        font-size: 15px;
+    }
+    .top-navbar .user-btn {
+        padding: 5px 9px !important;
+        font-size: .75rem !important;
+        max-width: 110px;
+    }
+    .top-navbar .user-name-text {
+        max-width: 72px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: inline-block;
+    }
+    .top-navbar .btn-circle {
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
+    }
+}
+[data-theme="dark"] .btn-close {
+    filter: invert(1) grayscale(100%) brightness(1.8);
+    opacity: .78 !important;
+}
+[data-theme="dark"] .btn-close:hover {
+    opacity: 1 !important;
+}
+
+/* Dark-mode parity for Bootstrap subtle badges, form hints & triggers */
+[data-theme="dark"] .form-text,
+[data-theme="dark"] .text-body-secondary {
+    color: var(--pc-text-muted) !important;
+}
+[data-theme="dark"] .bg-primary-subtle {
+    background-color: var(--pc-primary-50) !important;
+    color: var(--pc-primary) !important;
+    border-color: rgba(79, 127, 208, .28) !important;
+}
+[data-theme="dark"] .bg-info-subtle {
+    background-color: var(--pc-info-bg) !important;
+    color: var(--pc-info-text) !important;
+    border-color: var(--pc-info-border) !important;
+}
+[data-theme="dark"] .bg-success-subtle {
+    background-color: var(--pc-success-bg) !important;
+    color: var(--pc-success-text) !important;
+    border-color: var(--pc-success-border) !important;
+}
+[data-theme="dark"] .bg-warning-subtle {
+    background-color: var(--pc-warning-bg) !important;
+    color: var(--pc-warning-text) !important;
+    border-color: var(--pc-warning-border) !important;
+}
+[data-theme="dark"] .bg-danger-subtle {
+    background-color: var(--pc-danger-bg) !important;
+    color: var(--pc-danger-text) !important;
+    border-color: var(--pc-danger-border) !important;
+}
+[data-theme="dark"] .bg-secondary-subtle,
+[data-theme="dark"] .bg-light-subtle {
+    background-color: var(--pc-bg-subtle) !important;
+    color: var(--pc-text-muted) !important;
+    border-color: var(--pc-border) !important;
+}
+[data-theme="dark"] .text-success { color: var(--pc-success) !important; }
+[data-theme="dark"] .text-warning { color: var(--pc-warning) !important; }
+[data-theme="dark"] .text-danger { color: var(--pc-danger) !important; }
+[data-theme="dark"] .text-secondary { color: var(--pc-text-muted) !important; }
+[data-theme="dark"] .text-dark { color: var(--pc-text) !important; }
+[data-theme="dark"] .notif-trigger {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 .modal-header { border-bottom: 1px solid var(--pc-border); padding: var(--pc-space-5) var(--pc-space-6); }
 .modal-title { font-weight: 700; font-size: var(--pc-text-h3); color: var(--pc-text); }
@@ -669,6 +968,7 @@ input[type="file"]::file-selector-button:hover {
 .pc-swal-title { color: var(--pc-text) !important; font-size: var(--pc-text-h3) !important; font-weight: 800; }
 .pc-swal-html { color: var(--pc-text-muted) !important; }
 .pc-swal-confirm, .pc-swal-cancel { box-shadow: none !important; }
+.swal2-container.swal2-top-end { top: calc(var(--nav-height, 64px) + 6px) !important; }
 
 /* ---------- 5. App shell — token hóa class hiện có, KHÔNG đổi DOM ---------- */
 .desktop-sidebar {

@@ -645,21 +645,49 @@ class CheckIn(db.Model):
 
 
 class Dossier(db.Model):
-    """Sổ theo dõi thời hạn hồ sơ (Căn cước, cư trú, xác thực...).
-    Lưu mã/tên hồ sơ và mốc thời gian hạn trả kết quả để cảnh báo sát hạn."""
+    """Sổ theo dõi thời hạn hồ sơ & chỉ tiêu hàng ngày (Tạm trú, Thường trú, CT10, Tích hợp, Làm sạch).
+    Lưu hồ sơ đơn lẻ hoặc dòng chỉ tiêu đơn vị từ file Excel / ảnh chụp để các đơn vị theo dõi, tích hoàn thành."""
     __tablename__ = 'dossiers'
 
     id = db.Column(db.Integer, primary_key=True)
     ma_ho_so = db.Column(db.String(255), nullable=False, index=True)
     loai = db.Column(db.String(50), nullable=False, default='khac')
+    category_tab = db.Column(db.String(32), nullable=False, default='khac', index=True)
+    so_ho_so = db.Column(db.String(255), index=True)
+    thu_tuc = db.Column(db.String(255))
+    ngay_nop = db.Column(db.Date)
     ngay_tiep_nhan = db.Column(db.Date)
     han_tra = db.Column(db.Date, nullable=False, index=True)
+    has_deadline = db.Column(db.Boolean, default=True)
+    tinh_dung_han = db.Column(db.String(64))
+    can_bo = db.Column(db.String(150))
     ghi_chu = db.Column(db.Text)
     trang_thai = db.Column(db.String(32), nullable=False, default='dang_xu_ly', index=True)
+    trang_thai_nguon = db.Column(db.String(150))
     da_tra_at = db.Column(db.DateTime)
+    hoan_thanh_by = db.Column(db.Integer, index=True)
+    hoan_thanh_by_name = db.Column(db.String(150))
+    hoan_thanh_note = db.Column(db.Text)
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
     unit_area = db.Column(db.String(255), index=True)
+    unit_code = db.Column(db.String(64), index=True)
+    unit_key = db.Column(db.String(100), index=True)
+    report_date = db.Column(db.Date, index=True)
+    import_batch_id = db.Column(db.String(64), index=True)
+    source_type = db.Column(db.String(32), default='manual')
+    source_name = db.Column(db.String(255))
+    extra_json = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.now, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     author = db.relationship('User', foreign_keys=[created_by], backref='dossiers')
+
+
+class AppSetting(db.Model):
+    """Lưu cấu hình hệ thống dùng chung (dạng key-value JSON)."""
+    __tablename__ = 'app_setting'
+
+    key = db.Column(db.String(150), primary_key=True)
+    value = db.Column(db.Text)
+    updated_by = db.Column(db.Integer, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)

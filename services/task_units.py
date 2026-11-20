@@ -131,6 +131,17 @@ def _resolve_task_unit_label(value):
         fallback_label="",
     ).get("display_name", "")
     resolved = (resolved or "").strip()
+    if resolved and not _is_category_item_reference_local(resolved):
+        return resolved
+    if _is_category_item_reference_local(raw_value):
+        from models import CategoryItem
+        try:
+            item_id = int(raw_value.split(":", 1)[1])
+            cat_item = db.session.get(CategoryItem, item_id)
+            if cat_item and (cat_item.name or "").strip():
+                return str(cat_item.name).strip()
+        except (TypeError, ValueError):
+            pass
     return resolved or raw_value
 
 
@@ -142,13 +153,15 @@ def _task_unit_identity(user):
     if not unit_obj and getattr(user, "unit_id", None) and hasattr(user, "__table__"):
         unit_obj = db.session.get(Unit, user.unit_id)
     if unit_obj and getattr(unit_obj, "name", None):
-        unit_name = str(unit_obj.name).strip()
-        raw_code = str(getattr(unit_obj, "code", "") or "").strip()
-        unit_key = (extract_unit_key(raw_code or unit_name) or extract_unit_key(unit_name) or unit_name.lower()).strip()
-        return {
-            "unit_name": unit_name,
-            "unit_key": unit_key,
-        }
+        raw_unit_name = str(unit_obj.name).strip()
+        unit_name = _resolve_task_unit_label(raw_unit_name) if _is_category_item_reference_local(raw_unit_name) else raw_unit_name
+        if unit_name and not _is_category_item_reference_local(unit_name):
+            raw_code = str(getattr(unit_obj, "code", "") or "").strip()
+            unit_key = (extract_unit_key(raw_code or unit_name) or extract_unit_key(unit_name) or unit_name.lower()).strip()
+            return {
+                "unit_name": unit_name,
+                "unit_key": unit_key,
+            }
 
     stored_key = (getattr(user, "unit_key", "") or "").strip()
     unit_area_display = _resolve_task_unit_label(getattr(user, "unit_area_display", None) or "")

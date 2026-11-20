@@ -678,6 +678,8 @@ def _submission_has_report_content(submission):
     payload = _parse_task_submission_payload(submission)
     if payload.get("mode") == "structured_task_report":
         return _structured_payload_has_content(payload)
+    if payload.get("mode") == "excel_sheet":
+        return bool(payload.get("rows"))
     if (
         str(getattr(submission, "narrative_content", "") or "").strip()
         or getattr(submission, "numeric_value", None) is not None
@@ -889,6 +891,8 @@ def _assignment_has_report_submission_legacy(assignment):
     payload = _parse_assignment_payload(assignment)
     if payload.get("mode") == "structured_task_report":
         return _structured_payload_has_content(payload)
+    if payload.get("mode") == "excel_sheet":
+        return bool(payload.get("rows"))
     if str(payload.get("narrative") or payload.get("narrative_report") or "").strip():
         return True
     if isinstance(payload.get("values"), dict) and any(

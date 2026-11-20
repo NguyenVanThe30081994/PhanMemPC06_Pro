@@ -218,10 +218,13 @@ def seed_categories():
 
         db.session.commit()
 
+        from category_helpers import ensure_unified_category_catalog
+        unified_stats = ensure_unified_category_catalog(commit=True)
+
         print(f"\n✅ Hoàn thành!")
-        print(f"   - Nhóm danh mục mới: {created_groups}")
+        print(f"   - Nhóm danh mục mới: {created_groups + unified_stats.get('created_groups', 0)}")
         print(f"   - Nhóm danh mục cập nhật: {updated_groups}")
-        print(f"   - Mục danh mục mới: {created_items}")
+        print(f"   - Mục danh mục mới: {created_items + unified_stats.get('created_items', 0)}")
         print(f"\n📝 Người quản trị có thể vào 'Thiết lập danh mục' để thêm/sửa/xóa các mục.")
 
 

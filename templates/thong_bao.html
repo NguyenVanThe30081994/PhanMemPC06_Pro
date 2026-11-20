@@ -4,15 +4,26 @@
 <style>
     .pc06-notify-workspace { display: grid; gap: 18px; }
     .pc06-notify-board-panel { padding: 20px; }
-    .pc06-notify-board-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
-    .pc06-notify-board-head h2 { margin: 0; font-size: 1.08rem; font-weight: 800; color: var(--text-main, #0f172a); }
+    .pc06-notify-board-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: nowrap; margin-bottom: 14px; }
+    .pc06-notify-board-head h2 { margin: 0; font-size: 1.08rem; font-weight: 800; color: var(--pc-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pc06-notify-board-head .pc06-page-actions { width: auto !important; flex-shrink: 0; margin-left: auto; }
     .pc06-notify-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-    .pc06-notify-tab { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(148,163,184,.3); background: rgba(255,255,255,.8); color: #475569; font-size: .82rem; font-weight: 700; text-decoration: none; }
-    .pc06-notify-tab:hover { text-decoration: none; border-color: var(--primary,#0066ff); color: var(--primary,#0066ff); }
-    .pc06-notify-tab.active { background: linear-gradient(135deg, #0066ff, #0052cc); color: #fff; border-color: transparent; }
+    .pc06-notify-tab { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: var(--pc-control-h-sm, 34px); padding: 0 14px; border-radius: 999px; border: 1px solid var(--pc-border); background: var(--pc-bg-card); color: var(--pc-text-muted); font-size: .8125rem; font-weight: 700; line-height: 1; text-decoration: none; white-space: nowrap; transition: border-color .15s ease, color .15s ease, background-color .15s ease; }
+    .pc06-notify-tab:hover { text-decoration: none; border-color: var(--pc-primary); color: var(--pc-primary); }
+    .pc06-notify-tab.active { background: var(--pc-primary); color: #fff; border-color: var(--pc-primary); }
     .pc06-notify-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
-    .pc06-notify-card { padding: 20px; border-radius: 26px; background: rgba(255,255,255,.96); border: 1px solid rgba(148,163,184,.16); box-shadow: 0 18px 40px rgba(15,23,42,.06); display: grid; gap: 14px; min-width: 0; }
-    [data-theme="dark"] .pc06-notify-card { background: rgba(30,41,59,.92); border-color: rgba(148,163,184,.14); }
+    @media (max-width: 991.98px) {
+        .pc06-notify-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    }
+    @media (max-width: 767.98px) {
+        .pc06-notify-board-panel { padding: 14px !important; }
+        .pc06-notify-board-head h2 { font-size: 1rem; }
+        .pc06-notify-board-head .pc-btn { padding: 0 12px !important; font-size: 13px !important; }
+        .pc06-notify-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+        .pc06-notify-tab { padding: 0 4px; font-size: 12px; width: 100%; }
+        .pc06-notify-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    }
+    .pc06-notify-card { padding: 20px; border-radius: 16px; background: var(--pc-bg-card); border: 1px solid var(--pc-border); box-shadow: var(--pc-shadow-xs); display: grid; gap: 14px; min-width: 0; }
     .pc06-notify-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; min-width: 0; }
     .pc06-notify-kind-tag { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font-size: .72rem; font-weight: 800; }
     .pc06-notify-kind-tag.notice { background: #fef3c7; color: #b45309; }
@@ -52,25 +63,18 @@
                 <div class="pc06-page-actions">
                     <button class="pc-btn pc-btn-primary" data-bs-toggle="modal" data-bs-target="#addNotifyModal">
                         <i class="fa-solid fa-plus"></i>
-                        Đăng thông báo
+                        <span class="d-none d-sm-inline">Đăng thông báo</span>
+                        <span class="d-sm-none">Đăng tin</span>
                     </button>
                 </div>
                 {% endif %}
             </div>
 
             <div class="pc06-notify-tabs">
-                <a href="{{ url_for('portal_bp.notifications_board') }}" class="pc06-notify-tab {% if not kind_filter %}active{% endif %}">
-                    <i class="fa-solid fa-bullhorn"></i> Tất cả
-                </a>
-                <a href="{{ url_for('portal_bp.notifications_board', kind='notice', category=current_category or None) }}" class="pc06-notify-tab {% if kind_filter == 'notice' %}active{% endif %}">
-                    <i class="fa-solid fa-file-lines"></i> Bản tin
-                </a>
-                <a href="{{ url_for('portal_bp.notifications_board', kind='document', category=current_category or None) }}" class="pc06-notify-tab {% if kind_filter == 'document' %}active{% endif %}">
-                    <i class="fa-solid fa-folder-open"></i> Tài liệu
-                </a>
-                <a href="{{ url_for('portal_bp.notifications_board', kind='video', category=current_category or None) }}" class="pc06-notify-tab {% if kind_filter == 'video' %}active{% endif %}">
-                    <i class="fa-solid fa-video"></i> Video
-                </a>
+                <a href="{{ url_for('portal_bp.notifications_board') }}" class="pc06-notify-tab {% if not kind_filter %}active{% endif %}">Tất cả</a>
+                <a href="{{ url_for('portal_bp.notifications_board', kind='notice', category=current_category or None) }}" class="pc06-notify-tab {% if kind_filter == 'notice' %}active{% endif %}">Bản tin</a>
+                <a href="{{ url_for('portal_bp.notifications_board', kind='document', category=current_category or None) }}" class="pc06-notify-tab {% if kind_filter == 'document' %}active{% endif %}">Tài liệu</a>
+                <a href="{{ url_for('portal_bp.notifications_board', kind='video', category=current_category or None) }}" class="pc06-notify-tab {% if kind_filter == 'video' %}active{% endif %}">Video</a>
             </div>
 
             <div class="pc06-notify-sidebar-search">

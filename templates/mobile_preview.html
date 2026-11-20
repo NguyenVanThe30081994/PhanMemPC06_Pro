@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Mô phỏng Mobile — Hệ thống PC06{% endblock %}
+
+{% block extra_head %}
+<style>
+  .mp-shell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 24px;
+  }
+  .mp-toolbar {
+    width: 100%;
+    max-width: 960px;
+    background: var(--pc-bg-card);
+    border: 1px solid var(--pc-border);
+    border-radius: 14px;
+    padding: 10px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .mp-route-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .mp-pill {
+    border: 1px solid var(--pc-border);
+    background: var(--pc-bg-subtle);
+    color: var(--pc-text);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.14s ease;
+  }
+  .mp-pill:hover {
+    border-color: var(--pc-primary);
+    color: var(--pc-primary);
+  }
+  .mp-pill.active {
+    background: var(--pc-primary);
+    border-color: var(--pc-primary);
+    color: #fff;
+  }
+  .mp-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .mp-device-frame {
+    position: relative;
+    background: #0f172a;
+    padding: 24px 12px 12px;
+    border-radius: 40px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28), 0 0 0 2px rgba(148, 163, 184, 0.25);
+    transition: width 0.2s ease, height 0.2s ease;
+  }
+  .mp-device-notch {
+    width: 72px;
+    height: 6px;
+    background: #334155;
+    border-radius: 999px;
+    position: absolute;
+    top: 9px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    pointer-events: none;
+  }
+  .mp-screen-wrap {
+    width: 390px;
+    height: 760px;
+    border-radius: 30px;
+    overflow: hidden;
+    background: var(--pc-bg);
+    transition: width 0.2s ease, height 0.2s ease;
+  }
+  .mp-screen-wrap iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    background: var(--pc-bg);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mp-shell">
+  <div class="mp-toolbar">
+    <div class="mp-route-pills" id="mpRoutePills">
+      <button type="button" class="mp-pill" data-path="/tong-quan-lanh-dao">Tổng hợp</button>
+      <button type="button" class="mp-pill" data-path="/dossiers">Sổ hồ sơ</button>
+      <button type="button" class="mp-pill" data-path="/admin">Trang chủ</button>
+      <button type="button" class="mp-pill" data-path="/tasks">Công việc</button>
+      <button type="button" class="mp-pill" data-path="/contacts">Danh bạ</button>
+      <button type="button" class="mp-pill" data-path="/admin/units">Đơn vị</button>
+      <button type="button" class="mp-pill" data-path="/admin/module-categories?pane=categories">Danh mục</button>
+      <button type="button" class="mp-pill" data-path="/links">Liên kết QR</button>
+    </div>
+    <div class="mp-controls">
+      <select id="mpSizeSelect" class="form-select form-select-sm" style="width:auto;">
+        <option value="390x760" selected>iPhone 390px</option>
+        <option value="360x740">Android 360px</option>
+        <option value="430x800">Pro Max 430px</option>
+      </select>
+      <button type="button" class="pc-btn pc-btn-secondary btn-sm" id="mpReloadBtn" title="Tải lại khung">
+        <i class="fa-solid fa-arrows-rotate"></i>
+      </button>
+      <a href="{{ initial_path }}" class="pc-btn pc-btn-secondary btn-sm" id="mpOpenDirect" title="Mở toàn màn hình">
+        <i class="fa-solid fa-up-right-from-square"></i>
+      </a>
+    </div>
+  </div>
+
+  <div class="mp-device-frame">
+    <div class="mp-device-notch"></div>
+    <div class="mp-screen-wrap" id="mpScreenWrap">
+      <iframe id="mpFrame" src="{{ initial_path }}" title="Mô phỏng giao diện điện thoại"></iframe>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const frame = document.getElementById('mpFrame');
+  const wrap = document.getElementById('mpScreenWrap');
+  const openDirect = document.getElementById('mpOpenDirect');
+  const pills = Array.from(document.querySelectorAll('#mpRoutePills .mp-pill'));
+  const sizeSel = document.getElementById('mpSizeSelect');
+  const reloadBtn = document.getElementById('mpReloadBtn');
+
+  function setActivePill(path) {
+    const clean = (path || '/dossiers').split('?')[0];
+    pills.forEach(p => {
+      const pClean = (p.dataset.path || '').split('?')[0];
+      p.classList.toggle('active', pClean === clean);
+    });
+    if (openDirect) openDirect.href = path || '/dossiers';
+  }
+
+  function navigateFrame(path) {
+    if (!path || !path.startsWith('/')) return;
+    frame.src = path;
+    setActivePill(path);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('path', path);
+      window.history.replaceState({}, '', url.toString());
+    } catch (_) {}
+  }
+
+  pills.forEach(p => {
+    p.addEventListener('click', () => navigateFrame(p.dataset.path));
+  });
+
+  sizeSel.addEventListener('change', () => {
+    const parts = (sizeSel.value || '390x760').split('x');
+    const w = parseInt(parts[0], 10) || 390;
+    const h = parseInt(parts[1], 10) || 760;
+    wrap.style.width = `${w}px`;
+    wrap.style.height = `${h}px`;
+  });
+
+  reloadBtn.addEventListener('click', () => {
+    try { frame.contentWindow.location.reload(); }
+    catch (_) { frame.src = frame.src; }
+  });
+
+  frame.addEventListener('load', () => {
+    try {
+      const p = frame.contentWindow.location.pathname + frame.contentWindow.location.search;
+      if (p) setActivePill(p);
+    } catch (_) {}
+  });
+
+  setActivePill({{ initial_path|tojson }});
+})();
+</script>
+{% endblock %}

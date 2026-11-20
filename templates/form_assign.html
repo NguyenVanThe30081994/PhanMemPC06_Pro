@@ -1,0 +1,2687 @@
+{% extends "base.html" %}
+
+{% block title %}Giao việc theo biểu mẫu{% endblock %}
+
+{% block extra_head %}
+<style>
+    .pc-form-assign-shell {
+        max-width: 1460px;
+        margin: 0 auto;
+        min-width: 0;
+    }
+
+    /* ── Stage 1: Hero Upload / Quick Builder ── */
+    .pc-form-hero-card {
+        max-width: 900px;
+        margin: 12px auto 0;
+        padding: 24px;
+    }
+
+    .pc-form-seg {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 4px;
+        border-radius: var(--pc-radius-md);
+        background: var(--pc-bg-subtle);
+        border: 1px solid var(--pc-border);
+    }
+
+    .pc-form-seg-btn {
+        border: none;
+        background: transparent;
+        color: var(--pc-text-muted);
+        padding: 6px 12px;
+        border-radius: var(--pc-radius-sm);
+        font-size: 0.83rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .pc-form-seg-btn.is-active {
+        background: var(--pc-primary);
+        color: #fff;
+    }
+
+    .pc-excel-dropzone {
+        border: 2px dashed var(--pc-border-strong);
+        border-radius: var(--pc-radius-lg);
+        background: var(--pc-bg-subtle);
+        padding: 44px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .pc-excel-dropzone:hover,
+    .pc-excel-dropzone.is-dragover {
+        border-color: var(--pc-primary);
+        background: var(--pc-info-bg);
+    }
+
+    /* ── Stage 2: Split Workspace (tương tự Đề cương) ── */
+    .excel-toolbar {
+        position: sticky;
+        top: 68px;
+        z-index: 90;
+        background: var(--pc-bg-card);
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-lg);
+        padding: 12px 16px;
+        box-shadow: var(--pc-shadow-xs);
+    }
+
+    .excel-workspace-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 430px;
+        gap: 20px;
+        align-items: start;
+    }
+
+    @media (max-width: 1120px) {
+        .excel-workspace-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Cột Trái: Tờ Biểu Mẫu Trực Quan */
+    .excel-paper-card {
+        background: var(--pc-bg-card);
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-lg);
+        padding: 18px;
+        box-shadow: var(--pc-shadow-xs);
+        min-width: 0;
+    }
+
+    .excel-sheet-scroll {
+        max-height: 620px;
+        overflow: auto;
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-md);
+        background: var(--pc-bg-card);
+    }
+
+    .pc-excel-visual-table {
+        width: max-content;
+        min-width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8rem;
+    }
+
+    .pc-excel-visual-table th,
+    .pc-excel-visual-table td {
+        border: 1px solid var(--pc-border);
+        padding: 6px 9px;
+        vertical-align: middle;
+        max-width: 260px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .pc-excel-visual-table tr.excel-letter-row th {
+        background: var(--pc-bg-subtle);
+        color: var(--pc-text-muted);
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-align: center;
+        padding: 3px 6px;
+        cursor: pointer;
+        user-select: none;
+        position: sticky;
+        top: 0;
+        z-index: 4;
+    }
+
+    .pc-excel-visual-table thead tr:not(.excel-letter-row) th {
+        background: var(--pc-bg-subtle);
+        color: var(--pc-text);
+        font-weight: 700;
+        text-align: center;
+        white-space: normal;
+        min-width: 72px;
+    }
+
+    .pc-excel-visual-table thead th[data-select-col] {
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+        transition: background 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .pc-excel-visual-table th.is-col-leaf:hover,
+    .pc-excel-visual-table tr.excel-letter-row th:hover {
+        background: var(--pc-info-bg);
+    }
+
+    .pc-excel-visual-table th.is-col-selected,
+    .pc-excel-visual-table td.is-col-selected {
+        background: rgba(59, 130, 246, 0.12) !important;
+        box-shadow: inset 1px 0 0 var(--pc-primary), inset -1px 0 0 var(--pc-primary);
+    }
+
+    .pc-excel-visual-table th.is-col-selected {
+        box-shadow: inset 0 2px 0 var(--pc-primary), inset 1px 0 0 var(--pc-primary), inset -1px 0 0 var(--pc-primary);
+    }
+
+    .pc-excel-visual-table th.is-col-unit,
+    .pc-excel-visual-table td.is-col-unit {
+        background: rgba(16, 185, 129, 0.08);
+        max-width: 340px;
+    }
+
+    .excel-control-rail .pc-form-seg-btn {
+        padding: 5px 9px;
+        font-size: 0.78rem;
+    }
+
+    .pc-excel-visual-table th.is-col-formula,
+    .pc-excel-visual-table td.is-col-formula {
+        background: rgba(99, 102, 241, 0.06);
+    }
+
+    .pc-excel-visual-table tr.excel-summary-row td {
+        background: var(--pc-bg-subtle);
+        font-weight: 700;
+        color: var(--pc-text);
+        border-bottom: 2px solid var(--pc-border-strong);
+    }
+
+    .col-meta-tag {
+        display: inline-block;
+        margin-top: 4px;
+        padding: 1px 6px;
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        line-height: 1.35;
+        background: var(--pc-bg-card);
+        color: var(--pc-text-muted);
+        border: 1px solid var(--pc-border);
+    }
+
+    .col-meta-tag.role-unit {
+        background: var(--pc-success-bg);
+        color: var(--pc-success);
+        border-color: transparent;
+    }
+
+    .col-meta-tag.role-formula {
+        background: var(--pc-info-bg);
+        color: var(--pc-primary);
+        border-color: transparent;
+    }
+
+    .col-meta-tag.role-stt {
+        color: var(--pc-text-subtle);
+    }
+
+    /* Cột Phải: Control Rail Panel (sticky y hệt Đề cương) */
+    .excel-control-rail {
+        background: var(--pc-bg-card);
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-lg);
+        box-shadow: var(--pc-shadow-xs);
+        position: sticky;
+        top: 132px;
+        max-height: calc(100vh - 150px);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    @media (max-width: 1120px) {
+        .excel-control-rail {
+            position: static;
+            max-height: none;
+        }
+    }
+
+    .rail-head {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--pc-border);
+        background: var(--pc-bg-subtle);
+    }
+
+    .rail-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 4px;
+        background: var(--pc-bg-card);
+        border: 1px solid var(--pc-border);
+        padding: 3px;
+        border-radius: var(--pc-radius-md);
+    }
+
+    .rail-tab-btn {
+        border: none;
+        background: transparent;
+        color: var(--pc-text-muted);
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 7px 6px;
+        border-radius: var(--pc-radius-sm);
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .rail-tab-btn.is-active {
+        background: var(--pc-primary);
+        color: #fff;
+    }
+
+    .rail-body {
+        padding: 14px 16px;
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .rail-foot {
+        padding: 12px 16px;
+        border-top: 1px solid var(--pc-border);
+        background: var(--pc-bg-subtle);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .role-option-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .role-chip-btn {
+        border: 1px solid var(--pc-border);
+        background: var(--pc-bg-subtle);
+        color: var(--pc-text);
+        border-radius: var(--pc-radius-sm);
+        padding: 7px 9px;
+        font-size: 0.79rem;
+        font-weight: 600;
+        text-align: left;
+        cursor: pointer;
+        transition: border-color 0.12s ease, background 0.12s ease;
+    }
+
+    .role-chip-btn.is-active {
+        border-color: var(--pc-primary);
+        background: var(--pc-info-bg);
+        color: var(--pc-primary);
+    }
+
+    .formula-ref-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        max-height: 112px;
+        overflow-y: auto;
+        padding: 6px;
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-sm);
+        background: var(--pc-bg-subtle);
+    }
+
+    .formula-ref-chip {
+        border: 1px solid var(--pc-border);
+        background: var(--pc-bg-card);
+        color: var(--pc-text);
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        cursor: pointer;
+        max-width: 190px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .formula-ref-chip:hover {
+        border-color: var(--pc-primary);
+        color: var(--pc-primary);
+    }
+
+    .pc-form-unit-scroll {
+        max-height: 290px;
+        overflow-y: auto;
+        background: var(--pc-bg-card);
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-md);
+        padding: 8px 10px;
+    }
+
+    .pc-form-unit-group-title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--pc-text-muted);
+        margin: 8px 0 4px;
+    }
+
+    .pc-form-unit-group-title:first-child {
+        margin-top: 0;
+    }
+
+    .pc-form-unit-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+
+    .pc-form-unit-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 9px;
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-sm);
+        background: var(--pc-bg-subtle);
+        font-size: 0.82rem;
+        color: var(--pc-text);
+        cursor: pointer;
+        margin: 0;
+    }
+
+    .pc-form-unit-option:has(input:checked) {
+        border-color: var(--pc-primary);
+        background: var(--pc-info-bg);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pc-form-assign-shell py-2">
+    <header class="pc-page-header mb-3">
+        <h1 class="pc-page-title">Giao việc theo biểu mẫu</h1>
+        <div class="pc-page-actions">
+            <a href="{{ url_for('tasks_bp.tasks') }}" class="pc-btn pc-btn-secondary btn-sm">Danh sách công việc</a>
+        </div>
+    </header>
+
+    <form method="POST" action="{{ url_for('tasks_bp.tasks') }}" enctype="multipart/form-data" id="createTaskForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token_value }}">
+        <select class="d-none" name="task_mode" id="taskModeSelect">
+            <option value="FORM" selected>Biểu mẫu</option>
+        </select>
+        <input type="hidden" name="form_provider" id="wizardFormProvider" value="excel">
+        <input type="hidden" name="staged_excel_template" id="wizardStagedExcelTemplate" value="">
+        <input type="hidden" name="staged_excel_original_name" id="wizardStagedExcelOriginalName" value="">
+        <input type="hidden" name="excel_allow_add_rows" id="wizardExcelAllowAddRows" value="0">
+        <input type="hidden" name="excel_col_types_json" id="wizardExcelColTypesJson" value="">
+        <input type="hidden" name="excel_col_roles_json" id="wizardExcelColRolesJson" value="">
+        <input type="hidden" name="excel_col_data_types_json" id="wizardExcelColDataTypesJson" value="">
+        <input type="hidden" name="excel_col_formulas_json" id="wizardExcelColFormulasJson" value="">
+        <input type="hidden" name="excel_col_percents_json" id="wizardExcelColPercentsJson" value="">
+        <input type="hidden" name="excel_col_readonly_json" id="wizardExcelColReadonlyJson" value="">
+        <input type="hidden" name="excel_unit_col_index" id="wizardExcelUnitColIndex" value="">
+        <input type="hidden" name="excel_assign_row_mode" id="wizardExcelAssignRowMode" value="shared_table">
+        <input type="hidden" name="excel_generated_rows_json" id="wizardExcelGeneratedRowsJson" value="">
+        <input type="hidden" name="excel_unit_row_assignments_json" id="wizardExcelUnitRowAssignmentsJson" value="">
+        <input type="hidden" name="quick_excel_columns_json" id="wizardQuickExcelColumnsJson" value="">
+
+        <!-- ── STAGE 1: NẠP BIỂU MẪU EXCEL HOẶC KẺ BẢNG NHANH ── -->
+        <section class="pc-card pc-form-hero-card" id="heroExcelSection">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div class="pc-form-seg" role="group" aria-label="Cách tạo biểu mẫu Excel">
+                    <button type="button" class="pc-form-seg-btn is-active" data-excel-source-tab="upload">Tải file Excel (.xlsx)</button>
+                    <button type="button" class="pc-form-seg-btn" data-excel-source-tab="quick">Kẻ bảng Excel nhanh</button>
+                </div>
+                <span class="small text-muted" id="wizardFormStatus"></span>
+            </div>
+
+            <div id="formDraftRestoreBanner" class="alert alert-info py-2 px-3 d-none d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 small">
+                <span>Có bản cấu hình biểu mẫu đã lưu nháp (<strong id="formDraftSavedTime"></strong>).</span>
+                <div class="d-flex gap-2">
+                    <button type="button" class="pc-btn pc-btn-primary btn-sm" id="btnRestoreFormDraft">Khôi phục cấu hình</button>
+                    <button type="button" class="pc-btn pc-btn-secondary btn-sm" id="btnDiscardFormDraft">Xóa nháp</button>
+                </div>
+            </div>
+
+            <div data-excel-source-pane="upload">
+                <label for="wizardExcelTemplateFile" class="pc-excel-dropzone d-block mb-0" id="wizardExcelDropzone">
+                    <input class="d-none" type="file" name="excel_template_file" id="wizardExcelTemplateFile" accept=".xlsx">
+                    <div class="mb-2"><i class="fa-solid fa-file-excel fs-1 text-success"></i></div>
+                    <div class="fw-bold fs-6" id="wizardExcelDropLabel">Chọn hoặc kéo thả file Excel biểu mẫu (.xlsx)</div>
+                    <div class="small text-muted mt-1">Hiển thị trực quan bảng gộp ô &amp; công thức để cấu hình từng cột, chọn cột Đơn vị tự sinh dòng và phát hành.</div>
+                </label>
+            </div>
+
+            <div data-excel-source-pane="quick" class="d-none" id="quickExcelBuilderWrap">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div>
+                        <div class="fw-bold small">Khai báo nhanh các cột bảng Excel</div>
+                        <div class="small text-muted">Tạo file .xlsx chuẩn rồi chuyển ngay sang giao diện cấu hình trực quan.</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="pc-btn pc-btn-secondary btn-sm" type="button" id="addQuickExcelColBtn">
+                            <i class="fa-solid fa-plus me-1"></i>Thêm cột
+                        </button>
+                        <button class="pc-btn pc-btn-primary btn-sm" type="button" id="previewQuickExcelBtn">Mở bảng trực quan</button>
+                    </div>
+                </div>
+                <div id="quickExcelColList" class="d-grid gap-2"></div>
+            </div>
+        </section>
+
+        <!-- ── STAGE 2: WORKSPACE 2 CỘT TRỰC QUAN (TƯƠNG TỰ ĐỀ CƯƠNG) ── -->
+        <section class="d-none" id="excelWorkspaceSection">
+            <div class="excel-toolbar d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div class="d-flex flex-wrap align-items-center gap-2 min-w-0">
+                    <span class="fw-bold text-truncate" id="wsTemplateName" style="max-width: 340px;">Biểu mẫu Excel</span>
+                    <span class="pc-badge pc-badge-success" id="wsMetaColsBadge">0 cột</span>
+                    <span class="pc-badge pc-badge-neutral" id="wsMetaRowsBadge">0 dòng</span>
+                    <span class="pc-badge pc-badge-primary d-none" id="wsMetaUnitsBadge">0 đơn vị</span>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <button type="button" class="pc-btn pc-btn-secondary btn-sm" id="btnResetTemplate">Nạp biểu mẫu khác</button>
+                    <button type="button" class="pc-btn pc-btn-primary btn-sm" id="wsTopPublishBtn">Phát hành biểu mẫu</button>
+                </div>
+            </div>
+
+            <div class="excel-workspace-grid">
+                <!-- CỘT TRÁI: BẢNG BIỂU MẪU EXCEL TRỰC QUAN -->
+                <div class="excel-paper-card">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <div id="wizardExcelBannerPreview" class="small"></div>
+                        <span class="small text-muted">Bấm tiêu đề cột để chọn · Giữ Ctrl/⌘ hoặc Shift để bôi nhiều cột</span>
+                    </div>
+
+                    <div class="excel-sheet-scroll">
+                        <table class="pc-excel-visual-table" id="excelVisualTable"></table>
+                    </div>
+
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
+                        <span class="small text-muted" id="wsTablePreviewNote"></span>
+                        <button type="button" class="pc-btn pc-btn-secondary btn-sm d-none" id="btnToggleAllRows">Hiển thị toàn bộ dòng</button>
+                    </div>
+                </div>
+
+                <!-- CỘT PHẢI: CONTROL RAIL PANEL -->
+                <aside class="excel-control-rail">
+                    <div class="rail-head">
+                        <div class="rail-tabs" role="tablist">
+                            <button type="button" class="rail-tab-btn is-active" data-rail-tab="columns">1. Cấu hình cột</button>
+                            <button type="button" class="rail-tab-btn" data-rail-tab="assignees">2. Đơn vị (<span id="railUnitCountNum">0</span>)</button>
+                            <button type="button" class="rail-tab-btn" data-rail-tab="publish">3. Giao việc</button>
+                        </div>
+                    </div>
+
+                    <div class="rail-body">
+                        <!-- TAB 1: CẤU HÌNH CỘT ĐANG CHỌN -->
+                        <div data-rail-pane="columns">
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold mb-1">Chọn nhanh cột cần thiết lập</label>
+                                <select class="form-select form-select-sm" id="colSelectorDropdown"></select>
+                            </div>
+
+                            <div class="p-3 rounded-3 border mb-3" style="background: var(--pc-bg-subtle); border-color: var(--pc-border) !important;" id="colInspectorPanel">
+                                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                    <div>
+                                        <span class="pc-badge pc-badge-primary me-1" id="inspColLetter">A</span>
+                                        <span class="pc-badge pc-badge-primary me-1 d-none" id="inspColCountBadge"></span>
+                                        <strong class="small" id="inspColTitle">Cột</strong>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="small text-muted d-block" id="inspColSub"></span>
+                                        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none d-none" style="font-size: 0.74rem;" id="btnClearMultiCol">Chỉ chọn 1 cột</button>
+                                    </div>
+                                </div>
+
+                                <div class="small fw-semibold text-muted mb-1">Vai trò cột trong biểu mẫu</div>
+                                <div class="role-option-grid mb-3" id="inspRoleGrid">
+                                    <button type="button" class="role-chip-btn" data-col-role="data">Dữ liệu nhập</button>
+                                    <button type="button" class="role-chip-btn" data-col-role="unit">Đơn vị nhận BC</button>
+                                    <button type="button" class="role-chip-btn" data-col-role="stt">STT tự động</button>
+                                    <button type="button" class="role-chip-btn" data-col-role="formula">Công thức (=)</button>
+                                </div>
+
+                                <!-- Option khi là Dữ liệu nhập -->
+                                <div id="inspDataOptionsBox">
+                                    <label class="form-label small fw-semibold mb-1">Kiểu dữ liệu</label>
+                                    <select class="form-select form-select-sm mb-2" id="inspDataTypeSelect">
+                                        <option value="" disabled hidden id="inspDataTypeMixedOpt">— Nhiều kiểu — chọn để đồng nhất —</option>
+                                        <option value="text">Văn bản / Ghi chú</option>
+                                        <option value="number">Số liệu (số thập phân)</option>
+                                        <option value="integer">Số nguyên</option>
+                                        <option value="percent">Phần trăm (%)</option>
+                                        <option value="date">Ngày tháng</option>
+                                    </select>
+                                    <label class="form-check d-flex align-items-center gap-2 m-0 small">
+                                        <input class="form-check-input mt-0" type="checkbox" id="inspReadonlyCheckbox">
+                                        <span>Khóa cố định (đơn vị không sửa được)</span>
+                                    </label>
+                                </div>
+
+                                <!-- Option khi là Cột Đơn vị -->
+                                <div id="inspUnitOptionsBox" class="d-none">
+                                    <div class="small mb-2">
+                                        Khi chọn các đơn vị nhận báo cáo ở tab <strong>2. Đơn vị</strong>, hệ thống sẽ tự sinh các dòng theo đúng tên đơn vị tại cột này và giao riêng từng dòng tương ứng cho mỗi đơn vị nộp.
+                                    </div>
+                                    <button type="button" class="pc-btn pc-btn-primary btn-sm w-100" id="btnJumpToUnitSelect">Chọn đơn vị &amp; Tự sinh dòng</button>
+                                </div>
+
+                                <!-- Option khi là Công thức -->
+                                <div id="inspFormulaOptionsBox" class="d-none">
+                                    <label class="form-label small fw-semibold mb-1">Biểu thức công thức Excel theo dòng</label>
+                                    <div class="input-group input-group-sm mb-2">
+                                        <input type="text" class="form-control font-monospace" id="inspFormulaInput" placeholder="Ví dụ: =E/C hoặc =SUM(C:E)">
+                                        <button type="button" class="pc-btn pc-btn-secondary btn-sm" id="btnApplyFormulaInput">Áp dụng</button>
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-1 mb-2" id="formulaPresetRow">
+                                        <button type="button" class="pc-btn pc-btn-secondary btn-sm py-0 px-2" data-fpreset="ratio" style="font-size:0.74rem;">Tỷ lệ (A / B)</button>
+                                        <button type="button" class="pc-btn pc-btn-secondary btn-sm py-0 px-2" data-fpreset="sum" style="font-size:0.74rem;">Cộng (A + B)</button>
+                                        <button type="button" class="pc-btn pc-btn-secondary btn-sm py-0 px-2" data-fpreset="diff" style="font-size:0.74rem;">Hiệu (A - B)</button>
+                                    </div>
+                                    <div class="small fw-semibold text-muted mb-1">Bấm chèn nhanh cột vào công thức:</div>
+                                    <div class="formula-ref-chips mb-2" id="formulaColRefChips"></div>
+                                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                        <label class="form-check d-flex align-items-center gap-2 m-0 small">
+                                            <input class="form-check-input mt-0" type="checkbox" id="inspFormulaPercentCheckbox">
+                                            <span>Định dạng %</span>
+                                        </label>
+                                        <span class="small fw-semibold text-primary" id="inspFormulaSampleResult"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="p-2 rounded-3 border" style="border-color: var(--pc-border) !important;">
+                                <label class="form-check d-flex align-items-center gap-2 m-0 small fw-semibold">
+                                    <input class="form-check-input mt-0" type="checkbox" id="wizardExcelAllowAddRowsCheckbox">
+                                    <span>Cho phép đơn vị tự thêm/xóa nhiều dòng dữ liệu</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- TAB 2: CHỌN ĐƠN VỊ & TỰ SINH DÒNG -->
+                        <div data-rail-pane="assignees" class="d-none">
+                            <select class="d-none" name="assign_type" id="createAssignType">
+                                <option value="unit" selected>Theo đơn vị</option>
+                                <option value="role">Theo vai trò</option>
+                                <option value="user">Theo cá nhân</option>
+                            </select>
+
+                            <div class="alert alert-info py-2 px-3 small mb-2 d-none" id="suggestUnitBanner"></div>
+
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                <div class="pc-form-seg" role="group" aria-label="Kiểu phân công">
+                                    <button type="button" class="pc-form-seg-btn is-active" data-assign-tab="unit">Theo đơn vị</button>
+                                    <button type="button" class="pc-form-seg-btn" data-assign-tab="role">Theo vai trò</button>
+                                    <button type="button" class="pc-form-seg-btn" data-assign-tab="user">Theo cá nhân</button>
+                                </div>
+                                <span class="pc-badge pc-badge-primary" id="wizardFormAssignCount">0</span>
+                            </div>
+
+                            <div data-assign-box="unit">
+                                <div class="d-flex flex-wrap gap-1 mb-2" id="wizardFormUnitPresets"></div>
+                                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                                    <button type="button" class="pc-btn pc-btn-secondary btn-sm d-none" id="btnMatchFileUnits">Khớp đơn vị từ file mẫu</button>
+                                    <label class="form-check d-flex align-items-center gap-2 m-0 small" id="clearOldValuesOnGenWrap">
+                                        <input class="form-check-input mt-0" type="checkbox" id="chkClearOldDataOnUnitGen" checked>
+                                        <span>Làm trống số liệu cũ khi sinh dòng</span>
+                                    </label>
+                                </div>
+                                <input type="search" class="form-control form-control-sm mb-2" id="wizardFormUnitSearch" placeholder="Tìm nhanh đơn vị (Sở, UBND xã, Công an xã...)">
+                                <div class="pc-form-unit-scroll" id="wizardFormUnitList">
+                                    <div class="text-muted small py-3 text-center">Đang tải danh sách đơn vị...</div>
+                                </div>
+                            </div>
+
+                            <div data-assign-box="role" class="d-none">
+                                <div class="pc-form-unit-scroll">
+                                    <div class="pc-form-unit-grid">
+                                        {% for role in roles %}
+                                        <label class="pc-form-unit-option">
+                                            <input type="checkbox" class="form-check-input mt-0" name="assignee_role_ids" value="{{ role.id }}">
+                                            <span>{{ role.name }}</span>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div data-assign-box="user" class="d-none">
+                                <input type="search" class="form-control form-control-sm mb-2" id="wizardFormUserSearch" placeholder="Tìm tên cán bộ hoặc đơn vị...">
+                                <div class="pc-form-unit-scroll" id="wizardFormUserList">
+                                    <div class="pc-form-unit-grid">
+                                        {% for user in users %}
+                                        <label class="pc-form-unit-option" data-user-search-text="{{ (user.fullname ~ ' ' ~ (user.unit_area_display or ''))|lower }}">
+                                            <input type="checkbox" class="form-check-input mt-0" name="target_users" value="{{ user.id }}">
+                                            <span class="text-truncate">{{ user.fullname }}{% if user.unit_area_display %} — {{ user.unit_area_display }}{% endif %}</span>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 3: THÔNG TIN CHUNG & PHÁT HÀNH -->
+                        <div data-rail-pane="publish" class="d-none">
+                            <div class="mb-2">
+                                <label class="form-label fw-semibold small mb-1">Tiêu đề công việc <span class="text-danger">*</span></label>
+                                <input class="form-control form-control-sm" type="text" name="title" id="wizardTitle" required placeholder="Ví dụ: Báo cáo chỉ tiêu Đề án 06...">
+                            </div>
+
+                            <div class="mb-2">
+                                <label class="form-label fw-semibold small mb-1">Hạn nộp / chu kỳ báo cáo</label>
+                                <select class="form-select form-select-sm mb-2" name="report_period_kind">
+                                    <option value="one_time">Báo cáo đột xuất / một lần</option>
+                                    <option value="periodic">Báo cáo định kỳ</option>
+                                    <option value="milestone">Báo cáo theo mốc / giai đoạn</option>
+                                    <option value="ongoing">Công việc thường xuyên (duy trì)</option>
+                                </select>
+                                <div data-report-deadline-panel>
+                                    <input class="form-control form-control-sm" type="date" name="deadline">
+                                </div>
+                                <div class="d-none" data-report-period-panel>
+                                    <select class="form-select form-select-sm mb-2" name="report_period">
+                                        <option value="day">Hàng ngày</option>
+                                        <option value="week">Hàng tuần</option>
+                                        <option value="month" selected>Hàng tháng</option>
+                                        <option value="quarter">Hàng quý</option>
+                                        <option value="year">Hàng năm</option>
+                                    </select>
+                                    <div class="small text-muted mb-2 d-none" data-report-daily-anchor>Báo cáo lặp lại hàng ngày — hạn chốt từng ngày.</div>
+                                    <div class="d-flex gap-2 mb-2" data-report-week-anchor>
+                                        <span class="small text-muted align-self-center text-nowrap">Hạn nộp</span>
+                                        <select class="form-select form-select-sm" name="report_weekday">
+                                            <option value="0">Thứ 2</option>
+                                            <option value="1">Thứ 3</option>
+                                            <option value="2">Thứ 4</option>
+                                            <option value="3">Thứ 5</option>
+                                            <option value="4" selected>Thứ 6</option>
+                                            <option value="5">Thứ 7</option>
+                                            <option value="6">Chủ nhật</option>
+                                        </select>
+                                    </div>
+                                    <div class="d-flex gap-2 mb-2" data-report-day-anchor>
+                                        <span class="small text-muted align-self-center text-nowrap">Hạn nộp</span>
+                                        <input class="form-control form-control-sm" type="number" name="report_day_of_month" min="1" max="28" value="5" title="Ngày hạn nộp trong kỳ">
+                                        <select class="form-select form-select-sm d-none" name="report_month_of_year">
+                                            {% for m in range(1, 13) %}
+                                            <option value="{{ m }}" {% if m == 12 %}selected{% endif %}>Tháng {{ m }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <span class="small text-muted align-self-center text-nowrap d-none" data-report-day-suffix>hàng kỳ</span>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <input class="form-control form-control-sm" type="date" name="report_start_date">
+                                        <input class="form-control form-control-sm" type="date" name="report_end_date">
+                                    </div>
+                                </div>
+                                <div class="d-none" data-report-milestone-panel>
+                                    <textarea class="form-control form-control-sm" name="report_milestones" rows="2" placeholder="Mỗi dòng một ngày (vd: 30/08/2026)"></textarea>
+                                </div>
+                                <div class="d-none text-muted small" data-report-ongoing-panel>Không đặt hạn — theo dõi liên tục.</div>
+                            </div>
+
+                            <div class="row g-2 mb-2">
+                                <div class="col-6">
+                                    <label class="form-label fw-semibold small mb-1">Lĩnh vực</label>
+                                    <select class="form-select form-select-sm" name="category">
+                                        <option value="">Chọn lĩnh vực</option>
+                                        {% for item in task_fields %}
+                                        <option value="{{ item.value }}">{{ item.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label fw-semibold small mb-1">Đội chủ trì</label>
+                                    <select class="form-select form-select-sm" name="unit_name">
+                                        <option value="">Chọn đội</option>
+                                        {% for item in pro_units %}
+                                        <option value="{{ item.value }}">{{ item.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label fw-semibold small mb-1">Loại công việc</label>
+                                    <select class="form-select form-select-sm" name="task_type">
+                                        <option value="">-- Chọn loại --</option>
+                                        {% for item in task_types %}
+                                        <option value="{{ item.value }}">{{ item.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label fw-semibold small mb-1">Mức ưu tiên</label>
+                                    <select class="form-select form-select-sm" name="priority">
+                                        <option value="">-- Chọn mức --</option>
+                                        {% for item in priority_items %}
+                                        <option value="{{ item.value }}">{{ item.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-2">
+                                <label class="form-label fw-semibold small mb-1">Mô tả / hướng dẫn</label>
+                                <textarea class="form-control form-control-sm" name="description" rows="2" placeholder="Hướng dẫn đơn vị nhập biểu mẫu..."></textarea>
+                            </div>
+
+                            <details class="mb-2 border rounded-3 p-2" style="border-color: var(--pc-border) !important;">
+                                <summary class="fw-semibold small" style="cursor: pointer;">Phạm vi xem &amp; quản lý (tùy chọn)</summary>
+                                <div class="d-grid gap-2 mt-2">
+                                    <div>
+                                        <label class="form-label small fw-semibold mb-1">Ai được xem công việc</label>
+                                        <select class="form-select form-select-sm" name="viewer_scope_mode" data-scope-mode="viewer">
+                                            <option value="none">Chỉ người được giao</option>
+                                            <option value="role">Theo vai trò</option>
+                                            <option value="user">Theo cá nhân</option>
+                                        </select>
+                                        <div class="pc-form-unit-scroll mt-1 d-none" data-scope-box="viewer" style="max-height: 140px;">
+                                            {% for role in roles %}
+                                            <label class="d-flex gap-2 align-items-center small py-1">
+                                                <input type="checkbox" name="viewer_role_ids" value="{{ role.id }}">
+                                                <span>{{ role.name }}</span>
+                                            </label>
+                                            {% endfor %}
+                                            <hr class="my-1">
+                                            {% for user in users %}
+                                            <label class="d-flex gap-2 align-items-center small py-1">
+                                                <input type="checkbox" name="viewer_user_ids" value="{{ user.id }}">
+                                                <span>{{ user.fullname }}</span>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="form-label small fw-semibold mb-1">Ai quản lý / duyệt</label>
+                                        <select class="form-select form-select-sm" name="manager_scope_mode" data-scope-mode="manager">
+                                            <option value="none">Chỉ quản trị</option>
+                                            <option value="role">Theo vai trò</option>
+                                            <option value="user">Theo cá nhân</option>
+                                        </select>
+                                        <div class="pc-form-unit-scroll mt-1 d-none" data-scope-box="manager" style="max-height: 140px;">
+                                            {% for role in roles %}
+                                            <label class="d-flex gap-2 align-items-center small py-1">
+                                                <input type="checkbox" name="manager_role_ids" value="{{ role.id }}">
+                                                <span>{{ role.name }}</span>
+                                            </label>
+                                            {% endfor %}
+                                            <hr class="my-1">
+                                            {% for user in users %}
+                                            <label class="d-flex gap-2 align-items-center small py-1">
+                                                <input type="checkbox" name="manager_user_ids" value="{{ user.id }}">
+                                                <span>{{ user.fullname }}</span>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <div class="p-2 rounded-3 border small" style="background: var(--pc-bg-subtle); border-color: var(--pc-border) !important;" id="wizardSummary"></div>
+                        </div>
+                    </div>
+
+                    <div class="rail-foot">
+                        <a href="{{ url_for('tasks_bp.tasks') }}" class="pc-btn pc-btn-secondary btn-sm">Hủy</a>
+                        <button type="submit" class="pc-btn pc-btn-primary btn-sm" id="wizardSubmitBtn">Phát hành biểu mẫu</button>
+                    </div>
+                </aside>
+            </div>
+        </section>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+    const createForm = document.getElementById('createTaskForm');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const FALLBACK_PRO_UNITS = {{ pro_units | tojson }};
+
+    const heroSection = document.getElementById('heroExcelSection');
+    const workspaceSection = document.getElementById('excelWorkspaceSection');
+    const excelFileInput = document.getElementById('wizardExcelTemplateFile');
+    const excelDropzone = document.getElementById('wizardExcelDropzone');
+    const excelDropLabel = document.getElementById('wizardExcelDropLabel');
+    const quickColList = document.getElementById('quickExcelColList');
+    const addQuickColBtn = document.getElementById('addQuickExcelColBtn');
+    const previewQuickBtn = document.getElementById('previewQuickExcelBtn');
+    const wizardStatus = document.getElementById('wizardFormStatus');
+
+    const stagedExcelInput = document.getElementById('wizardStagedExcelTemplate');
+    const stagedOrigNameInput = document.getElementById('wizardStagedExcelOriginalName');
+    const allowAddRowsHidden = document.getElementById('wizardExcelAllowAddRows');
+    const colTypesHidden = document.getElementById('wizardExcelColTypesJson');
+    const colRolesHidden = document.getElementById('wizardExcelColRolesJson');
+    const colDataTypesHidden = document.getElementById('wizardExcelColDataTypesJson');
+    const colFormulasHidden = document.getElementById('wizardExcelColFormulasJson');
+    const colPercentsHidden = document.getElementById('wizardExcelColPercentsJson');
+    const colReadonlyHidden = document.getElementById('wizardExcelColReadonlyJson');
+    const unitColIdxHidden = document.getElementById('wizardExcelUnitColIndex');
+    const assignRowModeHidden = document.getElementById('wizardExcelAssignRowMode');
+    const generatedRowsHidden = document.getElementById('wizardExcelGeneratedRowsJson');
+    const unitRowAssignmentsHidden = document.getElementById('wizardExcelUnitRowAssignmentsJson');
+    const quickColsHidden = document.getElementById('wizardQuickExcelColumnsJson');
+
+    const wsTemplateName = document.getElementById('wsTemplateName');
+    const wsMetaColsBadge = document.getElementById('wsMetaColsBadge');
+    const wsMetaRowsBadge = document.getElementById('wsMetaRowsBadge');
+    const wsMetaUnitsBadge = document.getElementById('wsMetaUnitsBadge');
+    const wsTablePreviewNote = document.getElementById('wsTablePreviewNote');
+    const btnToggleAllRows = document.getElementById('btnToggleAllRows');
+    const btnResetTemplate = document.getElementById('btnResetTemplate');
+    const wsTopPublishBtn = document.getElementById('wsTopPublishBtn');
+
+    const previewBannerEl = document.getElementById('wizardExcelBannerPreview');
+    const visualTableEl = document.getElementById('excelVisualTable');
+    const allowAddRowsCheckbox = document.getElementById('wizardExcelAllowAddRowsCheckbox');
+
+    const colSelectorDropdown = document.getElementById('colSelectorDropdown');
+    const inspColLetter = document.getElementById('inspColLetter');
+    const inspColCountBadge = document.getElementById('inspColCountBadge');
+    const inspColTitle = document.getElementById('inspColTitle');
+    const inspColSub = document.getElementById('inspColSub');
+    const btnClearMultiCol = document.getElementById('btnClearMultiCol');
+    const inspDataOptionsBox = document.getElementById('inspDataOptionsBox');
+    const inspUnitOptionsBox = document.getElementById('inspUnitOptionsBox');
+    const inspFormulaOptionsBox = document.getElementById('inspFormulaOptionsBox');
+    const inspDataTypeSelect = document.getElementById('inspDataTypeSelect');
+    const inspReadonlyCheckbox = document.getElementById('inspReadonlyCheckbox');
+    const inspFormulaInput = document.getElementById('inspFormulaInput');
+    const btnApplyFormulaInput = document.getElementById('btnApplyFormulaInput');
+    const formulaColRefChips = document.getElementById('formulaColRefChips');
+    const inspFormulaPercentCheckbox = document.getElementById('inspFormulaPercentCheckbox');
+    const inspFormulaSampleResult = document.getElementById('inspFormulaSampleResult');
+    const btnJumpToUnitSelect = document.getElementById('btnJumpToUnitSelect');
+
+    const assignTypeSelect = document.getElementById('createAssignType');
+    const suggestUnitBanner = document.getElementById('suggestUnitBanner');
+    const unitPresetsEl = document.getElementById('wizardFormUnitPresets');
+    const unitListEl = document.getElementById('wizardFormUnitList');
+    const unitSearchEl = document.getElementById('wizardFormUnitSearch');
+    const userSearchEl = document.getElementById('wizardFormUserSearch');
+    const assignCountEl = document.getElementById('wizardFormAssignCount');
+    const railUnitCountNum = document.getElementById('railUnitCountNum');
+    const btnMatchFileUnits = document.getElementById('btnMatchFileUnits');
+    const clearOldWrap = document.getElementById('clearOldValuesOnGenWrap');
+    const chkClearOldData = document.getElementById('chkClearOldDataOnUnitGen');
+    const wizardSummary = document.getElementById('wizardSummary');
+
+    let currentExcelSource = 'upload';
+    let currentSchema = null;
+    let originalSampleRows = [];
+    let selectedColIndex = 0;
+    let selectedColIndices = new Set([0]);
+    let lastClickedColIndex = 0;
+    let dragSelectAnchor = null;
+    let isDraggingCols = false;
+    let didDragCols = false;
+    let suppressNextColClick = false;
+    let ctrlMouseDownHandled = null;
+    let showAllRows = false;
+    let assigneesLoaded = false;
+    let loadedAssigneesData = null;
+    let quickBuilderDirty = false;
+    const FORM_DRAFT_KEY = 'pc06_form_assign_draft_v1_' + String({{ session.get('uid', 0) | tojson }});
+
+    function getSortedSelectedCols() {
+        const len = (currentSchema && currentSchema.columns) ? currentSchema.columns.length : 0;
+        if (!len) return [];
+        const valid = Array.from(selectedColIndices)
+            .map((n) => Number(n))
+            .filter((n) => Number.isInteger(n) && n >= 0 && n < len)
+            .sort((a, b) => a - b);
+        if (!valid.length) {
+            const fallback = Math.max(0, Math.min(selectedColIndex, len - 1));
+            selectedColIndices = new Set([fallback]);
+            return [fallback];
+        }
+        return valid;
+    }
+
+    function syncVisualSelectionHighlight() {
+        if (!visualTableEl) return;
+        visualTableEl.querySelectorAll('[data-select-col]').forEach((el) => {
+            el.classList.toggle('is-col-selected', selectedColIndices.has(Number(el.dataset.selectCol)));
+        });
+        visualTableEl.querySelectorAll('td[data-col-idx]').forEach((el) => {
+            el.classList.toggle('is-col-selected', selectedColIndices.has(Number(el.dataset.colIdx)));
+        });
+    }
+
+    window.addEventListener('mouseup', () => {
+        if (!isDraggingCols) return;
+        isDraggingCols = false;
+        dragSelectAnchor = null;
+        if (didDragCols) {
+            didDragCols = false;
+            suppressNextColClick = true;
+            setTimeout(() => { suppressNextColClick = false; }, 50);
+            selectColumnForEdit(selectedColIndex, true, { preserveSelection: true });
+        }
+    });
+
+    const ROLE_BADGE_MAP = {
+        stt: { text: 'STT', cls: 'role-stt' },
+        unit: { text: 'Đơn vị', cls: 'role-unit' },
+        formula: { text: 'Công thức', cls: 'role-formula' },
+    };
+
+    const DATA_TYPE_SHORT = {
+        text: 'Văn bản',
+        number: 'Số liệu',
+        integer: 'Số nguyên',
+        percent: '%',
+        date: 'Ngày',
+    };
+
+    function escapeHtml(val) {
+        return String(val == null ? '' : val).replace(/[&<>"']/g, (ch) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        }[ch]));
+    }
+
+    function normText(val) {
+        return String(val || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function letterToColNum(letter) {
+        let val = 0;
+        for (const ch of String(letter || '').toUpperCase()) {
+            if (ch >= 'A' && ch <= 'Z') val = val * 26 + (ch.charCodeAt(0) - 64);
+        }
+        return val;
+    }
+
+    function parseNum(raw) {
+        const s = String(raw == null ? '' : raw).trim().replace(/\s+/g, '');
+        if (!s) return null;
+        let normalized = s.endsWith('%') ? s.slice(0, -1).trim() : s;
+        if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(normalized)) {
+            normalized = normalized.replace(/\./g, '').replace(',', '.');
+        } else if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(normalized)) {
+            normalized = normalized.replace(/,/g, '');
+        } else {
+            normalized = normalized.replace(',', '.');
+        }
+        const n = Number(normalized);
+        return Number.isFinite(n) ? n : null;
+    }
+
+    function normalizeFormulaExpr(raw, cols) {
+        let expr = String(raw || '').trim();
+        if (!expr) return '';
+        if (!expr.startsWith('=')) expr = '=' + expr;
+        const validLetters = new Set((cols || []).map((c) => String(c.col_letter || '').toUpperCase()).filter(Boolean));
+        const knownFuncs = new Set(['SUM', 'AVERAGE', 'AVG', 'MIN', 'MAX', 'COUNT', 'ROUND', 'ABS', 'IF']);
+        const body = expr.slice(1);
+        let out = '';
+        let i = 0;
+        while (i < body.length) {
+            if (body.slice(i, i + 3) === '{r}') {
+                out += '{r}';
+                i += 3;
+                continue;
+            }
+            const rest = body.slice(i);
+            const m = rest.match(/^\$?([A-Za-z]{1,3})\$?\d*/);
+            if (m && (i === 0 || !/[A-Za-z0-9]/.test(body[i - 1]))) {
+                const tok = m[0];
+                const after = i + tok.length;
+                const colLet = m[1].toUpperCase();
+                if (body.slice(after, after + 3) === '{r}' && validLetters.has(colLet)) {
+                    out += `${colLet}{r}`;
+                    i = after + 3;
+                    continue;
+                }
+                if (body[after] === '(') {
+                    out += knownFuncs.has(colLet) ? colLet : tok;
+                    i = after;
+                    continue;
+                }
+                if (validLetters.has(colLet)) {
+                    out += `${colLet}{r}`;
+                    i = after;
+                    continue;
+                }
+            }
+            out += body[i];
+            i += 1;
+        }
+        return '=' + out.trim();
+    }
+
+    function evalRowFormula(formulaTpl, rowValues, cols) {
+        let tpl = String(formulaTpl || '').trim();
+        if (!tpl) return null;
+        if (tpl.startsWith('=')) tpl = tpl.slice(1).trim();
+        if (!tpl) return null;
+
+        const colMap = {};
+        (cols || []).forEach((col, idx) => {
+            if (col.col_letter) colMap[String(col.col_letter).toUpperCase()] = idx;
+        });
+
+        const tokens = [];
+        let pos = 0;
+        while (pos < tpl.length) {
+            const ch = tpl[pos];
+            if (/\s/.test(ch)) { pos += 1; continue; }
+            const two = tpl.slice(pos, pos + 2);
+            if (two === '<=' || two === '>=' || two === '<>' || two === '!=') {
+                tokens.push(['OP', two]); pos += 2; continue;
+            }
+            if ('+-*/(),:<>='.includes(ch)) {
+                tokens.push(['+-*/<>='.includes(ch) ? 'OP' : ch, ch]); pos += 1; continue;
+            }
+            if (/\d/.test(ch) || (ch === '.' && /\d/.test(tpl[pos + 1] || ''))) {
+                const m = tpl.slice(pos).match(/^\d+(?:\.\d+)?/);
+                tokens.push(['NUM', Number(m[0])]); pos += m[0].length; continue;
+            }
+            const ref = tpl.slice(pos).match(/^\$?([A-Za-z]{1,3})\$?(?:\{r\}|\{sr\}|\d+)?/);
+            if (ref) {
+                const ident = ref[1].toUpperCase();
+                const after = pos + ref[0].length;
+                tokens.push([tpl[after] === '(' ? 'FUNC' : 'REF', ident]);
+                pos = after;
+                continue;
+            }
+            return null;
+        }
+
+        let ptr = 0;
+        const peek = () => tokens[ptr] || null;
+        const take = () => tokens[ptr++];
+        const cellNum = (idx) => {
+            if (idx == null || idx < 0 || idx >= rowValues.length) return 0;
+            const n = parseNum(rowValues[idx]);
+            return n === null ? 0 : n;
+        };
+        const rangeNums = (sLet, eLet) => {
+            let sN = letterToColNum(sLet);
+            let eN = letterToColNum(eLet);
+            if (sN > eN) [sN, eN] = [eN, sN];
+            const nums = [];
+            (cols || []).forEach((c, idx) => {
+                const cn = letterToColNum(c.col_letter);
+                if (cn >= sN && cn <= eN) {
+                    const n = parseNum(rowValues[idx]);
+                    if (n !== null) nums.push(n);
+                }
+            });
+            return nums;
+        };
+
+        function parseExpr() { return parseCmp(); }
+        function parseCmp() {
+            let left = parseAdd();
+            while (peek() && peek()[0] === 'OP' && ['=', '<>', '!=', '<', '<=', '>', '>='].includes(peek()[1])) {
+                const op = take()[1];
+                const right = parseAdd();
+                if (left === null || right === null) left = 0;
+                else if (op === '=') left = Math.abs(left - right) < 1e-12 ? 1 : 0;
+                else if (op === '<>' || op === '!=') left = Math.abs(left - right) >= 1e-12 ? 1 : 0;
+                else if (op === '<') left = left < right ? 1 : 0;
+                else if (op === '<=') left = left <= right ? 1 : 0;
+                else if (op === '>') left = left > right ? 1 : 0;
+                else if (op === '>=') left = left >= right ? 1 : 0;
+            }
+            return left;
+        }
+        function parseAdd() {
+            let left = parseMul();
+            while (peek() && peek()[0] === 'OP' && (peek()[1] === '+' || peek()[1] === '-')) {
+                const op = take()[1];
+                const right = parseMul();
+                if (left === null || right === null) return null;
+                left = op === '+' ? left + right : left - right;
+            }
+            return left;
+        }
+        function parseMul() {
+            let left = parseUnary();
+            while (peek() && peek()[0] === 'OP' && (peek()[1] === '*' || peek()[1] === '/')) {
+                const op = take()[1];
+                const right = parseUnary();
+                if (left === null || right === null) return null;
+                if (op === '/') {
+                    if (Math.abs(right) < 1e-12) return null;
+                    left = left / right;
+                } else {
+                    left = left * right;
+                }
+            }
+            return left;
+        }
+        function parseUnary() {
+            if (peek() && peek()[0] === 'OP' && (peek()[1] === '+' || peek()[1] === '-')) {
+                const op = take()[1];
+                const v = parseUnary();
+                return v === null ? null : (op === '-' ? -v : v);
+            }
+            return parsePrimary();
+        }
+        function collectArgs() {
+            const args = [];
+            if (peek() && peek()[0] === ')') { take(); return args; }
+            while (ptr < tokens.length) {
+                if (ptr + 2 < tokens.length && tokens[ptr][0] === 'REF' && tokens[ptr + 1][0] === ':' && tokens[ptr + 2][0] === 'REF') {
+                    const sLet = take()[1]; take(); const eLet = take()[1];
+                    args.push(...rangeNums(sLet, eLet));
+                } else {
+                    args.push(parseExpr());
+                }
+                if (peek() && peek()[0] === ',') { take(); continue; }
+                if (peek() && peek()[0] === ')') { take(); break; }
+                break;
+            }
+            return args;
+        }
+        function parsePrimary() {
+            const tok = peek();
+            if (!tok) return null;
+            if (tok[0] === 'NUM') { take(); return tok[1]; }
+            if (tok[0] === 'REF') { take(); return tok[1] in colMap ? cellNum(colMap[tok[1]]) : null; }
+            if (tok[0] === 'FUNC') {
+                const fn = take()[1];
+                if (!peek() || peek()[0] !== '(') return null;
+                take();
+                const args = collectArgs();
+                const nums = args.filter((a) => a !== null && Number.isFinite(a));
+                if (fn === 'SUM') return nums.reduce((a, b) => a + b, 0);
+                if (fn === 'AVERAGE' || fn === 'AVG') return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+                if (fn === 'MIN') return nums.length ? Math.min(...nums) : null;
+                if (fn === 'MAX') return nums.length ? Math.max(...nums) : null;
+                if (fn === 'COUNT') return nums.length;
+                if (fn === 'ABS') return nums.length ? Math.abs(nums[0]) : null;
+                if (fn === 'ROUND') return nums.length ? Number(nums[0].toFixed(nums.length > 1 ? nums[1] : 0)) : null;
+                if (fn === 'IF') return args[0] ? (args[1] ?? 0) : (args[2] ?? 0);
+                return null;
+            }
+            if (tok[0] === '(') {
+                take();
+                const v = parseExpr();
+                if (peek() && peek()[0] === ')') take();
+                return v;
+            }
+            return null;
+        }
+        const res = parseExpr();
+        return res !== null && Number.isFinite(res) && ptr === tokens.length ? res : null;
+    }
+
+    function formatCellDisplay(rawVal, col) {
+        const s = rawVal == null ? '' : String(rawVal).trim();
+        if (!s || !col) return s;
+        if (col.is_percent) {
+            if (s.endsWith('%')) return s;
+            const n = parseNum(s);
+            if (n === null) return s;
+            const dec = col.percent_decimals != null ? Number(col.percent_decimals) : 1;
+            return col.role === 'formula' ? `${(n * 100).toFixed(dec)}%` : `${n.toFixed(dec)}%`;
+        }
+        return s;
+    }
+
+    function recomputeSchemaRows() {
+        if (!currentSchema) return;
+        const cols = currentSchema.columns || [];
+        const rows = currentSchema.template_rows || [];
+        rows.forEach((row) => {
+            cols.forEach((col, cIdx) => {
+                if (col.role !== 'formula' || !col.formula) return;
+                const val = evalRowFormula(col.formula, row, cols);
+                if (val === null) {
+                    row[cIdx] = '';
+                } else {
+                    const rounded = col.is_percent ? Number(val.toFixed(6)) : Number(val.toFixed(4));
+                    row[cIdx] = String(rounded);
+                }
+            });
+        });
+    }
+
+    function setRailTab(tabName) {
+        document.querySelectorAll('[data-rail-tab]').forEach((btn) => {
+            btn.classList.toggle('is-active', btn.dataset.railTab === tabName);
+        });
+        document.querySelectorAll('[data-rail-pane]').forEach((pane) => {
+            pane.classList.toggle('d-none', pane.dataset.railPane !== tabName);
+        });
+    }
+
+    document.querySelectorAll('[data-rail-tab]').forEach((btn) => {
+        btn.addEventListener('click', () => setRailTab(btn.dataset.railTab));
+    });
+
+    function syncExcelSource(nextSource) {
+        if (nextSource) currentExcelSource = nextSource;
+        document.querySelectorAll('[data-excel-source-tab]').forEach((btn) => {
+            btn.classList.toggle('is-active', btn.dataset.excelSourceTab === currentExcelSource);
+        });
+        document.querySelectorAll('[data-excel-source-pane]').forEach((pane) => {
+            pane.classList.toggle('d-none', pane.dataset.excelSourcePane !== currentExcelSource);
+        });
+    }
+
+    document.querySelectorAll('[data-excel-source-tab]').forEach((btn) => {
+        btn.addEventListener('click', () => syncExcelSource(btn.dataset.excelSourceTab));
+    });
+
+    function syncHiddenSchemaInputs() {
+        if (!currentSchema) return;
+        const cols = currentSchema.columns || [];
+        const typesMap = {};
+        const rolesMap = {};
+        const dtypesMap = {};
+        const formulasMap = {};
+        const percentsMap = {};
+        const roList = [];
+
+        cols.forEach((col) => {
+            const key = col.field_key;
+            typesMap[key] = col.type === 'number' ? 'number' : 'text';
+            rolesMap[key] = col.role || 'data';
+            dtypesMap[key] = col.data_type || (col.type === 'number' ? 'number' : 'text');
+            formulasMap[key] = col.formula || '';
+            percentsMap[key] = Boolean(col.is_percent);
+            if (col.readonly) roList.push(key);
+        });
+
+        if (allowAddRowsHidden && allowAddRowsCheckbox) {
+            allowAddRowsHidden.value = allowAddRowsCheckbox.checked ? '1' : '0';
+            currentSchema.allow_add_rows = Boolean(allowAddRowsCheckbox.checked);
+        }
+        if (colTypesHidden) colTypesHidden.value = JSON.stringify(typesMap);
+        if (colRolesHidden) colRolesHidden.value = JSON.stringify(rolesMap);
+        if (colDataTypesHidden) colDataTypesHidden.value = JSON.stringify(dtypesMap);
+        if (colFormulasHidden) colFormulasHidden.value = JSON.stringify(formulasMap);
+        if (colPercentsHidden) colPercentsHidden.value = JSON.stringify(percentsMap);
+        if (colReadonlyHidden) colReadonlyHidden.value = JSON.stringify(roList);
+        if (unitColIdxHidden) unitColIdxHidden.value = currentSchema.unit_col_index != null ? String(currentSchema.unit_col_index) : '';
+        if (assignRowModeHidden) assignRowModeHidden.value = currentSchema.assign_row_mode || 'shared_table';
+        if (generatedRowsHidden) generatedRowsHidden.value = JSON.stringify(currentSchema.template_rows || []);
+        if (unitRowAssignmentsHidden) unitRowAssignmentsHidden.value = JSON.stringify(currentSchema.unit_row_assignments || []);
+    }
+
+    function computeVisualTotalsRow() {
+        if (!currentSchema) return null;
+        const cols = currentSchema.columns || [];
+        const rows = currentSchema.template_rows || [];
+        if (!rows.length || !cols.some((c) => c.type === 'number')) return null;
+
+        const sumVec = cols.map(() => null);
+        cols.forEach((col, cIdx) => {
+            if (col.type !== 'number' || col.role === 'formula' || col.is_percent) return;
+            let total = 0;
+            let hasAny = false;
+            rows.forEach((r) => {
+                const n = parseNum(r[cIdx]);
+                if (n !== null) {
+                    total += n;
+                    hasAny = true;
+                }
+            });
+            sumVec[cIdx] = hasAny ? String(Number(total.toFixed(4))) : '';
+        });
+
+        cols.forEach((col, cIdx) => {
+            if (col.role !== 'formula' || !col.formula) return;
+            const val = evalRowFormula(col.formula, sumVec, cols);
+            if (val !== null) {
+                sumVec[cIdx] = String(col.is_percent ? Number(val.toFixed(6)) : Number(val.toFixed(4)));
+            }
+        });
+        return sumVec;
+    }
+
+    function renderSummaryTrHtml(sumVec, cols) {
+        if (!sumVec) return '';
+        const unitIdx = currentSchema.unit_col_index;
+        let html = '<tr class="excel-summary-row">';
+        cols.forEach((col, cIdx) => {
+            const clsList = [];
+            if (selectedColIndices.has(cIdx)) clsList.push('is-col-selected');
+            if (col.role === 'unit') clsList.push('is-col-unit');
+            if (col.role === 'formula') clsList.push('is-col-formula');
+            if (col.type === 'number') clsList.push('text-end');
+            else if (cIdx === unitIdx || (unitIdx == null && cIdx === 0)) clsList.push('text-center');
+
+            let txt = '';
+            if (cIdx === unitIdx || (unitIdx == null && cIdx === 0 && col.type !== 'number')) {
+                txt = currentSchema.summary_label || 'Tổng cộng';
+            } else if (sumVec[cIdx] != null && sumVec[cIdx] !== '') {
+                txt = formatCellDisplay(sumVec[cIdx], col);
+            }
+            html += `<td class="${clsList.join(' ')}" data-col-idx="${cIdx}">${escapeHtml(txt)}</td>`;
+        });
+        html += '</tr>';
+        return html;
+    }
+
+    function renderVisualTable() {
+        if (!currentSchema || !visualTableEl) return;
+        recomputeSchemaRows();
+        const cols = currentSchema.columns || [];
+        const rows = currentSchema.template_rows || [];
+        const unitIdx = currentSchema.unit_col_index;
+        const headerGrid = currentSchema.header_grid || [];
+        getSortedSelectedCols();
+
+        if (previewBannerEl) {
+            const banners = currentSchema.banner_rows || [];
+            previewBannerEl.innerHTML = banners.length
+                ? banners.map((b, i) => `<div class="${i === 0 ? 'fw-bold' : 'text-muted'}">${escapeHtml(b)}</div>`).join('')
+                : `<div class="fw-bold">${escapeHtml(currentSchema.template_filename || 'Biểu mẫu Excel')}</div>`;
+        }
+
+        // Gắn index cột lá cho header_grid để click đúng cột khi có merge nhiều tầng
+        const occupied = new Set();
+        const leafByRowCol = [];
+        headerGrid.forEach((hRow, rIdx) => {
+            let curC = 0;
+            hRow.forEach((cell) => {
+                while (occupied.has(`${rIdx}:${curC}`)) curC += 1;
+                const rs = Number(cell.rowspan || 1);
+                const cs = Number(cell.colspan || 1);
+                for (let rr = rIdx; rr < rIdx + rs; rr += 1) {
+                    for (let cc = curC; cc < curC + cs; cc += 1) {
+                        occupied.add(`${rr}:${cc}`);
+                    }
+                }
+                const isLeaf = cs === 1 && (rIdx + rs >= headerGrid.length);
+                leafByRowCol.push({ rIdx, cell, colIdx: curC, isLeaf });
+                curC += cs;
+            });
+        });
+
+        let html = '<thead><tr class="excel-letter-row">';
+        cols.forEach((col, cIdx) => {
+            const selCls = selectedColIndices.has(cIdx) ? 'is-col-selected' : '';
+            html += `<th class="${selCls}" data-select-col="${cIdx}" title="Chọn cột ${escapeHtml(col.col_letter)} (Giữ Ctrl/⌘ hoặc Shift để bôi nhiều cột)">${escapeHtml(col.col_letter || String(cIdx + 1))}</th>`;
+        });
+        html += '</tr>';
+
+        if (headerGrid.length) {
+            headerGrid.forEach((hRow, rIdx) => {
+                html += '<tr>';
+                leafByRowCol
+                    .filter((item) => item.rIdx === rIdx)
+                    .forEach(({ cell, colIdx, isLeaf }) => {
+                        const col = cols[colIdx];
+                        if (isLeaf && col) {
+                            const role = col.role || 'data';
+                            const cls = ['is-col-leaf'];
+                            if (selectedColIndices.has(colIdx)) cls.push('is-col-selected');
+                            if (role === 'unit') cls.push('is-col-unit');
+                            if (role === 'formula') cls.push('is-col-formula');
+                            const badgeInfo = ROLE_BADGE_MAP[role] || {
+                                text: DATA_TYPE_SHORT[col.data_type || col.type] || 'Văn bản',
+                                cls: '',
+                            };
+                            const extraTag = role === 'formula' && col.formula
+                                ? col.formula.replace(/\{r\}/g, '')
+                                : badgeInfo.text;
+                            const lockMark = col.readonly && role === 'data' ? ' 🔒' : '';
+                            html += `
+                                <th colspan="${cell.colspan || 1}" rowspan="${cell.rowspan || 1}"
+                                    class="${cls.join(' ')}" data-select-col="${colIdx}">
+                                    <div>${escapeHtml(cell.text != null ? cell.text : (cell.label || ''))}</div>
+                                    <span class="col-meta-tag ${badgeInfo.cls}">${escapeHtml(extraTag)}${lockMark}</span>
+                                </th>
+                            `;
+                        } else {
+                            html += `<th colspan="${cell.colspan || 1}" rowspan="${cell.rowspan || 1}">${escapeHtml(cell.text != null ? cell.text : (cell.label || ''))}</th>`;
+                        }
+                    });
+                html += '</tr>';
+            });
+        } else {
+            html += '<tr>';
+            cols.forEach((col, cIdx) => {
+                const role = col.role || 'data';
+                const badgeInfo = ROLE_BADGE_MAP[role] || { text: DATA_TYPE_SHORT[col.data_type || col.type] || 'Văn bản', cls: '' };
+                const cls = ['is-col-leaf'];
+                if (selectedColIndices.has(cIdx)) cls.push('is-col-selected');
+                if (role === 'unit') cls.push('is-col-unit');
+                if (role === 'formula') cls.push('is-col-formula');
+                html += `
+                    <th class="${cls.join(' ')}" data-select-col="${cIdx}">
+                        <div>${escapeHtml(col.label || '')}</div>
+                        <span class="col-meta-tag ${badgeInfo.cls}">${escapeHtml(badgeInfo.text)}</span>
+                    </th>
+                `;
+            });
+            html += '</tr>';
+        }
+        html += '</thead><tbody>';
+
+        const sumVec = computeVisualTotalsRow();
+        if (sumVec && currentSchema.summary_position === 'top') {
+            html += renderSummaryTrHtml(sumVec, cols);
+        }
+
+        const displayLimit = showAllRows ? rows.length : Math.min(rows.length, 45);
+        for (let rIdx = 0; rIdx < displayLimit; rIdx += 1) {
+            const row = rows[rIdx];
+            html += '<tr>';
+            cols.forEach((col, cIdx) => {
+                const val = formatCellDisplay(row[cIdx] != null ? row[cIdx] : '', col);
+                const cls = [];
+                if (selectedColIndices.has(cIdx)) cls.push('is-col-selected');
+                if (col.role === 'unit') cls.push('is-col-unit fw-semibold');
+                if (col.role === 'formula') cls.push('is-col-formula text-end fw-semibold');
+                else if (col.is_stt) cls.push('text-center text-muted');
+                else if (col.type === 'number') cls.push('text-end');
+                html += `<td class="${cls.join(' ')}" data-col-idx="${cIdx}" title="${escapeHtml(val)}">${escapeHtml(val)}</td>`;
+            });
+            html += '</tr>';
+        }
+
+        if (sumVec && currentSchema.summary_position !== 'top') {
+            html += renderSummaryTrHtml(sumVec, cols);
+        }
+        html += '</tbody>';
+        visualTableEl.innerHTML = html;
+
+        function toggleMultiSelectCol(colIdx) {
+            if (selectedColIndices.has(colIdx)) {
+                if (selectedColIndices.size > 1) {
+                    selectedColIndices.delete(colIdx);
+                    const remaining = getSortedSelectedCols();
+                    selectedColIndex = remaining[remaining.length - 1];
+                }
+            } else {
+                selectedColIndices.add(colIdx);
+                selectedColIndex = colIdx;
+            }
+            lastClickedColIndex = colIdx;
+            selectColumnForEdit(selectedColIndex, true, { preserveSelection: true });
+        }
+
+        visualTableEl.querySelectorAll('[data-select-col]').forEach((th) => {
+            th.addEventListener('contextmenu', (e) => {
+                if (e.ctrlKey) e.preventDefault();
+            });
+
+            th.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                const colIdx = Number(th.dataset.selectCol);
+                if (e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                    e.preventDefault();
+                    ctrlMouseDownHandled = colIdx;
+                    setTimeout(() => {
+                        if (ctrlMouseDownHandled === colIdx) ctrlMouseDownHandled = null;
+                    }, 150);
+                    toggleMultiSelectCol(colIdx);
+                    return;
+                }
+                if (e.metaKey || e.shiftKey) return;
+                e.preventDefault();
+                dragSelectAnchor = colIdx;
+                isDraggingCols = true;
+                didDragCols = false;
+            });
+
+            th.addEventListener('mouseenter', () => {
+                if (!isDraggingCols || dragSelectAnchor === null) return;
+                const curCol = Number(th.dataset.selectCol);
+                if (curCol !== dragSelectAnchor) didDragCols = true;
+                if (!didDragCols) return;
+                const lo = Math.min(dragSelectAnchor, curCol);
+                const hi = Math.max(dragSelectAnchor, curCol);
+                const nextSet = new Set();
+                for (let i = lo; i <= hi; i += 1) nextSet.add(i);
+                selectedColIndices = nextSet;
+                selectedColIndex = curCol;
+                lastClickedColIndex = dragSelectAnchor;
+                syncVisualSelectionHighlight();
+            });
+
+            th.addEventListener('click', (e) => {
+                if (suppressNextColClick) {
+                    suppressNextColClick = false;
+                    return;
+                }
+                const colIdx = Number(th.dataset.selectCol);
+                if (e.ctrlKey || e.metaKey) {
+                    if (ctrlMouseDownHandled === colIdx) {
+                        ctrlMouseDownHandled = null;
+                        return;
+                    }
+                    toggleMultiSelectCol(colIdx);
+                } else if (e.shiftKey) {
+                    const anchor = (lastClickedColIndex != null) ? lastClickedColIndex : selectedColIndex;
+                    const lo = Math.min(anchor, colIdx);
+                    const hi = Math.max(anchor, colIdx);
+                    selectedColIndices = new Set();
+                    for (let i = lo; i <= hi; i += 1) selectedColIndices.add(i);
+                    selectedColIndex = colIdx;
+                    selectColumnForEdit(colIdx, true, { preserveSelection: true });
+                } else {
+                    selectedColIndices = new Set([colIdx]);
+                    lastClickedColIndex = colIdx;
+                    selectColumnForEdit(colIdx, true, { preserveSelection: true });
+                }
+            });
+        });
+
+        // Cập nhật badge toolbar
+        const formulaCount = cols.filter((c) => c.role === 'formula').length;
+        if (wsTemplateName) wsTemplateName.textContent = currentSchema.template_filename || 'Biểu mẫu Excel';
+        if (wsMetaColsBadge) wsMetaColsBadge.textContent = `${cols.length} cột${formulaCount ? ` (${formulaCount} công thức)` : ''}`;
+        if (wsMetaRowsBadge) wsMetaRowsBadge.textContent = `${rows.length} dòng`;
+        if (wsMetaUnitsBadge) {
+            const hasUnitCol = unitIdx != null;
+            wsMetaUnitsBadge.classList.toggle('d-none', !hasUnitCol);
+            if (hasUnitCol) {
+                wsMetaUnitsBadge.textContent = `Cột đơn vị: ${cols[unitIdx]?.col_letter || ''}`;
+            }
+        }
+        if (btnToggleAllRows) {
+            btnToggleAllRows.classList.toggle('d-none', rows.length <= 45);
+            btnToggleAllRows.textContent = showAllRows ? `Thu gọn (hiện 45/${rows.length} dòng)` : `Hiển thị toàn bộ ${rows.length} dòng`;
+        }
+        if (wsTablePreviewNote) {
+            wsTablePreviewNote.textContent = unitIdx != null
+                ? `Đang khóa cột [${cols[unitIdx]?.col_letter}] làm cột Đơn vị nhận báo cáo.`
+                : 'Chưa gắn cột Đơn vị — có thể chọn 1 cột làm cột Đơn vị hoặc giao nguyên bảng cho các đơn vị.';
+        }
+
+        syncHiddenSchemaInputs();
+        syncWizardSummary();
+    }
+
+    btnToggleAllRows?.addEventListener('click', () => {
+        showAllRows = !showAllRows;
+        renderVisualTable();
+    });
+
+    function selectColumnForEdit(colIdx, openColumnTab = false, opts = {}) {
+        if (!currentSchema || !(currentSchema.columns || []).length) return;
+        const cols = currentSchema.columns;
+        selectedColIndex = Math.max(0, Math.min(colIdx, cols.length - 1));
+        if (!opts || opts.preserveSelection !== true) {
+            selectedColIndices = new Set([selectedColIndex]);
+            lastClickedColIndex = selectedColIndex;
+        }
+        const selectedIdxs = getSortedSelectedCols();
+        const selectedCols = selectedIdxs.map((i) => cols[i]).filter(Boolean);
+        const col = cols[selectedColIndex];
+        const isMulti = selectedIdxs.length > 1;
+        if (openColumnTab) setRailTab('columns');
+
+        if (colSelectorDropdown) colSelectorDropdown.value = String(selectedColIndex);
+        if (isMulti) {
+            const letters = selectedCols.map((c, idx) => c.col_letter || String(selectedIdxs[idx] + 1));
+            const letterSummary = letters.length <= 4 ? letters.join(', ') : `${letters[0]}..${letters[letters.length - 1]}`;
+            if (inspColLetter) inspColLetter.textContent = letterSummary;
+            if (inspColCountBadge) {
+                inspColCountBadge.textContent = `${selectedCols.length} cột`;
+                inspColCountBadge.classList.remove('d-none');
+            }
+            if (inspColTitle) inspColTitle.textContent = `Đang chọn ${selectedCols.length} cột`;
+            if (inspColSub) inspColSub.textContent = 'Áp dụng hàng loạt';
+            btnClearMultiCol?.classList.remove('d-none');
+        } else {
+            if (inspColLetter) inspColLetter.textContent = col.col_letter || String(selectedColIndex + 1);
+            inspColCountBadge?.classList.add('d-none');
+            if (inspColTitle) inspColTitle.textContent = col.full_label || col.label || `Cột ${selectedColIndex + 1}`;
+            if (inspColSub) inspColSub.textContent = `Vị trí #${selectedColIndex + 1}`;
+            btnClearMultiCol?.classList.add('d-none');
+        }
+
+        const uniqueRoles = new Set(selectedCols.map((c) => c.role || 'data'));
+        const sharedRole = uniqueRoles.size === 1 ? Array.from(uniqueRoles)[0] : null;
+        const activePanelRole = sharedRole || (col.role || 'data');
+        document.querySelectorAll('#inspRoleGrid [data-col-role]').forEach((btn) => {
+            btn.classList.toggle('is-active', sharedRole !== null && btn.dataset.colRole === sharedRole);
+        });
+
+        inspDataOptionsBox?.classList.toggle('d-none', activePanelRole !== 'data');
+        inspUnitOptionsBox?.classList.toggle('d-none', activePanelRole !== 'unit');
+        inspFormulaOptionsBox?.classList.toggle('d-none', activePanelRole !== 'formula');
+
+        if (activePanelRole === 'data') {
+            const dataCols = selectedCols.filter((c) => (c.role || 'data') === 'data');
+            const dataTypes = new Set(dataCols.map((c) => c.data_type || (c.type === 'number' ? 'number' : 'text')));
+            if (inspDataTypeSelect) {
+                inspDataTypeSelect.value = dataTypes.size === 1 ? Array.from(dataTypes)[0] : '';
+            }
+            if (inspReadonlyCheckbox) {
+                const roStates = new Set(dataCols.map((c) => Boolean(c.readonly)));
+                inspReadonlyCheckbox.indeterminate = roStates.size > 1;
+                inspReadonlyCheckbox.checked = roStates.size === 1 && roStates.has(true);
+            }
+        } else if (activePanelRole === 'formula') {
+            if (inspFormulaInput) inspFormulaInput.value = isMulti ? '' : (col.formula || '').replace(/\{r\}/g, '');
+            if (inspFormulaPercentCheckbox) {
+                const pctCols = selectedCols.filter((c) => c.role === 'formula');
+                const pctStates = new Set(pctCols.map((c) => Boolean(c.is_percent)));
+                inspFormulaPercentCheckbox.indeterminate = pctStates.size > 1;
+                inspFormulaPercentCheckbox.checked = pctStates.size === 1 && pctStates.has(true);
+            }
+            updateFormulaSamplePreview();
+        }
+
+        renderVisualTable();
+    }
+
+    btnClearMultiCol?.addEventListener('click', () => {
+        selectedColIndices = new Set([selectedColIndex]);
+        lastClickedColIndex = selectedColIndex;
+        selectColumnForEdit(selectedColIndex, false, { preserveSelection: true });
+    });
+
+    function updateFormulaSamplePreview() {
+        if (!currentSchema || !inspFormulaSampleResult) return;
+        const col = currentSchema.columns[selectedColIndex];
+        const rows = currentSchema.template_rows || [];
+        if (!col || col.role !== 'formula' || !col.formula || !rows.length) {
+            inspFormulaSampleResult.textContent = '';
+            return;
+        }
+        const val = evalRowFormula(col.formula, rows[0], currentSchema.columns);
+        if (val === null) {
+            inspFormulaSampleResult.textContent = 'Chưa đủ số liệu dòng 1 để thử';
+        } else {
+            inspFormulaSampleResult.textContent = `Dòng 1: ${formatCellDisplay(val, col)}`;
+        }
+    }
+
+    function refreshColumnPickersAndChips() {
+        if (!currentSchema) return;
+        const cols = currentSchema.columns || [];
+        if (colSelectorDropdown) {
+            colSelectorDropdown.innerHTML = cols.map((col, idx) =>
+                `<option value="${idx}">[${escapeHtml(col.col_letter || idx + 1)}] ${escapeHtml(col.full_label || col.label)}</option>`
+            ).join('');
+            colSelectorDropdown.value = String(selectedColIndex);
+        }
+        if (formulaColRefChips) {
+            formulaColRefChips.innerHTML = cols
+                .filter((c) => !c.is_stt && c.role !== 'unit')
+                .map((c) => `
+                    <button type="button" class="formula-ref-chip" data-insert-letter="${escapeHtml(c.col_letter)}" title="${escapeHtml(c.full_label || c.label)}">
+                        [${escapeHtml(c.col_letter)}] ${escapeHtml(c.label)}
+                    </button>
+                `).join('');
+            formulaColRefChips.querySelectorAll('[data-insert-letter]').forEach((chip) => {
+                chip.addEventListener('click', () => {
+                    if (!inspFormulaInput) return;
+                    const ins = chip.dataset.insertLetter;
+                    const cur = inspFormulaInput.value;
+                    if (!cur.trim()) {
+                        inspFormulaInput.value = `=${ins}`;
+                    } else {
+                        const pos = inspFormulaInput.selectionStart ?? cur.length;
+                        inspFormulaInput.value = cur.slice(0, pos) + ins + cur.slice(pos);
+                    }
+                    inspFormulaInput.focus();
+                });
+            });
+        }
+    }
+
+    colSelectorDropdown?.addEventListener('change', () => {
+        selectColumnForEdit(Number(colSelectorDropdown.value), false);
+    });
+
+    document.querySelectorAll('#inspRoleGrid [data-col-role]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            if (!currentSchema) return;
+            const cols = currentSchema.columns;
+            const nextRole = btn.dataset.colRole;
+            const targetIdxs = getSortedSelectedCols();
+
+            if (nextRole === 'unit') {
+                // Chỉ có 1 cột làm cột Đơn vị chính
+                const col = cols[selectedColIndex];
+                if (!col) return;
+                cols.forEach((c, idx) => {
+                    if (idx !== selectedColIndex && c.role === 'unit') {
+                        c.role = 'data';
+                        c.readonly = false;
+                    }
+                });
+                col.role = 'unit';
+                col.is_stt = false;
+                col.type = 'text';
+                col.data_type = 'text';
+                col.formula = '';
+                col.readonly = true;
+                currentSchema.unit_col_index = selectedColIndex;
+                currentSchema.assign_row_mode = 'unit_rows';
+                currentSchema.allow_add_rows = false;
+                if (allowAddRowsCheckbox) allowAddRowsCheckbox.checked = false;
+                syncUnitRowsFromSelection();
+                selectedColIndices = new Set([selectedColIndex]);
+                lastClickedColIndex = selectedColIndex;
+            } else {
+                targetIdxs.forEach((idx) => {
+                    const col = cols[idx];
+                    if (!col) return;
+                    if (currentSchema.unit_col_index === idx) {
+                        currentSchema.unit_col_index = null;
+                        currentSchema.assign_row_mode = 'shared_table';
+                        currentSchema.unit_row_assignments = [];
+                        currentSchema.template_rows = originalSampleRows.map((r) => [...r]);
+                    }
+                    if (nextRole === 'stt') {
+                        col.role = 'stt';
+                        col.is_stt = true;
+                        col.type = 'text';
+                        col.data_type = 'text';
+                        col.formula = '';
+                        col.readonly = true;
+                    } else if (nextRole === 'formula') {
+                        col.role = 'formula';
+                        col.is_stt = false;
+                        col.type = 'number';
+                        col.data_type = 'formula';
+                        col.readonly = true;
+                        if (!col.formula) {
+                            const numCols = cols.filter((c, i) => i !== idx && c.type === 'number' && c.role !== 'formula');
+                            if (numCols.length >= 2) {
+                                col.formula = `=${numCols[numCols.length - 1].col_letter}{r}/${numCols[0].col_letter}{r}`;
+                            }
+                        }
+                    } else {
+                        col.role = 'data';
+                        col.is_stt = false;
+                        col.formula = '';
+                        col.readonly = false;
+                        col.data_type = col.type === 'number' ? 'number' : 'text';
+                    }
+                });
+            }
+            refreshUnitSuggestionBanner();
+            selectColumnForEdit(selectedColIndex, false, { preserveSelection: true });
+        });
+    });
+
+    inspDataTypeSelect?.addEventListener('change', () => {
+        if (!currentSchema) return;
+        const dt = inspDataTypeSelect.value;
+        if (!dt) return;
+        const cols = currentSchema.columns || [];
+        let changed = false;
+        getSortedSelectedCols().forEach((idx) => {
+            const col = cols[idx];
+            if (!col || col.role === 'unit' || col.role === 'stt' || col.role === 'formula') return;
+            col.role = 'data';
+            col.data_type = dt;
+            col.type = (dt === 'number' || dt === 'integer' || dt === 'percent') ? 'number' : 'text';
+            col.is_percent = dt === 'percent';
+            changed = true;
+        });
+        if (changed) {
+            selectColumnForEdit(selectedColIndex, false, { preserveSelection: true });
+        }
+    });
+
+    inspReadonlyCheckbox?.addEventListener('change', () => {
+        if (!currentSchema) return;
+        const nextVal = Boolean(inspReadonlyCheckbox.checked);
+        const cols = currentSchema.columns || [];
+        getSortedSelectedCols().forEach((idx) => {
+            const col = cols[idx];
+            if (col && (col.role || 'data') === 'data') {
+                col.readonly = nextVal;
+            }
+        });
+        selectColumnForEdit(selectedColIndex, false, { preserveSelection: true });
+    });
+
+    btnApplyFormulaInput?.addEventListener('click', () => {
+        if (!currentSchema || !inspFormulaInput) return;
+        const col = currentSchema.columns[selectedColIndex];
+        const norm = normalizeFormulaExpr(inspFormulaInput.value, currentSchema.columns);
+        if (!norm) {
+            pcAlert('Công thức chưa hợp lệ. Ví dụ: =E/C hoặc =SUM(C:E)', 'warning');
+            return;
+        }
+        col.role = 'formula';
+        col.data_type = 'formula';
+        col.type = 'number';
+        col.readonly = true;
+        col.formula = norm;
+        inspFormulaInput.value = norm.replace(/\{r\}/g, '');
+        updateFormulaSamplePreview();
+        renderVisualTable();
+    });
+
+    inspFormulaPercentCheckbox?.addEventListener('change', () => {
+        if (!currentSchema) return;
+        const nextVal = Boolean(inspFormulaPercentCheckbox.checked);
+        const cols = currentSchema.columns || [];
+        getSortedSelectedCols().forEach((idx) => {
+            const col = cols[idx];
+            if (col && col.role === 'formula') {
+                col.is_percent = nextVal;
+            }
+        });
+        updateFormulaSamplePreview();
+        selectColumnForEdit(selectedColIndex, false, { preserveSelection: true });
+    });
+
+    document.querySelectorAll('#formulaPresetRow [data-fpreset]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            if (!currentSchema || !inspFormulaInput) return;
+            const cols = currentSchema.columns;
+            const numCols = cols.filter((c, idx) => idx !== selectedColIndex && c.type === 'number' && c.role !== 'formula');
+            if (numCols.length < 2) {
+                pcAlert('Cần ít nhất 2 cột số liệu khác trước cột hiện tại để tạo công thức nhanh.', 'warning');
+                return;
+            }
+            const a = numCols[numCols.length - 1].col_letter;
+            const b = numCols[numCols.length - 2].col_letter;
+            const preset = btn.dataset.fpreset;
+            if (preset === 'ratio') {
+                inspFormulaInput.value = `=${a}/${b}`;
+                currentSchema.columns[selectedColIndex].is_percent = true;
+                if (inspFormulaPercentCheckbox) inspFormulaPercentCheckbox.checked = true;
+            } else if (preset === 'sum') {
+                inspFormulaInput.value = `=SUM(${b}:${a})`;
+                currentSchema.columns[selectedColIndex].is_percent = false;
+                if (inspFormulaPercentCheckbox) inspFormulaPercentCheckbox.checked = false;
+            } else {
+                inspFormulaInput.value = `=${b}-${a}`;
+                currentSchema.columns[selectedColIndex].is_percent = false;
+                if (inspFormulaPercentCheckbox) inspFormulaPercentCheckbox.checked = false;
+            }
+            btnApplyFormulaInput?.click();
+        });
+    });
+
+    btnJumpToUnitSelect?.addEventListener('click', () => setRailTab('assignees'));
+
+    allowAddRowsCheckbox?.addEventListener('change', () => {
+        if (!currentSchema) return;
+        currentSchema.allow_add_rows = Boolean(allowAddRowsCheckbox.checked);
+        syncHiddenSchemaInputs();
+    });
+
+    function openWorkspaceWithSchema(schema, opts = {}) {
+        currentSchema = schema;
+        originalSampleRows = Array.isArray(opts.preserveSampleRows)
+            ? opts.preserveSampleRows.map((r) => [...r])
+            : (schema.template_rows || []).map((r) => [...r]);
+        showAllRows = false;
+
+        // Nếu phát hiện cột Đơn vị rõ ràng thì tự gắn sẵn để tiết kiệm thao tác cho người giao
+        if (!opts.preserveUserSelections && schema.suggested_unit_col_index != null && schema.unit_col_index == null) {
+            const uCol = schema.columns[schema.suggested_unit_col_index];
+            if (uCol && uCol.role !== 'stt' && uCol.role !== 'formula') {
+                uCol.role = 'unit';
+                uCol.readonly = true;
+                schema.unit_col_index = schema.suggested_unit_col_index;
+                schema.assign_row_mode = 'unit_rows';
+                schema.allow_add_rows = false;
+            }
+        }
+
+        if (allowAddRowsCheckbox) allowAddRowsCheckbox.checked = Boolean(schema.allow_add_rows);
+        const titleInput = document.getElementById('wizardTitle');
+        if (titleInput && !titleInput.value.trim() && schema.suggested_title) {
+            titleInput.value = schema.suggested_title;
+        }
+
+        heroSection?.classList.add('d-none');
+        workspaceSection?.classList.remove('d-none');
+
+        const defaultColIdx = schema.unit_col_index != null
+            ? schema.unit_col_index
+            : Math.min(1, Math.max(0, (schema.columns || []).length - 1));
+        refreshColumnPickersAndChips();
+        refreshUnitSuggestionBanner();
+        selectColumnForEdit(defaultColIdx, false);
+        // Tự thử khớp đơn vị từ file mẫu nếu file có sẵn cột Đơn vị
+        if (!opts.preserveUserSelections && schema.unit_col_index != null && !selectedAssignCounts().unit) {
+            autoMatchUnitsFromTemplateRows(false);
+        }
+    }
+
+    function performResetToStage1() {
+        workspaceSection?.classList.add('d-none');
+        heroSection?.classList.remove('d-none');
+        currentSchema = null;
+        quickBuilderDirty = false;
+        if (excelFileInput) excelFileInput.value = '';
+        refreshFormDraftBanner();
+    }
+
+    btnResetTemplate?.addEventListener('click', () => {
+        if (formUnsavedGuard && typeof formUnsavedGuard.confirmExitAction === 'function') {
+            formUnsavedGuard.confirmExitAction(() => {
+                performResetToStage1();
+                formUnsavedGuard.enable();
+            }, {
+                title: 'Bạn muốn lưu nháp cấu hình?',
+                text: 'Thay đổi biểu mẫu hiện tại chưa được lưu. Bạn có muốn lưu bản nháp trước khi nạp biểu mẫu khác không?',
+                saveText: 'Lưu nháp & Nạp mẫu khác',
+                discardText: 'Không lưu, nạp mẫu khác',
+                stayText: 'Ở lại tiếp tục',
+            });
+            return;
+        }
+        performResetToStage1();
+    });
+
+    function refreshUnitSuggestionBanner() {
+        if (!suggestUnitBanner || !currentSchema) return;
+        const unitIdx = currentSchema.unit_col_index;
+        if (unitIdx != null) {
+            const uCol = currentSchema.columns[unitIdx];
+            const hasUnitSamples = originalSampleRows.some((r) => Boolean(normText(r[unitIdx])));
+            suggestUnitBanner.className = 'alert alert-success py-2 px-3 small mb-2';
+            suggestUnitBanner.innerHTML = `Cột <strong>[${escapeHtml(uCol.col_letter)}] ${escapeHtml(uCol.label)}</strong> sẽ tự sinh dòng theo từng đơn vị đã chọn.`;
+            clearOldWrap?.classList.toggle('d-none', !hasUnitSamples);
+            btnMatchFileUnits?.classList.toggle('d-none', !hasUnitSamples);
+            return;
+        }
+        clearOldWrap?.classList.add('d-none');
+        btnMatchFileUnits?.classList.add('d-none');
+        const sugIdx = currentSchema.suggested_unit_col_index;
+        if (sugIdx != null && currentSchema.columns[sugIdx]) {
+            const sCol = currentSchema.columns[sugIdx];
+            suggestUnitBanner.className = 'alert alert-info py-2 px-3 small mb-2 d-flex justify-content-between align-items-center gap-2';
+            suggestUnitBanner.innerHTML = `
+                <span>Gắn <strong>[${escapeHtml(sCol.col_letter)}] ${escapeHtml(sCol.label)}</strong> làm cột Đơn vị để tự sinh dòng?</span>
+                <button type="button" class="pc-btn pc-btn-primary btn-sm flex-shrink-0" id="btnQuickSetUnitCol">Gắn ngay</button>
+            `;
+            document.getElementById('btnQuickSetUnitCol')?.addEventListener('click', () => {
+                selectColumnForEdit(sugIdx, false);
+                document.querySelector('#inspRoleGrid [data-col-role="unit"]')?.click();
+            });
+        } else {
+            suggestUnitBanner.className = 'd-none';
+        }
+    }
+
+    function autoMatchUnitsFromTemplateRows(applyAlert = true) {
+        if (!currentSchema || currentSchema.unit_col_index == null || !unitListEl) return 0;
+        const uIdx = currentSchema.unit_col_index;
+        const fileNames = new Set(
+            originalSampleRows
+                .map((r) => normText(r[uIdx]))
+                .filter(Boolean)
+        );
+        if (!fileNames.size) return 0;
+        let matched = 0;
+        unitListEl.querySelectorAll('input[name="child_domains"]').forEach((cb) => {
+            const labelNorm = normText(cb.dataset.unitName || cb.closest('label')?.textContent || '');
+            if (fileNames.has(labelNorm)) {
+                cb.checked = true;
+                matched += 1;
+            }
+        });
+        if (matched > 0) {
+            if (chkClearOldData) chkClearOldData.checked = false;
+            syncUnitRowsFromSelection();
+            updateAssignCounter();
+        } else if (applyAlert) {
+            pcAlert('Không tìm thấy tên đơn vị khớp trực tiếp trong file mẫu — vui lòng chọn thủ công hoặc dùng nút nhóm đơn vị.', 'info');
+        }
+        return matched;
+    }
+
+    btnMatchFileUnits?.addEventListener('click', () => autoMatchUnitsFromTemplateRows(true));
+
+    function syncUnitRowsFromSelection() {
+        if (!currentSchema || currentSchema.unit_col_index == null || !unitListEl) return;
+        const uIdx = currentSchema.unit_col_index;
+        const cols = currentSchema.columns || [];
+        const checkedBoxes = Array.from(unitListEl.querySelectorAll('input[name="child_domains"]:checked'));
+        if (!checkedBoxes.length) {
+            currentSchema.template_rows = originalSampleRows.map((r) => [...r]);
+            currentSchema.unit_row_assignments = [];
+            renderVisualTable();
+            return;
+        }
+
+        const sampleByUnit = new Map();
+        originalSampleRows.forEach((r) => {
+            const key = normText(r[uIdx]);
+            if (key && !sampleByUnit.has(key)) sampleByUnit.set(key, r);
+        });
+        const keepOldData = Boolean(chkClearOldData && !chkClearOldData.checked);
+
+        const nextRows = [];
+        const nextAssignments = [];
+        checkedBoxes.forEach((cb, idx) => {
+            const uCode = cb.value || '';
+            const uName = cb.dataset.unitName || cb.closest('label')?.textContent?.trim() || uCode;
+            const normName = normText(uName);
+            const matchedSample = keepOldData ? sampleByUnit.get(normName) : null;
+
+            const row = cols.map((col, cIdx) => {
+                if (col.is_stt) return String(idx + 1);
+                if (cIdx === uIdx) return uName;
+                if (col.role === 'formula') return '';
+                if (matchedSample && cIdx < matchedSample.length) return matchedSample[cIdx] ?? '';
+                if (col.readonly && originalSampleRows.length && cIdx < originalSampleRows[0].length) {
+                    return originalSampleRows[0][cIdx] ?? '';
+                }
+                return '';
+            });
+            nextRows.push(row);
+            nextAssignments.push({ row_index: idx, unit_code: uCode, unit_name: uName });
+        });
+
+        currentSchema.template_rows = nextRows;
+        currentSchema.unit_row_assignments = nextAssignments;
+        renderVisualTable();
+    }
+
+    chkClearOldData?.addEventListener('change', syncUnitRowsFromSelection);
+
+    async function previewUploadedExcelFile(file) {
+        if (!file) return;
+        if (!file.name.toLowerCase().endsWith('.xlsx')) {
+            if (wizardStatus) {
+                wizardStatus.textContent = 'Chỉ hỗ trợ file Excel định dạng .xlsx';
+                wizardStatus.className = 'small text-danger fw-semibold';
+            }
+            return;
+        }
+        if (excelDropLabel) excelDropLabel.textContent = file.name;
+        if (wizardStatus) {
+            wizardStatus.textContent = 'Đang đọc cấu trúc file Excel...';
+            wizardStatus.className = 'small text-muted';
+        }
+        const fd = new FormData();
+        fd.append('excel_file', file);
+        if (stagedExcelInput?.value) fd.append('prev_staged', stagedExcelInput.value);
+        try {
+            const res = await fetch('/api/tasks/excel-template-preview', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'X-CSRF-Token': csrfToken },
+                body: fd,
+            });
+            const data = await res.json();
+            if (!res.ok || !data?.ok) throw new Error(data?.error || 'Không đọc được bố cục file Excel.');
+            if (stagedExcelInput) stagedExcelInput.value = data.staged_filename || '';
+            if (stagedOrigNameInput) stagedOrigNameInput.value = file.name || '';
+            if (quickColsHidden) quickColsHidden.value = '';
+            if (data.staged_filename && excelFileInput) excelFileInput.value = '';
+            openWorkspaceWithSchema(data.schema);
+            if (wizardStatus) wizardStatus.textContent = '';
+        } catch (err) {
+            if (wizardStatus) {
+                wizardStatus.textContent = err.message || 'Lỗi đọc file Excel.';
+                wizardStatus.className = 'small text-danger fw-semibold';
+            }
+        }
+    }
+
+    excelFileInput?.addEventListener('change', () => {
+        if (excelFileInput.files?.length) previewUploadedExcelFile(excelFileInput.files[0]);
+    });
+
+    if (excelDropzone) {
+        ['dragenter', 'dragover'].forEach((evt) => {
+            excelDropzone.addEventListener(evt, (e) => { e.preventDefault(); excelDropzone.classList.add('is-dragover'); });
+        });
+        ['dragleave', 'drop'].forEach((evt) => {
+            excelDropzone.addEventListener(evt, (e) => { e.preventDefault(); excelDropzone.classList.remove('is-dragover'); });
+        });
+        excelDropzone.addEventListener('drop', (e) => {
+            const file = e.dataTransfer?.files?.[0];
+            if (!file) return;
+            if (excelFileInput && typeof DataTransfer !== 'undefined') {
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                excelFileInput.files = dt.files;
+            }
+            previewUploadedExcelFile(file);
+        });
+    }
+
+    function addQuickExcelCol(label = '', type = 'text', role = 'data') {
+        if (!quickColList) return;
+        const row = document.createElement('div');
+        row.className = 'd-flex gap-2 align-items-center quick-excel-col-row';
+        row.innerHTML = `
+            <input type="text" class="form-control form-control-sm" placeholder="Tên cột (vd: STT, Đơn vị, Số lượng...)" value="${escapeHtml(label)}">
+            <select class="form-select form-select-sm" style="max-width: 170px;">
+                <option value="text" ${role === 'data' && type === 'text' ? 'selected' : ''}>Văn bản</option>
+                <option value="number" ${role === 'data' && type === 'number' ? 'selected' : ''}>Số liệu</option>
+                <option value="unit" ${role === 'unit' ? 'selected' : ''}>Đơn vị nhận BC</option>
+                <option value="stt" ${role === 'stt' ? 'selected' : ''}>STT tự động</option>
+                <option value="formula" ${role === 'formula' ? 'selected' : ''}>Công thức (=)</option>
+            </select>
+            <button type="button" class="btn btn-sm btn-outline-danger flex-shrink-0" title="Xóa cột"><i class="fa-solid fa-trash"></i></button>
+        `;
+        row.querySelector('input')?.addEventListener('input', () => { quickBuilderDirty = true; });
+        row.querySelector('select')?.addEventListener('change', () => { quickBuilderDirty = true; });
+        row.querySelector('button')?.addEventListener('click', () => {
+            quickBuilderDirty = true;
+            row.remove();
+        });
+        quickColList.appendChild(row);
+    }
+
+    function readQuickExcelColumns() {
+        return Array.from(quickColList?.querySelectorAll('.quick-excel-col-row') || [])
+            .map((row) => {
+                const mode = row.querySelector('select')?.value || 'text';
+                return {
+                    label: row.querySelector('input')?.value?.trim() || '',
+                    type: (mode === 'number' || mode === 'formula') ? 'number' : 'text',
+                    role: (mode === 'unit' || mode === 'stt' || mode === 'formula') ? mode : 'data',
+                };
+            })
+            .filter((col) => col.label);
+    }
+
+    addQuickColBtn?.addEventListener('click', () => {
+        quickBuilderDirty = true;
+        addQuickExcelCol('', 'text', 'data');
+    });
+
+    previewQuickBtn?.addEventListener('click', async () => {
+        const cols = readQuickExcelColumns();
+        if (!cols.length) {
+            pcAlert('Cần nhập ít nhất 1 cột cho bảng Excel.', 'warning');
+            return;
+        }
+        if (quickColsHidden) quickColsHidden.value = JSON.stringify(cols);
+        if (stagedExcelInput) stagedExcelInput.value = '';
+        if (excelFileInput) excelFileInput.value = '';
+        const fd = new FormData();
+        fd.append('quick_columns_json', JSON.stringify(cols));
+        fd.append('title', document.getElementById('wizardTitle')?.value?.trim() || '');
+        try {
+            const res = await fetch('/api/tasks/excel-template-preview', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'X-CSRF-Token': csrfToken },
+                body: fd,
+            });
+            const data = await res.json();
+            if (!res.ok || !data?.ok) throw new Error(data?.error || 'Không tạo được bảng Excel.');
+            const schema = data.schema;
+            cols.forEach((qc, idx) => {
+                if (schema.columns[idx]) {
+                    schema.columns[idx].role = qc.role;
+                    if (qc.role === 'unit') {
+                        schema.columns[idx].readonly = true;
+                        schema.unit_col_index = idx;
+                        schema.assign_row_mode = 'unit_rows';
+                        schema.allow_add_rows = false;
+                    } else if (qc.role === 'stt') {
+                        schema.columns[idx].is_stt = true;
+                        schema.columns[idx].readonly = true;
+                    } else if (qc.role === 'formula') {
+                        schema.columns[idx].data_type = 'formula';
+                        schema.columns[idx].type = 'number';
+                        schema.columns[idx].readonly = true;
+                    }
+                }
+            });
+            openWorkspaceWithSchema(schema);
+        } catch (err) {
+            pcAlert(err.message || 'Lỗi tạo bảng Excel.', 'danger');
+        }
+    });
+
+    function syncAssignTab(nextType) {
+        const mode = nextType || assignTypeSelect?.value || 'unit';
+        if (assignTypeSelect) assignTypeSelect.value = mode;
+        document.querySelectorAll('[data-assign-tab]').forEach((btn) => {
+            btn.classList.toggle('is-active', btn.dataset.assignTab === mode);
+        });
+        document.querySelectorAll('[data-assign-box]').forEach((box) => {
+            box.classList.toggle('d-none', box.dataset.assignBox !== mode);
+        });
+        updateAssignCounter();
+    }
+
+    document.querySelectorAll('[data-assign-tab]').forEach((btn) => {
+        btn.addEventListener('click', () => syncAssignTab(btn.dataset.assignTab));
+    });
+
+    function selectedAssignCounts() {
+        return {
+            unit: document.querySelectorAll('#wizardFormUnitList input[name="child_domains"]:checked').length,
+            role: document.querySelectorAll('#createTaskForm input[name="assignee_role_ids"]:checked').length,
+            user: document.querySelectorAll('#createTaskForm input[name="target_users"]:checked').length,
+        };
+    }
+
+    function updateAssignCounter() {
+        const mode = assignTypeSelect?.value || 'unit';
+        const counts = selectedAssignCounts();
+        const activeCount = mode === 'role' ? counts.role : (mode === 'user' ? counts.user : counts.unit);
+        if (assignCountEl) {
+            assignCountEl.textContent = mode === 'role'
+                ? `${counts.role} vai trò`
+                : mode === 'user'
+                    ? `${counts.user} cán bộ`
+                    : `${counts.unit} đơn vị`;
+        }
+        if (railUnitCountNum) railUnitCountNum.textContent = String(activeCount);
+        syncWizardSummary();
+    }
+
+    function renderUnitAssignees(data) {
+        if (!unitListEl || !unitPresetsEl) return;
+        const rawUnits = Array.isArray(data?.units) && data.units.length
+            ? data.units
+            : (FALLBACK_PRO_UNITS || []).map((item) => ({
+                code: item.value || item.name,
+                name: item.name,
+                group: 'other',
+            }));
+
+        const groupOrder = [
+            { key: 'province', title: 'Sở, Ban, Ngành cấp tỉnh' },
+            { key: 'commune_ubnd', title: 'UBND Xã, Phường' },
+            { key: 'commune_cax', title: 'Công an Xã, Phường' },
+            { key: 'other', title: 'Đơn vị khác' },
+        ];
+        const grouped = { province: [], commune_ubnd: [], commune_cax: [], other: [] };
+        rawUnits.forEach((u) => {
+            const g = grouped[u.group] ? u.group : 'other';
+            grouped[g].push(u);
+        });
+
+        unitPresetsEl.innerHTML = '';
+        const presetDefs = [];
+        if (grouped.province.length) presetDefs.push({ label: `+ ${grouped.province.length} Sở/Ngành`, groups: ['province'] });
+        if (grouped.commune_ubnd.length) presetDefs.push({ label: `+ ${grouped.commune_ubnd.length} UBND Xã`, groups: ['commune_ubnd'] });
+        if (grouped.commune_cax.length) presetDefs.push({ label: `+ ${grouped.commune_cax.length} Công an Xã`, groups: ['commune_cax'] });
+        if (grouped.province.length && grouped.commune_ubnd.length) presetDefs.push({ label: '+ Toàn tỉnh', groups: ['province', 'commune_ubnd'] });
+
+        presetDefs.forEach((p) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'pc-btn pc-btn-secondary btn-sm';
+            btn.style.fontSize = '0.75rem';
+            btn.textContent = p.label;
+            btn.addEventListener('click', () => {
+                unitListEl.querySelectorAll('input[name="child_domains"]').forEach((cb) => {
+                    if (p.groups.includes(cb.dataset.unitGroup || 'other')) cb.checked = true;
+                });
+                syncUnitRowsFromSelection();
+                updateAssignCounter();
+            });
+            unitPresetsEl.appendChild(btn);
+        });
+
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.className = 'pc-btn pc-btn-ghost btn-sm';
+        clearBtn.style.fontSize = '0.75rem';
+        clearBtn.textContent = 'Bỏ chọn';
+        clearBtn.addEventListener('click', () => {
+            unitListEl.querySelectorAll('input[name="child_domains"]').forEach((cb) => { cb.checked = false; });
+            syncUnitRowsFromSelection();
+            updateAssignCounter();
+        });
+        unitPresetsEl.appendChild(clearBtn);
+
+        let html = '';
+        groupOrder.forEach(({ key, title }) => {
+            const list = grouped[key];
+            if (!list.length) return;
+            html += `<div class="pc-form-unit-group" data-unit-group-wrap="${key}">`;
+            html += `<div class="pc-form-unit-group-title">${escapeHtml(title)} (${list.length})</div>`;
+            html += '<div class="pc-form-unit-grid">';
+            list.forEach((u) => {
+                const code = String(u.code || u.key || u.name || '');
+                const name = String(u.name || code);
+                html += `
+                    <label class="pc-form-unit-option" data-unit-search-text="${escapeHtml(normText(name + ' ' + code))}">
+                        <input type="checkbox" class="form-check-input mt-0" name="child_domains" value="${escapeHtml(code)}" data-unit-name="${escapeHtml(name)}" data-unit-group="${key}">
+                        <span class="text-truncate" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+                    </label>
+                `;
+            });
+            html += '</div></div>';
+        });
+        unitListEl.innerHTML = html || '<div class="text-muted small py-3 text-center">Không có đơn vị khả dụng.</div>';
+        unitListEl.querySelectorAll('input[name="child_domains"]').forEach((cb) => {
+            cb.addEventListener('change', () => {
+                syncUnitRowsFromSelection();
+                updateAssignCounter();
+            });
+        });
+
+        if (Array.isArray(data?.users) && data.users.length) {
+            const userListEl = document.getElementById('wizardFormUserList');
+            if (userListEl) {
+                userListEl.innerHTML = '<div class="pc-form-unit-grid">' + data.users.map((u) => {
+                    const label = u.unit_name ? `${u.name} — ${u.unit_name}` : u.name;
+                    return `
+                        <label class="pc-form-unit-option" data-user-search-text="${escapeHtml(normText(label))}">
+                            <input type="checkbox" class="form-check-input mt-0" name="target_users" value="${u.id}">
+                            <span class="text-truncate" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
+                        </label>
+                    `;
+                }).join('') + '</div>';
+                userListEl.querySelectorAll('input[name="target_users"]').forEach((cb) => {
+                    cb.addEventListener('change', updateAssignCounter);
+                });
+            }
+        }
+    }
+
+    async function loadAssigneesData() {
+        if (assigneesLoaded && loadedAssigneesData) return;
+        try {
+            const res = await fetch('/api/outline-assignees', { credentials: 'same-origin' });
+            if (res.ok) {
+                loadedAssigneesData = await res.json();
+                assigneesLoaded = true;
+            }
+        } catch (_err) {
+            loadedAssigneesData = null;
+        }
+        renderUnitAssignees(loadedAssigneesData || {});
+        if (currentSchema && currentSchema.unit_col_index != null && !selectedAssignCounts().unit) {
+            autoMatchUnitsFromTemplateRows(false);
+        }
+        updateAssignCounter();
+    }
+
+    unitSearchEl?.addEventListener('input', () => {
+        const q = normText(unitSearchEl.value);
+        unitListEl?.querySelectorAll('[data-unit-search-text]').forEach((item) => {
+            item.classList.toggle('d-none', Boolean(q) && !item.dataset.unitSearchText.includes(q));
+        });
+        unitListEl?.querySelectorAll('[data-unit-group-wrap]').forEach((grp) => {
+            grp.classList.toggle('d-none', !grp.querySelector('[data-unit-search-text]:not(.d-none)'));
+        });
+    });
+
+    userSearchEl?.addEventListener('input', () => {
+        const q = normText(userSearchEl.value);
+        document.querySelectorAll('#wizardFormUserList [data-user-search-text]').forEach((item) => {
+            item.classList.toggle('d-none', Boolean(q) && !item.dataset.userSearchText.includes(q));
+        });
+    });
+
+    document.querySelectorAll('#createTaskForm input[name="assignee_role_ids"], #createTaskForm input[name="target_users"]').forEach((cb) => {
+        cb.addEventListener('change', updateAssignCounter);
+    });
+
+    document.querySelectorAll('[data-scope-mode]').forEach((select) => {
+        select.addEventListener('change', () => {
+            const box = document.querySelector(`[data-scope-box="${select.dataset.scopeMode}"]`);
+            if (box) box.classList.toggle('d-none', select.value === 'none');
+        });
+    });
+
+    function syncWizardSummary() {
+        if (!wizardSummary) return;
+        const colCount = currentSchema?.columns?.length || 0;
+        const rowCount = currentSchema?.template_rows?.length || 0;
+        const formulaCount = (currentSchema?.columns || []).filter((c) => c.role === 'formula').length;
+        const counts = selectedAssignCounts();
+        const mode = assignTypeSelect?.value || 'unit';
+        const assignText = mode === 'role' ? `${counts.role} vai trò` : (mode === 'user' ? `${counts.user} cán bộ` : `${counts.unit} đơn vị`);
+        const unitModeTxt = currentSchema?.unit_col_index != null
+            ? `Theo từng dòng đơn vị (${rowCount} dòng)`
+            : 'Giao nguyên biểu mẫu';
+        wizardSummary.innerHTML = `<strong>${colCount} cột</strong>${formulaCount ? ` (${formulaCount} công thức)` : ''} · ${unitModeTxt} · Giao cho <strong>${assignText}</strong>`;
+    }
+
+    function submitValidatedForm() {
+        if (!currentSchema) {
+            pcAlert('Vui lòng tải file Excel mẫu (.xlsx) hoặc tạo bảng nhanh trước khi phát hành.', 'warning');
+            return;
+        }
+        const mode = assignTypeSelect?.value || 'unit';
+        const counts = selectedAssignCounts();
+        if ((mode === 'unit' && !counts.unit) || (mode === 'role' && !counts.role) || (mode === 'user' && !counts.user)) {
+            setRailTab('assignees');
+            pcAlert('Vui lòng chọn ít nhất một đơn vị hoặc đối tượng nhận biểu mẫu.', 'warning');
+            return;
+        }
+        const title = document.getElementById('wizardTitle')?.value?.trim();
+        if (!title) {
+            setRailTab('publish');
+            document.getElementById('wizardTitle')?.focus();
+            pcAlert('Vui lòng nhập tiêu đề công việc trước khi phát hành.', 'warning');
+            return;
+        }
+        syncHiddenSchemaInputs();
+        formUnsavedGuard?.disable();
+        clearFormAssignDraft();
+        createForm.submit();
+    }
+
+    function readFormAssignDraft() {
+        try {
+            const raw = localStorage.getItem(FORM_DRAFT_KEY);
+            return raw ? JSON.parse(raw) : null;
+        } catch (_err) {
+            return null;
+        }
+    }
+
+    function clearFormAssignDraft() {
+        try { localStorage.removeItem(FORM_DRAFT_KEY); } catch (_err) {}
+    }
+
+    function collectCreateFormSnapshot() {
+        if (!createForm) return {};
+        const pick = (name) => createForm.querySelector(`[name="${name}"]`)?.value || '';
+        const checkedVals = (name) => Array.from(createForm.querySelectorAll(`input[name="${name}"]:checked`)).map((cb) => cb.value);
+        return {
+            title: pick('title'),
+            report_period_kind: pick('report_period_kind'),
+            report_period: pick('report_period'),
+            report_weekday: pick('report_weekday'),
+            report_day_of_month: pick('report_day_of_month'),
+            report_month_of_year: pick('report_month_of_year'),
+            report_start_date: pick('report_start_date'),
+            report_end_date: pick('report_end_date'),
+            deadline: pick('deadline'),
+            report_milestones: pick('report_milestones'),
+            category: pick('category'),
+            unit_name: pick('unit_name'),
+            task_type: pick('task_type'),
+            priority: pick('priority'),
+            description: pick('description'),
+            viewer_scope_mode: pick('viewer_scope_mode'),
+            manager_scope_mode: pick('manager_scope_mode'),
+            viewer_role_ids: checkedVals('viewer_role_ids'),
+            viewer_user_ids: checkedVals('viewer_user_ids'),
+            manager_role_ids: checkedVals('manager_role_ids'),
+            manager_user_ids: checkedVals('manager_user_ids'),
+        };
+    }
+
+    function saveFormAssignDraft() {
+        syncHiddenSchemaInputs();
+        const checkedVals = (name) => Array.from(createForm?.querySelectorAll(`input[name="${name}"]:checked`) || []).map((cb) => cb.value);
+        const payload = {
+            savedAt: new Date().toISOString(),
+            excelSource: currentExcelSource,
+            schema: currentSchema,
+            originalSampleRows: originalSampleRows,
+            stagedTemplate: stagedExcelInput?.value || '',
+            stagedOriginalName: stagedOrigNameInput?.value || '',
+            quickColumns: readQuickExcelColumns(),
+            allowAddRows: Boolean(allowAddRowsCheckbox?.checked),
+            assignType: assignTypeSelect?.value || 'unit',
+            selectedUnits: checkedVals('child_domains'),
+            selectedRoles: checkedVals('assignee_role_ids'),
+            selectedUsers: checkedVals('target_users'),
+            tab3: collectCreateFormSnapshot(),
+        };
+        try {
+            localStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(payload));
+            return true;
+        } catch (_err) {
+            return false;
+        }
+    }
+
+    async function restoreFormAssignDraft(draft) {
+        if (!draft) return;
+        if (draft.excelSource) syncExcelSource(draft.excelSource);
+        if (stagedExcelInput) stagedExcelInput.value = draft.stagedTemplate || '';
+        if (stagedOrigNameInput) stagedOrigNameInput.value = draft.stagedOriginalName || '';
+        if (quickColList && Array.isArray(draft.quickColumns) && draft.quickColumns.length) {
+            quickColList.innerHTML = '';
+            draft.quickColumns.forEach((qc) => addQuickExcelCol(qc.label || '', qc.type || 'text', qc.role || 'data'));
+            if (quickColsHidden) quickColsHidden.value = JSON.stringify(draft.quickColumns);
+            quickBuilderDirty = true;
+        }
+        await loadAssigneesData();
+        const applyChecked = (name, vals) => {
+            const set = new Set((vals || []).map(String));
+            createForm?.querySelectorAll(`input[name="${name}"]`).forEach((cb) => {
+                cb.checked = set.has(String(cb.value));
+            });
+        };
+        if (draft.assignType) syncAssignTab(draft.assignType);
+        applyChecked('child_domains', draft.selectedUnits);
+        applyChecked('assignee_role_ids', draft.selectedRoles);
+        applyChecked('target_users', draft.selectedUsers);
+        if (draft.tab3) {
+            Object.entries(draft.tab3).forEach(([k, v]) => {
+                if (Array.isArray(v)) {
+                    applyChecked(k, v);
+                } else {
+                    const el = createForm?.querySelector(`[name="${k}"]`);
+                    if (el) el.value = v || '';
+                }
+            });
+            document.querySelectorAll('[data-scope-mode]').forEach((select) => {
+                const box = document.querySelector(`[data-scope-box="${select.dataset.scopeMode}"]`);
+                if (box) box.classList.toggle('d-none', select.value === 'none');
+            });
+            syncReportPeriodPanel(createForm);
+        }
+        if (draft.schema) {
+            openWorkspaceWithSchema(draft.schema, {
+                preserveSampleRows: draft.originalSampleRows,
+                preserveUserSelections: true,
+            });
+        }
+        updateAssignCounter();
+    }
+
+    function refreshFormDraftBanner() {
+        const banner = document.getElementById('formDraftRestoreBanner');
+        const timeEl = document.getElementById('formDraftSavedTime');
+        if (!banner) return;
+        const draft = readFormAssignDraft();
+        if (!draft || (!draft.schema && !(draft.quickColumns || []).length)) {
+            banner.classList.add('d-none');
+            return;
+        }
+        if (timeEl) {
+            try {
+                timeEl.textContent = new Date(draft.savedAt).toLocaleString('vi-VN');
+            } catch (_err) {
+                timeEl.textContent = 'gần đây';
+            }
+        }
+        banner.classList.remove('d-none');
+    }
+
+    document.getElementById('btnRestoreFormDraft')?.addEventListener('click', async () => {
+        const draft = readFormAssignDraft();
+        if (!draft) return;
+        await restoreFormAssignDraft(draft);
+        document.getElementById('formDraftRestoreBanner')?.classList.add('d-none');
+    });
+
+    document.getElementById('btnDiscardFormDraft')?.addEventListener('click', () => {
+        clearFormAssignDraft();
+        refreshFormDraftBanner();
+    });
+
+    const formUnsavedGuard = typeof window.pcAttachUnsavedGuard === 'function'
+        ? window.pcAttachUnsavedGuard({
+            isDirty: () => Boolean(currentSchema) || quickBuilderDirty,
+            onSaveAndExit: () => saveFormAssignDraft(),
+            title: 'Bạn đang cấu hình biểu mẫu',
+            text: 'Cấu hình biểu mẫu chưa được phát hành. Bạn có muốn lưu bản nháp trước khi thoát không?',
+            saveText: 'Lưu bản nháp & Thoát',
+            discardText: 'Không lưu, thoát',
+            stayText: 'Ở lại tiếp tục',
+        })
+        : null;
+
+    wsTopPublishBtn?.addEventListener('click', submitValidatedForm);
+    createForm?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        submitValidatedForm();
+    });
+
+    const REPORT_KIND_FROM_TYPE = (label, value) => {
+        const s = (label || '').toLowerCase();
+        if (s.includes('định kỳ') || s.includes('dinh ky')) return 'periodic';
+        if (s.includes('mốc') || s.includes('giai đoạn')) return 'milestone';
+        if ((value || '') !== '' && (s.includes('thường xuyên') || s.includes('duy trì'))) return 'ongoing';
+        return 'one_time';
+    };
+
+    function syncReportPeriodPanel(formEl) {
+        if (!formEl) return;
+        const kindSelect = formEl.querySelector('select[name="report_period_kind"]');
+        if (!kindSelect) return;
+        const kind = kindSelect.value || 'one_time';
+        const panels = {
+            one_time: formEl.querySelector('[data-report-deadline-panel]'),
+            periodic: formEl.querySelector('[data-report-period-panel]'),
+            milestone: formEl.querySelector('[data-report-milestone-panel]'),
+            ongoing: formEl.querySelector('[data-report-ongoing-panel]'),
+        };
+        Object.entries(panels).forEach(([key, el]) => el?.classList.toggle('d-none', key !== kind));
+        const period = formEl.querySelector('select[name="report_period"]')?.value || 'month';
+        formEl.querySelector('[data-report-daily-anchor]')?.classList.toggle('d-none', period !== 'day');
+        formEl.querySelector('[data-report-week-anchor]')?.classList.toggle('d-none', period !== 'week');
+        formEl.querySelector('[data-report-day-anchor]')?.classList.toggle('d-none', period === 'day' || period === 'week');
+        formEl.querySelector('select[name="report_month_of_year"]')?.classList.toggle('d-none', period !== 'year');
+        formEl.querySelector('[data-report-day-suffix]')?.classList.toggle('d-none', period !== 'year');
+    }
+
+    function setupReportPeriodPanel(formEl) {
+        if (!formEl) return;
+        const kindSelect = formEl.querySelector('select[name="report_period_kind"]');
+        if (!kindSelect) return;
+        let userTouched = false;
+        kindSelect.addEventListener('change', () => { userTouched = true; syncReportPeriodPanel(formEl); });
+        const typeSelect = formEl.querySelector('select[name="task_type"]');
+        typeSelect?.addEventListener('change', () => {
+            if (userTouched) return;
+            const label = typeSelect.selectedOptions[0]?.textContent || typeSelect.value;
+            kindSelect.value = REPORT_KIND_FROM_TYPE(label, typeSelect.value);
+            syncReportPeriodPanel(formEl);
+        });
+        formEl.querySelectorAll('select[name="report_period"]').forEach((sel) => {
+            sel.addEventListener('change', () => syncReportPeriodPanel(formEl));
+        });
+        syncReportPeriodPanel(formEl);
+    }
+
+    if (quickColList && !quickColList.querySelector('.quick-excel-col-row')) {
+        addQuickExcelCol('STT', 'text', 'stt');
+        addQuickExcelCol('Đơn vị', 'text', 'unit');
+        addQuickExcelCol('Chỉ tiêu 1', 'number', 'data');
+        addQuickExcelCol('Số lượng đạt', 'number', 'data');
+    }
+    setupReportPeriodPanel(createForm);
+    syncExcelSource('upload');
+    syncAssignTab('unit');
+    loadAssigneesData();
+    refreshFormDraftBanner();
+})();
+</script>
+{% endblock %}

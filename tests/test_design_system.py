@@ -457,6 +457,11 @@ class TaskCoreContractTests(unittest.TestCase):
         for marker in ("pc-card", "pc-btn", "pc-table"):
             self.assertIn(marker, src)
 
+    def test_form_assign_source_uses_premium_components(self):
+        src = _read(os.path.join(APP_ROOT, "templates", "form_assign.html"))
+        for marker in ("pc-page-header", "pc-card", "pc-btn", "pc-badge"):
+            self.assertIn(marker, src)
+
     def test_task_detail_rebuild_source_uses_premium_components(self):
         src = _read(os.path.join(APP_ROOT, "templates", "task_detail_rebuild.html"))
         for marker in ("pc-btn", "pc-table"):

@@ -16,6 +16,9 @@ def _task_domain_options():
 
 
 def _task_field_options():
+    opts = module_category_options("tasks", "category")
+    if opts:
+        return opts
     return module_category_options("notify", "category", "Lĩnh vực", "Đội nghiệp vụ")
 
 

@@ -464,8 +464,8 @@
     {% block head %}{% endblock %}
     {% block extra_head %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-responsive.css') }}?v=20260428">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/flat-theme.css') }}?v=1.0.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/pc06-premium.css') }}?v=1.3.7">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/flat-theme.css') }}?v=1.0.3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pc06-premium.css') }}?v=1.5.3">
 </head>
 <body>
     <a class="skip-link" href="#main-content">Nhảy đến nội dung chính</a>
@@ -475,7 +475,7 @@
             <button class="btn btn-light btn-circle btn-circle-sm border-0 bg-transparent text-primary p-0 fs-4" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
                 <i class="fa-solid fa-bars-staggered"></i>
             </button>
-            <span class="header-title">PC06</span>
+            <span class="header-title">Hệ thống PC06</span>
         </div>
         <div class="header-right d-flex gap-2">
             <a href="/notifications" class="theme-toggle mobile-bell-link">
@@ -547,23 +547,17 @@
     </main>
 
     <div class="offcanvas offcanvas-start border-0" tabindex="-1" id="mobileMenu" style="width: 280px; background: var(--bg-surface) !important;">
-        <div class="offcanvas-header p-3 d-flex flex-column align-items-start">
+        <div class="offcanvas-header p-3 d-flex flex-column align-items-stretch">
             <div class="d-flex justify-content-between w-100 align-items-center mb-2">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="fa-solid fa-shield-halved text-primary" style="font-size: 0.85rem;"></i>
-                    <span class="fw-bold" style="font-size: 0.8rem; color: var(--text-main);">PC06</span>
-                </div>
+                <span class="fw-bold text-primary" style="font-size: 0.95rem;">Hệ thống PC06</span>
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
             </div>
             
             <div class="sidebar-profile w-100">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="sidebar-avatar">{{ session.get('fullname', 'CB')[:2].upper() }}</div>
-                    <div class="text-truncate">
-                        <div class="fw-bold text-truncate" style="color: var(--text-main);">{{ session.get('fullname', 'Cán bộ') }}</div>
-                        <div class="tiny opacity-75 text-truncate" style="color: var(--text-muted); font-size: 11px;">{{ session.get('role_name', 'Thành viên') }}</div>
-                        <div class="tiny opacity-75 text-truncate" style="color: var(--text-muted); font-size: 11px;">{{ session.get('unit', 'PC06') }}</div>
-                    </div>
+                <div class="text-truncate">
+                    <div class="fw-bold text-truncate" style="color: var(--text-main);">{{ session.get('fullname', 'Cán bộ') }}</div>
+                    <div class="tiny opacity-75 text-truncate" style="color: var(--text-muted); font-size: 11px;">{{ session.get('role_name', 'Thành viên') }}</div>
+                    <div class="tiny opacity-75 text-truncate" style="color: var(--text-muted); font-size: 11px;">{{ session.get('unit', 'Hệ thống PC06') }}</div>
                 </div>
             </div>
         </div>
@@ -579,6 +573,10 @@
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-house"></i></span>
                         <span class="sidebar-nav-text">Tổng quan</span>
                     </a>
+                    <a href="/tong-quan-lanh-dao" class="sidebar-nav-link pc-nav-item {% if request.endpoint == 'admin_bp.executive_overview' %}active{% endif %}">
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-chart-pie"></i></span>
+                        <span class="sidebar-nav-text">Tổng hợp số liệu</span>
+                    </a>
                     {% if can_module('task', 'view') %}
                     <a href="/tasks" class="sidebar-nav-link pc-nav-item {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">
                         <span class="sidebar-nav-icon"><i class="fa-solid fa-list-check"></i></span>
@@ -586,8 +584,8 @@
                     </a>
                     {% endif %}
                     <a href="/dossiers" class="sidebar-nav-link pc-nav-item {% if request.endpoint == 'dossier_bp.list_dossiers_page' %}active{% endif %}">
-                        <span class="sidebar-nav-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
-                        <span class="sidebar-nav-text">Sổ hồ sơ</span>
+                        <span class="sidebar-nav-icon"><i class="fa-solid fa-folder-open"></i></span>
+                        <span class="sidebar-nav-text">Sổ theo dõi hồ sơ</span>
                     </a>
                     {% if can_module('notify', 'view') %}
                     <a href="/thong-bao" class="sidebar-nav-link pc-nav-item {% if request.endpoint == 'portal_bp.notifications_board' %}active{% endif %}">
@@ -681,6 +679,7 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+    <script src="{{ url_for('static', filename='js/unsaved-guard.js') }}?v=1.0"></script>
     <script>
         // ===== Dialog chuẩn hóa (SweetAlert2) — thay alert/confirm native =====
         window.pcAlert = function (message, type) {

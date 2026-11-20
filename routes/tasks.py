@@ -634,6 +634,7 @@ from services.task_workspace_views import (  # noqa: E402
 # chuyển sang services/task_pages.py + services/task_google_forms_v2.py.
 # Pha 2 đợt 11: band page handlers chuyển sang services/task_pages.py.
 from services.task_pages import (  # noqa: E402
+    _form_assign_page_v2,
     _tasks_page_v2,
     _task_detail_v2,
     _create_outline_items_v2,
@@ -659,6 +660,18 @@ from services.task_synthesis import (  # noqa: E402
     _toggle_task_item_aggregate,
     _task_item_synthesis_data,
     _save_task_item_synthesis,
+)
+from services.excel_form_template import (  # noqa: E402
+    apply_excel_schema_overrides,
+    build_unit_prefilled_excel_bytes,
+    generate_quick_excel_template_bytes,
+    load_excel_form_schema,
+    make_staged_excel_filename,
+    normalize_submitted_excel_rows,
+    parse_excel_template_layout,
+    parse_staged_filename,
+    parse_uploaded_submission_excel,
+    resolve_unit_rows_for_user,
 )
 
 @tasks_bp.route("/tasks/<int:tid>/items/<int:item_id>/aggregate", methods=["POST"])
@@ -714,6 +727,14 @@ def tasks():
 
     _ensure_task_schema()
     return _tasks_page_v2()
+
+@tasks_bp.route("/bieu-mau-giao-viec", methods=["GET"])
+def form_assign_page():
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    return _form_assign_page_v2()
 
 @tasks_bp.route("/tasks/import-drafts", methods=["GET"])
 def task_import_drafts():
@@ -828,6 +849,75 @@ def preview_form_template_fields_for_create():
 
     return jsonify({"ok": False, "error": "Cần chọn file Excel mẫu."}), 400
 
+
+@tasks_bp.route("/api/tasks/excel-template-preview", methods=["POST"])
+def preview_excel_form_layout_for_create():
+    """Phân tích file Excel mẫu (.xlsx) hoặc bảng cột nhanh và trả layout xem trước."""
+    if not session.get("uid"):
+        return jsonify({"ok": False, "error": "Phiên làm việc đã hết hạn."}), 401
+
+    _ensure_task_schema()
+    perms = _current_perms()
+    if not (bool(current_is_admin()) or _can_process_task_module(perms)):
+        return jsonify({"ok": False, "error": "Bạn không có quyền tạo công việc."}), 403
+
+    excel_file = request.files.get("excel_file")
+    if excel_file and excel_file.filename:
+        ext = os.path.splitext(str(excel_file.filename or ""))[1].lower()
+        if ext != ".xlsx":
+            return jsonify({"ok": False, "error": "Chỉ hỗ trợ định dạng Excel chuẩn .xlsx."}), 400
+        staged_name = make_staged_excel_filename(excel_file.filename)
+        staged_path = _task_file_path(staged_name)
+        os.makedirs(os.path.dirname(staged_path), exist_ok=True)
+        excel_file.save(staged_path)
+        prev_staged = parse_staged_filename(request.form.get("prev_staged"))
+        if prev_staged and prev_staged != staged_name:
+            prev_path = _task_file_path(prev_staged)
+            if os.path.exists(prev_path):
+                try:
+                    os.remove(prev_path)
+                except OSError:
+                    pass
+        try:
+            schema = parse_excel_template_layout(staged_path, filename=excel_file.filename)
+        except ValueError as exc:
+            if os.path.exists(staged_path):
+                try:
+                    os.remove(staged_path)
+                except OSError:
+                    pass
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        return jsonify({"ok": True, "staged_filename": staged_name, "schema": schema})
+
+    quick_raw = (request.form.get("quick_columns_json") or "").strip()
+    if not quick_raw and request.is_json:
+        payload = request.get_json(silent=True) or {}
+        quick_cols = payload.get("columns") or []
+        title = str(payload.get("title") or "").strip()
+    else:
+        try:
+            quick_cols = json.loads(quick_raw) if quick_raw else []
+        except Exception:
+            quick_cols = []
+        title = (request.form.get("title") or "").strip()
+
+    if isinstance(quick_cols, list) and quick_cols:
+        try:
+            buf = generate_quick_excel_template_bytes(title, quick_cols)
+            schema = parse_excel_template_layout(buf, filename="bieu_mau_excel.xlsx")
+            clean_quick_cols = [c for c in quick_cols if str(c.get("label") or "").strip()]
+            explicit_types = {
+                str(idx): col.get("type")
+                for idx, col in enumerate(clean_quick_cols)
+                if col.get("type") in {"text", "number"}
+            }
+            schema = apply_excel_schema_overrides(schema, column_types=explicit_types)
+        except ValueError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        return jsonify({"ok": True, "staged_filename": "", "schema": schema})
+
+    return jsonify({"ok": False, "error": "Vui lòng tải lên file Excel (.xlsx) hoặc khai báo cột biểu mẫu."}), 400
+
 @tasks_bp.route("/tasks/<int:tid>", methods=["GET", "POST"])
 def task_detail(tid):
     if not session.get("uid"):
@@ -940,6 +1030,87 @@ def export_form_task_v2(tid):
 
     _ensure_task_schema()
     return _export_form_task_v2(tid)
+
+
+@tasks_bp.route("/tasks/<int:tid>/excel-template.xlsx")
+def download_task_excel_template(tid):
+    """Tải về file Excel mẫu (.xlsx) của biểu mẫu (điền sẵn số liệu đã nộp của đơn vị nếu có)."""
+    if not session.get("uid"):
+        return redirect(url_for("auth_bp.login"))
+
+    _ensure_task_schema()
+    task = db.session.get(Task, tid)
+    perms = _current_perms()
+    if not task or not _can_view_task(task, is_lead=_can_process_task_module(perms)):
+        flash("Bạn không có quyền truy cập biểu mẫu Excel này.", "danger")
+        return redirect(url_for("tasks_bp.tasks"))
+
+    excel_schema = load_excel_form_schema(task)
+    if not excel_schema:
+        flash("Công việc này chưa cấu hình biểu mẫu Excel.", "warning")
+        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    my_assignment = _task_assignment_for_user(task, session.get("uid"))
+    unit_rows = None
+    if my_assignment:
+        latest_sub = _latest_assignment_submission(my_assignment)
+        if latest_sub:
+            payload = _parse_task_submission_payload(latest_sub)
+            if isinstance(payload, dict) and payload.get("mode") == "excel_sheet" and isinstance(payload.get("rows"), list):
+                unit_rows = payload.get("rows") or None
+    if not unit_rows and excel_schema.get("assign_row_mode") == "unit_rows":
+        current_user = db.session.get(User, session.get("uid"))
+        unit_rows = resolve_unit_rows_for_user(excel_schema, current_user)
+
+    template_path = _task_file_path(task.file_path) if task.file_path else None
+    output = build_unit_prefilled_excel_bytes(task, excel_schema, template_path=template_path, unit_rows=unit_rows)
+    base_name = secure_filename(os.path.splitext(excel_schema.get("template_filename") or f"bieu_mau_{tid}")[0]) or f"bieu_mau_{tid}"
+    return send_file(
+        output,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=f"{base_name}_don_vi.xlsx",
+    )
+
+
+@tasks_bp.route("/tasks/<int:tid>/excel-upload-preview", methods=["POST"])
+def preview_task_excel_submission_upload(tid):
+    """Đọc file .xlsx đơn vị vừa điền để đổ thẳng lên lưới Excel trên web xem trước khi gửi."""
+    if not session.get("uid"):
+        return jsonify({"ok": False, "error": "Phiên làm việc đã hết hạn."}), 401
+
+    _ensure_task_schema()
+    task = db.session.get(Task, tid)
+    perms = _current_perms()
+    if not task or not _can_view_task(task, is_lead=_can_process_task_module(perms)):
+        return jsonify({"ok": False, "error": "Bạn không có quyền thao tác trên biểu mẫu này."}), 403
+
+    excel_schema = load_excel_form_schema(task)
+    if not excel_schema:
+        return jsonify({"ok": False, "error": "Biểu mẫu này không dùng định dạng Excel."}), 400
+
+    excel_file = request.files.get("excel_file") or request.files.get("excel_submission_file")
+    if not excel_file or not excel_file.filename:
+        return jsonify({"ok": False, "error": "Vui lòng chọn file Excel .xlsx để nạp."}), 400
+
+    try:
+        raw_rows = parse_uploaded_submission_excel(excel_file, excel_schema)
+        current_user = db.session.get(User, session.get("uid"))
+        unit_label = _task_assignee_unit_name(current_user) if current_user else None
+        clean_rows, totals = normalize_submitted_excel_rows(
+            excel_schema,
+            raw_rows,
+            unit_name=unit_label,
+        )
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+    return jsonify({
+        "ok": True,
+        "rows": clean_rows,
+        "totals": totals,
+        "filename": secure_filename(excel_file.filename) or "bieu_mau.xlsx",
+    })
 
 @tasks_bp.route("/tasks/<int:tid>/export-outline.docx")
 def export_outline_task_word(tid):

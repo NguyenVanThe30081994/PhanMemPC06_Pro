@@ -11,7 +11,9 @@ Tách từ routes/tasks.py (Pha 2). routes/tasks.py re-export các tên còn dù
 
 import io
 import json
+import os
 import re
+import uuid
 from datetime import datetime
 
 from flask import flash, redirect, request, send_file, session, url_for
@@ -179,7 +181,23 @@ from services.task_workspace_helpers import (
     _sync_assignment_group_submission,
     _task_assignment_progress_groups,
     _task_delivery_contract_groups,
+    _task_file_path,
     _task_is_submitted,
+)
+from services.excel_form_template import (
+    _excel_payload_rows,
+    _parse_numeric_value,
+    apply_excel_schema_overrides,
+    build_aggregated_excel_workbook,
+    format_excel_cell_display,
+    form_fields_from_excel_schema,
+    generate_quick_excel_template_bytes,
+    load_excel_form_schema,
+    normalize_submitted_excel_rows,
+    parse_excel_template_layout,
+    parse_staged_filename,
+    parse_uploaded_submission_excel,
+    resolve_unit_rows_for_user,
 )
 from services.task_workspace_views import (
     _assignment_return_reason,
@@ -217,21 +235,137 @@ def _parse_item_deadline(value, fallback=None):
     return fallback
 
 
-def _tasks_page_v2():
-    perms = _current_perms()
-    can_view_all_tasks = _can_view_all_tasks(perms)
-    is_lead = _can_process_task_module(perms)
-    is_admin = bool(current_is_admin())
-    current_user = db.session.get(User, session["uid"])
+def _store_excel_template_bytes(raw_bytes):
+    """Lưu file .xlsx mẫu cố định của biểu mẫu và trả tên lưu trữ."""
+    stored_name = f"excel_tpl_{uuid.uuid4().hex[:12]}.xlsx"
+    target_path = _task_file_path(stored_name)
+    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+    with open(target_path, "wb") as fp:
+        fp.write(raw_bytes)
+    return stored_name
 
+
+def _parse_json_form_field(form, field_name, expected_type, default=None):
+    raw = (form.get(field_name) or "").strip()
+    if not raw:
+        return default
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, expected_type):
+            return parsed
+    except Exception:
+        pass
+    return default
+
+
+def _prepare_excel_form_bundle(form, files, fallback_title=""):
+    """Nạp và phân tích biểu mẫu Excel từ file tải lên, file staged, hoặc cột nhanh."""
+    uploaded = files.get("excel_template_file") or files.get("excel_file")
+    staged_name = parse_staged_filename(form.get("staged_excel_template"))
+    quick_raw = (form.get("quick_excel_columns_json") or "").strip()
+
+    raw_bytes = None
+    source_filename = ""
+    staged_path_to_cleanup = ""
+    quick_explicit_types = {}
+    quick_explicit_roles = {}
+    quick_explicit_formulas = {}
+    quick_explicit_percents = {}
+
+    if uploaded and uploaded.filename:
+        raw_bytes = uploaded.read()
+        source_filename = uploaded.filename
+        if staged_name:
+            possible_staged = _task_file_path(staged_name)
+            if os.path.exists(possible_staged):
+                staged_path_to_cleanup = possible_staged
+    elif staged_name:
+        staged_path = _task_file_path(staged_name)
+        if not os.path.exists(staged_path):
+            raise ValueError("File Excel mẫu tạm thời đã hết hạn hoặc không còn tồn tại. Vui lòng tải lại file .xlsx.")
+        with open(staged_path, "rb") as fp:
+            raw_bytes = fp.read()
+        source_filename = (form.get("staged_excel_original_name") or "").strip() or "bieu_mau.xlsx"
+        staged_path_to_cleanup = staged_path
+    elif quick_raw:
+        try:
+            quick_cols = json.loads(quick_raw)
+        except Exception:
+            quick_cols = []
+        if not isinstance(quick_cols, list) or not quick_cols:
+            raise ValueError("Cấu hình cột biểu mẫu Excel chưa hợp lệ.")
+        buf = generate_quick_excel_template_bytes(fallback_title, quick_cols)
+        raw_bytes = buf.getvalue()
+        source_filename = "bieu_mau_excel.xlsx"
+        clean_quick_cols = [c for c in quick_cols if str(c.get("label") or "").strip()]
+        for idx, col in enumerate(clean_quick_cols):
+            idx_key = str(idx)
+            if col.get("type") in {"text", "number"}:
+                quick_explicit_types[idx_key] = col.get("type")
+            if col.get("role") in {"stt", "unit", "data", "formula"}:
+                quick_explicit_roles[idx_key] = col.get("role")
+            if col.get("formula"):
+                quick_explicit_formulas[idx_key] = col.get("formula")
+            if col.get("is_percent"):
+                quick_explicit_percents[idx_key] = True
+    else:
+        return None
+
+    schema = parse_excel_template_layout(io.BytesIO(raw_bytes), filename=source_filename)
+
+    allow_raw = str(form.get("excel_allow_add_rows") or "").strip().lower()
+    allow_override = None if allow_raw == "" else (allow_raw in {"1", "true", "yes", "on"})
+
+    col_types = dict(quick_explicit_types)
+    col_types.update(_parse_json_form_field(form, "excel_col_types_json", dict, {}) or {})
+
+    col_roles = dict(quick_explicit_roles)
+    col_roles.update(_parse_json_form_field(form, "excel_col_roles_json", dict, {}) or {})
+
+    col_data_types = _parse_json_form_field(form, "excel_col_data_types_json", dict, None)
+
+    col_formulas = dict(quick_explicit_formulas)
+    col_formulas.update(_parse_json_form_field(form, "excel_col_formulas_json", dict, {}) or {})
+
+    col_percents = dict(quick_explicit_percents)
+    col_percents.update(_parse_json_form_field(form, "excel_col_percents_json", dict, {}) or {})
+
+    col_readonly = _parse_json_form_field(form, "excel_col_readonly_json", list, None)
+    unit_col_index = (form.get("excel_unit_col_index") or "").strip()
+    assign_row_mode = (form.get("excel_assign_row_mode") or "").strip() or None
+    generated_rows = _parse_json_form_field(form, "excel_generated_rows_json", list, None)
+    unit_row_assignments = _parse_json_form_field(form, "excel_unit_row_assignments_json", list, None)
+
+    schema = apply_excel_schema_overrides(
+        schema,
+        allow_add_rows=allow_override,
+        column_types=col_types,
+        column_readonly=col_readonly,
+        column_roles=col_roles or None,
+        column_data_types=col_data_types,
+        column_formulas=col_formulas or None,
+        column_percents=col_percents or None,
+        unit_col_index=unit_col_index if unit_col_index != "" else None,
+        assign_row_mode=assign_row_mode,
+        template_rows=generated_rows,
+        unit_row_assignments=unit_row_assignments,
+    )
+    return {
+        "schema": schema,
+        "bytes": raw_bytes,
+        "staged_path_to_cleanup": staged_path_to_cleanup,
+    }
+
+
+def _load_form_assign_reference_context(include_people=False):
+    """Tải dữ liệu danh mục và người dùng phục vụ tạo/chỉnh sửa công việc biểu mẫu."""
     task_fields = _task_field_options()
     pro_units = _task_domain_options()
     task_types = _task_type_options()
     priority_items = _task_priority_options()
     active_users = []
     roles = []
-
-    if is_lead or is_admin:
+    if include_people:
         active_users = User.query.filter_by(is_active=True).order_by(User.unit_area.asc(), User.fullname.asc()).all()
         active_users = apply_reference_display(
             sync_record_categories(
@@ -246,6 +380,81 @@ def _tasks_page_v2():
             fallback_label="Chưa có đơn vị",
         )
         roles = AppRole.query.order_by(AppRole.name.asc()).all()
+    return {
+        "task_fields": task_fields,
+        "pro_units": pro_units,
+        "task_types": task_types,
+        "priority_items": priority_items,
+        "active_users": active_users,
+        "roles": roles,
+    }
+
+
+def _form_assign_page_v2():
+    """Trang giao việc theo biểu mẫu Excel độc lập (song song với /outline-giao-viec)."""
+    perms = _current_perms()
+    is_lead = _can_process_task_module(perms)
+    is_admin = bool(current_is_admin())
+    if not (is_lead or is_admin):
+        return ("Bạn không có quyền giao công việc.", 403)
+
+    refs = _load_form_assign_reference_context(include_people=True)
+    sidebar_submenu_items = [
+        {
+            "label": "Giao theo Đề cương văn bản",
+            "href": "/outline-giao-viec",
+            "count": None,
+            "active": False,
+        },
+        {
+            "label": "Giao theo Biểu mẫu Excel",
+            "href": "/bieu-mau-giao-viec",
+            "count": None,
+            "active": True,
+        },
+        {
+            "label": "Danh sách công việc",
+            "href": url_for("tasks_bp.tasks"),
+            "count": None,
+            "active": False,
+        },
+        {
+            "label": "Báo cáo định kỳ",
+            "href": url_for("tasks_bp.report_dashboard"),
+            "count": None,
+            "active": False,
+        },
+    ]
+    return render_template(
+        "form_assign.html",
+        users=refs["active_users"],
+        roles=refs["roles"],
+        pro_units=stable_form_category_options(refs["pro_units"]),
+        task_fields=refs["task_fields"],
+        task_types=stable_form_category_options(refs["task_types"]),
+        priority_items=stable_form_category_options(refs["priority_items"]),
+        is_lead=is_lead,
+        is_admin=is_admin,
+        submenu_parent="tasks",
+        sidebar_submenu_title="Công việc",
+        sidebar_submenu_items=sidebar_submenu_items,
+    )
+
+
+def _tasks_page_v2():
+    perms = _current_perms()
+    can_view_all_tasks = _can_view_all_tasks(perms)
+    is_lead = _can_process_task_module(perms)
+    is_admin = bool(current_is_admin())
+    current_user = db.session.get(User, session["uid"])
+
+    refs = _load_form_assign_reference_context(include_people=(is_lead or is_admin))
+    task_fields = refs["task_fields"]
+    pro_units = refs["pro_units"]
+    task_types = refs["task_types"]
+    priority_items = refs["priority_items"]
+    active_users = refs["active_users"]
+    roles = refs["roles"]
 
     if request.method == "POST" and is_lead:
         title = (request.form.get("title") or "").strip()
@@ -271,6 +480,30 @@ def _tasks_page_v2():
             title = title or workflow_blueprint.get("title", "")
             if not content:
                 content = workflow_blueprint_summary_text(workflow_blueprint)
+
+        wants_excel_form = bool(
+            task_mode == "FORM"
+            and form_provider != "google"
+            and (
+                form_provider == "excel"
+                or (request.files.get("excel_template_file") and request.files.get("excel_template_file").filename)
+                or parse_staged_filename(request.form.get("staged_excel_template"))
+                or (request.form.get("quick_excel_columns_json") or "").strip()
+            )
+        )
+        excel_bundle = None
+        if wants_excel_form:
+            form_provider = "excel"
+            try:
+                excel_bundle = _prepare_excel_form_bundle(request.form, request.files, fallback_title=title)
+            except ValueError as excel_err:
+                flash(str(excel_err), "danger")
+                return redirect(url_for("tasks_bp.tasks"))
+            if not excel_bundle:
+                flash("Vui lòng tải lên file Excel mẫu (.xlsx) hoặc khai báo cột biểu mẫu.", "danger")
+                return redirect(url_for("tasks_bp.tasks"))
+            if not title:
+                title = excel_bundle["schema"].get("suggested_title") or ""
 
         if not title:
             flash("Tiêu đề công việc không được để trống.", "danger")
@@ -535,7 +768,12 @@ def _tasks_page_v2():
                     )
 
         if task_mode == "FORM":
-            field_defs = google_form_field_defs if form_provider == "google" else _parse_task_form_fields_from_request(request.form)
+            if form_provider == "excel" and excel_bundle:
+                field_defs = form_fields_from_excel_schema(excel_bundle["schema"])
+            elif form_provider == "google":
+                field_defs = google_form_field_defs
+            else:
+                field_defs = _parse_task_form_fields_from_request(request.form)
             if not field_defs and workflow_blueprint:
                 field_defs = workflow_blueprint_form_field_defs(workflow_blueprint)
             if not field_defs and form_provider != "google":
@@ -557,6 +795,17 @@ def _tasks_page_v2():
                 flash(str(visibility_error), "danger")
                 db.session.rollback()
                 return redirect(url_for("tasks_bp.tasks"))
+            if form_provider == "excel" and excel_bundle:
+                stored_excel_name = _store_excel_template_bytes(excel_bundle["bytes"])
+                if not new_task.file_path:
+                    new_task.file_path = stored_excel_name
+                new_task.outline_table_schema_json = _json_dump(excel_bundle["schema"])
+                staged_cleanup = excel_bundle.get("staged_path_to_cleanup")
+                if staged_cleanup and os.path.exists(staged_cleanup):
+                    try:
+                        os.remove(staged_cleanup)
+                    except OSError:
+                        pass
             for field_def in field_defs:
                 db.session.add(TaskFormField(task_id=new_task.id, **_task_form_field_db_kwargs(field_def)))
         elif task_mode == "FILE":
@@ -691,6 +940,12 @@ def _tasks_page_v2():
             "count": None,
             "active": False,
         })
+        sidebar_submenu_items.insert(1, {
+            "label": "Giao theo Biểu mẫu Excel",
+            "href": "/bieu-mau-giao-viec",
+            "count": None,
+            "active": False,
+        })
         sidebar_submenu_items.append({
             "label": "Báo cáo định kỳ",
             "href": url_for("tasks_bp.report_dashboard"),
@@ -809,13 +1064,25 @@ def _task_detail_v2(tid):
             detail_page_context["my_form_assignment"],
         )
     file_report_comments = TaskComment.query.filter_by(task_id=task.id).order_by(TaskComment.created_at.asc(), TaskComment.id.asc()).all() if mode == "FILE" else []
+    form_return_comments = _task_return_comments(task) if mode == "FORM" else []
     my_file_report_form = _build_structured_task_report_form(task, detail_page_context["my_file_assignment"], current_user) if mode == "FILE" and detail_page_context["my_file_assignment"] else None
     my_form_field_views = _task_form_field_views_for_user(task, current_user) if mode == "FORM" and detail_page_context["my_form_assignment"] else []
+    my_form_return_reason = (
+        _assignment_return_reason(detail_page_context["my_form_assignment"], form_return_comments)
+        or str(getattr(detail_page_context["my_form_assignment"], "return_reason", "") or "").strip()
+    ) if mode == "FORM" and detail_page_context["my_form_assignment"] else ""
     if mode == "FILE":
         for row in detail_page_context["file_rows"]:
             row["report_context"] = _build_assignment_report_context(row["assignment"], file_report_comments, task=task)
     file_progress_groups = _task_assignment_progress_groups(detail_page_context["file_rows"]) if mode == "FILE" else {"unit_cards": [], "role_groups": []}
     form_progress_groups = _task_assignment_progress_groups(detail_page_context["form_rows"]) if mode == "FORM" else {"unit_cards": [], "role_groups": []}
+    form_matrix = _build_form_progress_matrix(
+        task,
+        detail_page_context["form_field_views"],
+        detail_page_context["form_rows"],
+        return_comments=form_return_comments,
+        include_payload=bool(can_manage_task_view or can_watch_task_view),
+    ) if mode == "FORM" else None
     delivery_contract_rows = []
     if mode == "FILE":
         delivery_contract_rows = detail_page_context["file_rows"]
@@ -851,6 +1118,18 @@ def _task_detail_v2(tid):
         roles = AppRole.query.order_by(AppRole.name.asc()).all()
     outline_import_preview_rows = _get_outline_import_preview(task.id) if mode == "OUTLINE" and can_manage_task_view else []
     outline_matrix = _build_outline_progress_matrix(task, session["uid"]) if mode == "OUTLINE" else None
+    excel_schema = load_excel_form_schema(task) if mode == "FORM" else None
+    my_excel_rows = []
+    client_excel_schema = excel_schema
+    if excel_schema:
+        saved_excel_rows = _excel_payload_rows(detail_page_context["my_form_payload"], schema=excel_schema)
+        my_excel_rows = saved_excel_rows if saved_excel_rows else resolve_unit_rows_for_user(excel_schema, current_user)
+        if excel_schema.get("assign_row_mode") == "unit_rows":
+            client_excel_schema = dict(
+                excel_schema,
+                template_rows=my_excel_rows,
+                unit_row_assignments=[],
+            )
 
     return render_template(
         "task_detail_rebuild.html",
@@ -880,6 +1159,9 @@ def _task_detail_v2(tid):
         form_fields=detail_page_context["form_fields"],
         form_field_views=detail_page_context["form_field_views"],
         form_rows=detail_page_context["form_rows"],
+        form_matrix=form_matrix,
+        excel_schema=client_excel_schema,
+        my_excel_rows=my_excel_rows,
         form_assignment_unit_cards=form_progress_groups["unit_cards"],
         form_assignment_role_groups=form_progress_groups["role_groups"],
         my_file_assignment=detail_page_context["my_file_assignment"],
@@ -888,6 +1170,7 @@ def _task_detail_v2(tid):
         my_form_submission=detail_page_context["my_form_submission"],
         my_form_payload=detail_page_context["my_form_payload"],
         my_form_field_views=my_form_field_views,
+        my_form_return_reason=my_form_return_reason,
         summary=detail_page_context["summary"],
         detail_context=detail_page_context["detail_context"],
         status_labels=TASK_ASSIGNMENT_STATUS_LABELS,
@@ -1171,40 +1454,85 @@ def _submit_task_report_v2(tid):
             payload["reported_value"] = numeric_value
 
     if mode == "FORM":
-        missing_labels = []
-        visible_form_fields = _task_form_fields_for_user(task, current_user)
-        if not visible_form_fields:
-            flash("Bạn chưa được giao trường dữ liệu nào trong biểu mẫu này.", "warning")
-            return redirect(url_for("tasks_bp.task_detail", tid=tid))
-        for field in visible_form_fields:
-            field_key = f"form_field_{field.field_key}"
-            field_type = _normalize_task_form_field_type(field.field_type)
-            if field_type == "checkbox":
-                value = request.form.getlist(field_key)
-            else:
-                value = (request.form.get(field_key) or "").strip()
-            if field_type == "number" and not _task_form_value_is_empty(value):
+        excel_schema = load_excel_form_schema(task)
+        if excel_schema:
+            excel_submission_file = request.files.get("excel_submission_file")
+            if not (excel_submission_file and excel_submission_file.filename):
+                if report_file and report_file.filename and os.path.splitext(report_file.filename)[1].lower() == ".xlsx":
+                    excel_submission_file = report_file
+            raw_rows_json = (request.form.get("excel_rows_json") or "").strip()
+
+            if excel_submission_file and excel_submission_file.filename:
                 try:
-                    if isinstance(value, str):
-                        value = float(value.replace(",", ""))
-                except ValueError:
-                    flash(f"Trường {field.field_label} phải là số hợp lệ.", "danger")
+                    raw_rows = parse_uploaded_submission_excel(excel_submission_file, excel_schema)
+                except ValueError as exc:
+                    flash(str(exc), "danger")
                     return redirect(url_for("tasks_bp.task_detail", tid=tid))
-            if field_type == "table" and isinstance(value, str):
-                table_rows = []
-                for line in value.splitlines():
-                    line = line.strip()
-                    if not line:
-                        continue
-                    table_rows.append([cell.strip() for cell in line.split("|")])
-                value = table_rows
-            if getattr(field, "is_required", False) and _task_form_value_is_empty(value):
-                missing_labels.append(field.field_label)
-            payload[field.field_key] = value
-        if missing_labels:
-            flash("Cần điền các trường bắt buộc: " + ", ".join(missing_labels) + ".", "danger")
-            return redirect(url_for("tasks_bp.task_detail", tid=tid))
-        narrative = ""
+                excel_submission_file.stream.seek(0)
+                report_file = excel_submission_file
+            elif raw_rows_json:
+                try:
+                    raw_rows = json.loads(raw_rows_json)
+                except Exception:
+                    flash("Dữ liệu bảng Excel không hợp lệ.", "danger")
+                    return redirect(url_for("tasks_bp.task_detail", tid=tid))
+            else:
+                flash("Cần nhập dữ liệu vào bảng Excel hoặc tải lên file .xlsx trước khi gửi.", "danger")
+                return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+            try:
+                submit_unit_name = _task_assignee_unit_name(current_user) if current_user else None
+                clean_rows, totals = normalize_submitted_excel_rows(
+                    excel_schema,
+                    raw_rows,
+                    unit_name=submit_unit_name,
+                )
+            except ValueError as exc:
+                flash(str(exc), "danger")
+                return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+            payload = {
+                "mode": "excel_sheet",
+                "rows": clean_rows,
+                "totals": totals,
+            }
+            numeric_value = sum(totals.values()) if totals else None
+            narrative = ""
+        else:
+            missing_labels = []
+            visible_form_fields = _task_form_fields_for_user(task, current_user)
+            if not visible_form_fields:
+                flash("Bạn chưa được giao trường dữ liệu nào trong biểu mẫu này.", "warning")
+                return redirect(url_for("tasks_bp.task_detail", tid=tid))
+            for field in visible_form_fields:
+                field_key = f"form_field_{field.field_key}"
+                field_type = _normalize_task_form_field_type(field.field_type)
+                if field_type == "checkbox":
+                    value = request.form.getlist(field_key)
+                else:
+                    value = (request.form.get(field_key) or "").strip()
+                if field_type == "number" and not _task_form_value_is_empty(value):
+                    try:
+                        if isinstance(value, str):
+                            value = float(value.replace(",", ""))
+                    except ValueError:
+                        flash(f"Trường {field.field_label} phải là số hợp lệ.", "danger")
+                        return redirect(url_for("tasks_bp.task_detail", tid=tid))
+                if field_type == "table" and isinstance(value, str):
+                    table_rows = []
+                    for line in value.splitlines():
+                        line = line.strip()
+                        if not line:
+                            continue
+                        table_rows.append([cell.strip() for cell in line.split("|")])
+                    value = table_rows
+                if getattr(field, "is_required", False) and _task_form_value_is_empty(value):
+                    missing_labels.append(field.field_label)
+                payload[field.field_key] = value
+            if missing_labels:
+                flash("Cần điền các trường bắt buộc: " + ", ".join(missing_labels) + ".", "danger")
+                return redirect(url_for("tasks_bp.task_detail", tid=tid))
+            narrative = ""
     elif mode == "FILE":
         try:
             structured_submission = _parse_structured_file_report_submission(
@@ -1330,6 +1658,30 @@ def _export_form_task_v2(tid):
     if not can_manage_task_view:
         flash("Bạn không có quyền xuất dữ liệu biểu mẫu.", "danger")
         return redirect(url_for("tasks_bp.task_detail", tid=tid))
+
+    safe_name = secure_filename(task.title or f"task_{task.id}") or f"task_{task.id}"
+    excel_schema = load_excel_form_schema(task)
+    if excel_schema:
+        fields, rows = _build_form_task_rows(task, session["uid"])
+        matrix = _build_form_progress_matrix(
+            task,
+            _task_form_field_views(task),
+            rows,
+            include_payload=True,
+        )
+        template_path = _task_file_path(task.file_path) if task.file_path else None
+        output = build_aggregated_excel_workbook(
+            task,
+            excel_schema,
+            matrix["rows"],
+            template_path=template_path,
+        )
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=f"tong_hop_{safe_name}_{task.id}.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
 
     fields, rows = _build_form_task_rows(task, session["uid"])
     workbook = Workbook()
@@ -1598,6 +1950,275 @@ def _build_outline_progress_matrix(task, current_uid):
         "total_submitted": total_submitted,
         "total_count": total_count,
         "percent": round(total_submitted / total_count * 100) if total_count else 0,
+    }
+
+
+def _format_form_field_display_value(value):
+    """Định dạng giá trị trường biểu mẫu gọn gàng để hiển thị trong ngăn kéo duyệt."""
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        if value and isinstance(value[0], list):
+            return "; ".join(" | ".join(str(cell) for cell in row) for row in value)
+        return ", ".join(str(item) for item in value if str(item).strip())
+    if isinstance(value, float):
+        return f"{value:g}"
+    return str(value).strip()
+
+
+def _build_form_progress_matrix(task, form_field_views, form_rows, return_comments=None, include_payload=False):
+    """Chuẩn hóa danh sách tiến độ nộp biểu mẫu theo đơn vị/đối tượng, đồng bộ với ma trận đề cương."""
+    row_by_assignment_id = {}
+    raw_assignments = []
+    for row in form_rows or []:
+        assignment = row.get("assignment")
+        if not assignment:
+            continue
+        raw_assignments.append(assignment)
+        row_by_assignment_id[getattr(assignment, "id", id(assignment))] = row
+
+    logical_assignments = _collapse_logical_task_assignments(raw_assignments)
+    submitter_uids = {
+        getattr(row.get("submission"), "submitted_by", None)
+        for row in row_by_assignment_id.values()
+        if row.get("submission") and getattr(row.get("submission"), "submitted_by", None)
+    }
+    user_cache = {}
+    if submitter_uids:
+        for fetched_user in User.query.filter(User.id.in_(submitter_uids)).all():
+            user_cache[fetched_user.id] = fetched_user
+
+    return_comments = return_comments if return_comments is not None else _task_return_comments(task)
+    excel_schema = load_excel_form_schema(task)
+    excel_cols = (excel_schema.get("columns") or []) if excel_schema else []
+    if excel_schema:
+        numeric_totals = {
+            col["field_key"]: {
+                "field_label": col.get("full_label") or col.get("label") or col["field_key"],
+                "total": 0.0,
+                "count": 0,
+            }
+            for col in excel_cols
+            if col.get("type") == "number" and col.get("role") != "formula" and not col.get("is_percent")
+        }
+    else:
+        numeric_totals = {
+            field["field_key"]: {"field_label": field["field_label"], "total": 0.0, "count": 0}
+            for field in (form_field_views or [])
+            if field.get("field_type") == "number"
+        }
+
+    files_by_sub_id = {}
+    if include_payload:
+        sub_ids = {
+            getattr(row.get("submission"), "id", None)
+            for row in row_by_assignment_id.values()
+            if row.get("submission")
+        }
+        sub_ids.discard(None)
+        if sub_ids:
+            for sf in TaskSubmissionFile.query.filter(TaskSubmissionFile.submission_id.in_(sub_ids)).order_by(TaskSubmissionFile.id.asc()).all():
+                files_by_sub_id.setdefault(sf.submission_id, []).append(
+                    {"id": sf.id, "name": sf.original_name or sf.stored_name or f"tep_{sf.id}"}
+                )
+
+    matrix_rows = []
+    unit_names = []
+    submitted_count = 0
+    returned_count = 0
+
+    for idx, assignment in enumerate(logical_assignments, start=1):
+        row = row_by_assignment_id.get(getattr(assignment, "id", id(assignment)), {})
+        user = getattr(assignment, "user", None)
+        user_name = getattr(user, "fullname", None) or getattr(user, "username", None) or "Không xác định"
+        unit_name = _task_assignee_unit_name(user) if user else user_name
+        if unit_name not in unit_names:
+            unit_names.append(unit_name)
+
+        status = str(getattr(assignment, "status", "") or "assigned").strip().lower()
+        status_label = _task_assignment_status_label(status)
+        submitted = _task_is_submitted(assignment)
+        if submitted:
+            submitted_count += 1
+        elif status == "returned":
+            returned_count += 1
+
+        submission = row.get("submission")
+        payload = row.get("payload") or {}
+        sub_status = (
+            str(getattr(submission, "status", "") or "").strip().lower()
+            if submission
+            else ""
+        )
+        excel_rows = _excel_payload_rows(payload, schema=excel_schema) if excel_schema else []
+        if excel_schema:
+            has_content = bool(excel_rows)
+        else:
+            has_content = any(
+                not _task_form_value_is_empty(payload.get(field["field_key"], ""))
+                for field in (form_field_views or [])
+            )
+        has_real_submission = bool(
+            submitted
+            or sub_status in {"submitted", "completed", "returned"}
+            or getattr(submission, "submitted_at", None) is not None
+            or has_content
+        )
+        submitter_user = (
+            user_cache.get(getattr(submission, "submitted_by", None))
+            if (submission and has_real_submission)
+            else None
+        )
+        submitter_name = (
+            getattr(submitter_user, "fullname", None)
+            or getattr(submitter_user, "username", None)
+            or user_name
+        )
+        submitted_dt = (
+            getattr(submission, "submitted_at", None)
+            or getattr(submission, "updated_at", None)
+            or getattr(submission, "created_at", None)
+            if (submission and has_real_submission)
+            else None
+        )
+        submitted_at = submitted_dt.strftime("%d/%m/%Y %H:%M") if submitted_dt else ""
+        return_reason = (
+            _assignment_return_reason(assignment, return_comments)
+            or str(getattr(assignment, "return_reason", "") or "").strip()
+        )
+        answered_count = 0
+        total_fields_count = len(excel_cols) if excel_schema else len(form_field_views or [])
+        field_lines = []
+        excel_table_payload = None
+        if has_real_submission:
+            if excel_schema:
+                answered_count = len(excel_rows)
+                if include_payload and excel_rows:
+                    unit_counted_cols = set()
+                    for r_vals in excel_rows:
+                        for c_idx, col in enumerate(excel_cols):
+                            fkey = col.get("field_key")
+                            if col.get("type") != "number" or fkey not in numeric_totals:
+                                continue
+                            raw_cell = r_vals[c_idx] if c_idx < len(r_vals) else ""
+                            num_val = _parse_numeric_value(raw_cell)
+                            if num_val is not None:
+                                numeric_totals[fkey]["total"] += num_val
+                                unit_counted_cols.add(fkey)
+                    for fkey in unit_counted_cols:
+                        numeric_totals[fkey]["count"] += 1
+                if include_payload or row.get("is_current_user"):
+                    formatted_rows = [
+                        [
+                            format_excel_cell_display(r_vals[c_i] if c_i < len(r_vals) else "", col)
+                            for c_i, col in enumerate(excel_cols)
+                        ]
+                        for r_vals in excel_rows
+                    ]
+                    excel_table_payload = {
+                        "columns": [
+                            {
+                                "label": col.get("full_label") or col.get("label") or f"Cột {c_i + 1}",
+                                "type": col.get("type") or "text",
+                            }
+                            for c_i, col in enumerate(excel_cols)
+                        ],
+                        "rows": formatted_rows,
+                    }
+                    report_text_summary = f"Đã nộp {len(excel_rows)} dòng dữ liệu bảng Excel." if excel_rows else ""
+                else:
+                    report_text_summary = ""
+                report_text = report_text_summary
+            else:
+                for field in form_field_views or []:
+                    raw_val = payload.get(field["field_key"], "")
+                    is_empty = _task_form_value_is_empty(raw_val)
+                    if not is_empty:
+                        answered_count += 1
+                        if include_payload and field["field_key"] in numeric_totals:
+                            num_val = _outline_blank_numeric(raw_val)
+                            if num_val is not None:
+                                numeric_totals[field["field_key"]]["total"] += num_val
+                                numeric_totals[field["field_key"]]["count"] += 1
+                    if include_payload or row.get("is_current_user"):
+                        formatted_val = _format_form_field_display_value(raw_val)
+                        field_lines.append(f"• {field['field_label']}: {formatted_val or 'Chưa nhập'}")
+                report_text = "\n".join(field_lines)
+        else:
+            report_text = ""
+
+        sub_files = files_by_sub_id.get(getattr(submission, "id", None), []) if (has_real_submission and (include_payload or row.get("is_current_user"))) else []
+        assignment_id = getattr(assignment, "id", idx)
+        drawer_key = f"form-{assignment_id}"
+        matrix_rows.append(
+            {
+                "index": idx,
+                "assignment": assignment,
+                "assignment_id": assignment_id,
+                "drawer_key": drawer_key,
+                "unit_name": unit_name,
+                "user_name": user_name,
+                "submitter_name": submitter_name,
+                "status": status,
+                "status_label": status_label,
+                "submitted": submitted,
+                "has_submission": has_real_submission,
+                "submitted_at": submitted_at,
+                "answered_count": answered_count,
+                "total_fields": total_fields_count,
+                "is_excel_form": bool(excel_schema),
+                "payload": payload if (include_payload or row.get("is_current_user")) else {},
+                "return_reason": return_reason,
+                "is_current_user": bool(row.get("is_current_user")),
+                "review_payload": {
+                    "item_id": drawer_key,
+                    "index": "",
+                    "item_title": unit_name,
+                    "secondary_text": f"Người phụ trách: {submitter_name}" if submitter_name and submitter_name != unit_name else "",
+                    "submitted_count": 1 if submitted else 0,
+                    "total_count": 1,
+                    "percent": 100 if submitted else 0,
+                    "aggregate_total": None,
+                    "units": [
+                        {
+                            "unit_name": unit_name,
+                            "done": submitted,
+                            "submitted_count": 1 if submitted else 0,
+                            "total_count": 1,
+                            "entries": [
+                                {
+                                    "assignment_id": assignment_id,
+                                    "submitter_name": submitter_name,
+                                    "status": status,
+                                    "status_label": status_label,
+                                    "submitted": submitted,
+                                    "submitted_at": submitted_at,
+                                    "report_text": report_text,
+                                    "excel_table": excel_table_payload,
+                                    "return_reason": return_reason,
+                                    "files": sub_files,
+                                }
+                            ],
+                        }
+                    ],
+                },
+            }
+        )
+
+    unit_names.sort(key=lambda name: remove_accents(name).lower())
+    total_count = len(matrix_rows)
+    numeric_aggregates = [
+        item for item in numeric_totals.values() if item["count"] > 0
+    ]
+    return {
+        "rows": matrix_rows,
+        "unit_names": unit_names,
+        "total_count": total_count,
+        "submitted_count": submitted_count,
+        "returned_count": returned_count,
+        "percent": round(submitted_count / total_count * 100) if total_count else 0,
+        "numeric_aggregates": numeric_aggregates,
+        "is_excel_form": bool(excel_schema),
     }
 
 def _export_outline_word_v2(tid):

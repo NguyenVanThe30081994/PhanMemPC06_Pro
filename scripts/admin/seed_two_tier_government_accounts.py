@@ -43,7 +43,11 @@ bootstrap_project_root()
 from werkzeug.security import generate_password_hash
 from app import app
 from models import AppRole, CategoryGroup, CategoryItem, Unit, User, db
-from utils import ensure_standard_system_roles
+from utils import (
+    _classify_account_unit_family,
+    build_account_username,
+    ensure_standard_system_roles,
+)
 
 # 19 Sở, Ban, Ngành cấp tỉnh chuẩn theo ĐVHC sau sắp xếp (đồng bộ seed_categories.py & outline.py)
 PROVINCE_UNITS = [
@@ -68,17 +72,150 @@ PROVINCE_UNITS = [
     {"code": "bql_khu_cong_nghiep", "name": "Ban Quản lý các Khu công nghiệp tỉnh", "short": "bqlkcn"},
 ]
 
+# Các phòng nội bộ Công an tỉnh (theo mẫu: thammuu_quantri, thammuu_lanhdao, thammuu_canbo...)
+CAT_DEPARTMENTS = [
+    {"code": "phong_tham_muu", "name": "Phòng Tham mưu", "short": "thammuu"},
+    {"code": "phong_pc06", "name": "Phòng Cảnh sát QLHC về TTXH", "short": "canhsatqlhcvttxh"},
+    {"code": "phong_to_chuc_can_bo", "name": "Phòng Tổ chức cán bộ", "short": "tochuccanbo"},
+    {"code": "phong_hau_can", "name": "Phòng Hậu cần", "short": "haucan"},
+]
+
 DEFAULT_INIT_PASSWORD = "TuyenQuang@2026"
 _KEEP_PASSWORD_NOTE = "(giữ nguyên mật khẩu hiện tại)"
 
 
 def ensure_roles(dry_run=False):
-    """Đảm bảo đủ 8 vai trò chuẩn và trả về cặp (Quản trị đơn vị, Cán bộ báo cáo)."""
+    """Đảm bảo đủ 8 vai trò chuẩn và trả về bộ (Quản trị đơn vị, Lãnh đạo đơn vị, Cán bộ báo cáo)."""
     if not dry_run:
         ensure_standard_system_roles(force_update_perms=False)
     role_admin = AppRole.query.filter_by(name="Quản trị đơn vị").first()
+    role_leader = AppRole.query.filter_by(name="Lãnh đạo đơn vị").first()
     role_reporter = AppRole.query.filter_by(name="Cán bộ báo cáo").first()
-    return role_admin, role_reporter
+    return role_admin, role_leader, role_reporter
+
+
+def _build_unit_accounts_spec(u_name, u_code, legacy_suffix, role_admin, role_leader, role_reporter):
+    """Sinh danh sách tài khoản chuẩn cho từng loại đơn vị:
+    - Công an xã/phường: <cax|cap><ten>, <cax|cap><ten>_chihuy, <cax|cap><ten>_canbo, <cax|cap><ten>_quantri
+    - UBND xã/phường: <ubndxa|ubndphuong><ten>, <ubndxa|ubndphuong><ten>_lanhdao, <ubndxa|ubndphuong><ten>_chuyenvien, <ubndxa|ubndphuong><ten>_quantri
+    - Sở ngành: <tensonganh>_lanhdao, <tensonganh>_chuyenvien, <tensonganh>_quantri
+    - Nội bộ Công an tỉnh: <tenphong>_quantri, <tenphong>_lanhdao, <tenphong>_canbo
+    """
+    base = build_account_username(u_name, u_code)
+    family = _classify_account_unit_family(u_name, u_code)
+
+    if family == "commune_police":
+        return (
+            {
+                "username": base,
+                "legacy_usernames": (),
+                "fullname": u_name,
+                "role": role_admin,
+                "role_name": "Quản trị đơn vị",
+            },
+            {
+                "username": f"{base}_chihuy",
+                "legacy_usernames": (),
+                "fullname": f"Chỉ huy - {u_name}",
+                "role": role_leader,
+                "role_name": "Lãnh đạo đơn vị",
+            },
+            {
+                "username": f"{base}_canbo",
+                "legacy_usernames": (f"bc_{legacy_suffix}",) if legacy_suffix else (),
+                "fullname": f"Cán bộ - {u_name}",
+                "role": role_reporter,
+                "role_name": "Cán bộ báo cáo",
+            },
+            {
+                "username": f"{base}_quantri",
+                "legacy_usernames": (f"admin_{legacy_suffix}",) if legacy_suffix else (),
+                "fullname": f"Quản trị - {u_name}",
+                "role": role_admin,
+                "role_name": "Quản trị đơn vị",
+            },
+        )
+
+    if family == "commune_ubnd":
+        return (
+            {
+                "username": base,
+                "legacy_usernames": (),
+                "fullname": u_name,
+                "role": role_admin,
+                "role_name": "Quản trị đơn vị",
+            },
+            {
+                "username": f"{base}_lanhdao",
+                "legacy_usernames": (),
+                "fullname": f"Lãnh đạo - {u_name}",
+                "role": role_leader,
+                "role_name": "Lãnh đạo đơn vị",
+            },
+            {
+                "username": f"{base}_chuyenvien",
+                "legacy_usernames": (f"bc_{legacy_suffix}",) if legacy_suffix else (),
+                "fullname": f"Chuyên viên - {u_name}",
+                "role": role_reporter,
+                "role_name": "Cán bộ báo cáo",
+            },
+            {
+                "username": f"{base}_quantri",
+                "legacy_usernames": (f"admin_{legacy_suffix}",) if legacy_suffix else (),
+                "fullname": f"Quản trị - {u_name}",
+                "role": role_admin,
+                "role_name": "Quản trị đơn vị",
+            },
+        )
+
+    if family == "cat_dept":
+        return (
+            {
+                "username": f"{base}_quantri",
+                "legacy_usernames": (f"admin_{legacy_suffix}",) if legacy_suffix else (),
+                "fullname": f"Quản trị - {u_name}",
+                "role": role_admin,
+                "role_name": "Quản trị đơn vị",
+            },
+            {
+                "username": f"{base}_lanhdao",
+                "legacy_usernames": (),
+                "fullname": f"Lãnh đạo - {u_name}",
+                "role": role_leader,
+                "role_name": "Lãnh đạo đơn vị",
+            },
+            {
+                "username": f"{base}_canbo",
+                "legacy_usernames": (f"bc_{legacy_suffix}",) if legacy_suffix else (),
+                "fullname": f"Cán bộ - {u_name}",
+                "role": role_reporter,
+                "role_name": "Cán bộ báo cáo",
+            },
+        )
+
+    return (
+        {
+            "username": f"{base}_lanhdao",
+            "legacy_usernames": (),
+            "fullname": f"Lãnh đạo - {u_name}",
+            "role": role_leader,
+            "role_name": "Lãnh đạo đơn vị",
+        },
+        {
+            "username": f"{base}_chuyenvien",
+            "legacy_usernames": (f"bc_{legacy_suffix}",) if legacy_suffix else (),
+            "fullname": f"Chuyên viên - {u_name}",
+            "role": role_reporter,
+            "role_name": "Cán bộ báo cáo",
+        },
+        {
+            "username": f"{base}_quantri",
+            "legacy_usernames": (f"admin_{legacy_suffix}",) if legacy_suffix else (),
+            "fullname": f"Quản trị - {u_name}",
+            "role": role_admin,
+            "role_name": "Quản trị đơn vị",
+        },
+    )
 
 
 def _ensure_system_unit(dry_run=False):
@@ -104,6 +241,7 @@ def _seed_unit_and_accounts(
     sort_order,
     group,
     role_admin,
+    role_leader,
     role_reporter,
     precalc_hash,
     init_password,
@@ -112,7 +250,7 @@ def _seed_unit_and_accounts(
     export_rows,
     counters,
 ):
-    """Tạo/đồng bộ 1 Unit, 1 CategoryItem (contact_unit) và 2 User (admin + báo cáo)."""
+    """Tạo/đồng bộ 1 Unit, 1 CategoryItem (contact_unit) và bộ tài khoản của đơn vị."""
     unit = Unit.query.filter_by(code=u_code).first()
     if not unit:
         unit = Unit(code=u_code, name=u_name, level=unit_level, is_active=True, sort_order=sort_order)
@@ -147,23 +285,24 @@ def _seed_unit_and_accounts(
             c_item.is_active = True
             c_item.sort_order = sort_order
 
-    accounts = (
-        {
-            "username": f"admin_{account_suffix}",
-            "fullname": f"Quản trị - {u_name}",
-            "role": role_admin,
-            "role_name": "Quản trị đơn vị",
-        },
-        {
-            "username": f"bc_{account_suffix}",
-            "fullname": f"Cán bộ báo cáo - {u_name}",
-            "role": role_reporter,
-            "role_name": "Cán bộ báo cáo",
-        },
+    accounts = _build_unit_accounts_spec(
+        u_name,
+        u_code,
+        account_suffix,
+        role_admin,
+        role_leader,
+        role_reporter,
     )
 
     for acc in accounts:
         usr = User.query.filter_by(username=acc["username"]).first()
+        if usr is None and acc.get("legacy_usernames"):
+            for legacy_uname in acc["legacy_usernames"]:
+                legacy_usr = User.query.filter_by(username=legacy_uname).first()
+                if legacy_usr is not None:
+                    usr = legacy_usr
+                    break
+
         is_new = usr is None
         password_changed = is_new or reset_existing
 
@@ -175,6 +314,7 @@ def _seed_unit_and_accounts(
             counters["users_updated"] += 1
 
         if not dry_run and usr is not None:
+            usr.username = acc["username"]
             usr.fullname = acc["fullname"]
             usr.role_id = acc["role"].id if acc["role"] else usr.role_id
             usr.unit_area = u_name
@@ -255,7 +395,7 @@ def run_seed(
     print("-----------------------------------------------------------------")
 
     precalc_hash = generate_password_hash(init_password, method="pbkdf2:sha256")
-    role_admin, role_reporter = ensure_roles(dry_run=dry_run)
+    role_admin, role_leader, role_reporter = ensure_roles(dry_run=dry_run)
     _ensure_system_unit(dry_run=dry_run)
 
     group = CategoryGroup.query.filter_by(code="contact_unit").first()
@@ -267,7 +407,7 @@ def run_seed(
     export_rows = []
     counters = {"units_created": 0, "users_created": 0, "users_updated": 0}
 
-    # 1. CẤP TỈNH: 19 SỞ BAN NGÀNH
+    # 1. CẤP TỈNH: 19 SỞ BAN NGÀNH + CÁC PHÒNG NỘI BỘ CÔNG AN TỈNH
     for idx, p_unit in enumerate(PROVINCE_UNITS, start=1):
         _seed_unit_and_accounts(
             u_code=p_unit["code"],
@@ -279,6 +419,28 @@ def run_seed(
             sort_order=idx,
             group=group,
             role_admin=role_admin,
+            role_leader=role_leader,
+            role_reporter=role_reporter,
+            precalc_hash=precalc_hash,
+            init_password=init_password,
+            dry_run=dry_run,
+            reset_existing=reset_existing,
+            export_rows=export_rows,
+            counters=counters,
+        )
+
+    for idx, c_dept in enumerate(CAT_DEPARTMENTS, start=len(PROVINCE_UNITS) + 1):
+        _seed_unit_and_accounts(
+            u_code=c_dept["code"],
+            u_name=c_dept["name"],
+            unit_level="province",
+            cap_label="Cấp Tỉnh",
+            khoi_label="Nội bộ Công an tỉnh",
+            account_suffix=c_dept["short"],
+            sort_order=idx,
+            group=group,
+            role_admin=role_admin,
+            role_leader=role_leader,
             role_reporter=role_reporter,
             precalc_hash=precalc_hash,
             init_password=init_password,
@@ -303,6 +465,7 @@ def run_seed(
             sort_order=idx * 2,
             group=group,
             role_admin=role_admin,
+            role_leader=role_leader,
             role_reporter=role_reporter,
             precalc_hash=precalc_hash,
             init_password=init_password,
@@ -322,6 +485,7 @@ def run_seed(
             sort_order=idx * 2 + 1,
             group=group,
             role_admin=role_admin,
+            role_leader=role_leader,
             role_reporter=role_reporter,
             precalc_hash=precalc_hash,
             init_password=init_password,
@@ -341,9 +505,10 @@ def run_seed(
         target_csv = export_csv or _resolve_default_export_path()
         written_csv = _write_export_csv(target_csv, export_rows)
 
+    total_units_count = len(PROVINCE_UNITS) + len(CAT_DEPARTMENTS) + len(commune_list) * 2
     print("-----------------------------------------------------------------")
     print("Tổng kết:")
-    print(f" - Số đơn vị xử lý: {len(PROVINCE_UNITS) + len(commune_list) * 2}")
+    print(f" - Số đơn vị xử lý: {total_units_count}")
     print(f" - Số đơn vị tạo mới trong Unit: {counters['units_created']}")
     print(f" - Số tài khoản tạo mới: {counters['users_created']}")
     print(f" - Số tài khoản đã có (đồng bộ): {counters['users_updated']}")
@@ -355,7 +520,7 @@ def run_seed(
     print("=================================================================")
 
     return {
-        "units_processed": len(PROVINCE_UNITS) + len(commune_list) * 2,
+        "units_processed": total_units_count,
         "units_created": counters["units_created"],
         "users_created": counters["users_created"],
         "users_updated": counters["users_updated"],

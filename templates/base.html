@@ -11,8 +11,8 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4.2.1">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bdhvs-layout.css') }}?v=2.2.4">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4.2.3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bdhvs-layout.css') }}?v=2.3.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/category-picker.css') }}">
     <link rel="icon" type="image/x-icon" href="https://cdn-icons-png.flaticon.com/512/3593/3593503.png">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
@@ -35,20 +35,30 @@
             if (event.ctrlKey && event.keyCode == 85) return false; // Ctrl+U
         });
 
-        // Việt hóa thông báo mặc định của trình duyệt
+        // Việt hóa thông báo mặc định của trình duyệt (tránh gọi đệ quy reportValidity)
         document.addEventListener('invalid', (function () {
+            const reportingTargets = new WeakSet();
             return function (e) {
-                e.preventDefault();
-                if (e.target.validity.valueMissing) {
-                    e.target.setCustomValidity("Vui lòng không bỏ trống trường này.");
-                } else if (e.target.validity.patternMismatch) {
-                    e.target.setCustomValidity(e.target.getAttribute('title') || "Định dạng nhập vào không hợp lệ.");
-                } else if (e.target.validity.typeMismatch) {
-                    e.target.setCustomValidity("Giá trị nhập vào không đúng định dạng.");
-                } else if (e.target.validity.tooShort) {
-                    e.target.setCustomValidity("Nội dung quá ngắn.");
+                const target = e.target;
+                if (!target || reportingTargets.has(target)) {
+                    return;
                 }
-                e.target.reportValidity();
+                e.preventDefault();
+                if (target.validity.valueMissing) {
+                    target.setCustomValidity("Vui lòng không bỏ trống trường này.");
+                } else if (target.validity.patternMismatch) {
+                    target.setCustomValidity(target.getAttribute('title') || "Định dạng nhập vào không hợp lệ.");
+                } else if (target.validity.typeMismatch) {
+                    target.setCustomValidity("Giá trị nhập vào không đúng định dạng.");
+                } else if (target.validity.tooShort) {
+                    target.setCustomValidity("Nội dung quá ngắn.");
+                }
+                reportingTargets.add(target);
+                try {
+                    target.reportValidity();
+                } finally {
+                    reportingTargets.delete(target);
+                }
             };
         })(), true);
         document.addEventListener('input', function (e) {
@@ -266,7 +276,8 @@
             font-weight: 600;
             text-decoration: none;
             transition: all 0.2s;
-            width: 25%;
+            flex: 1 1 0%;
+            min-width: 0;
         }
 
         .mobile-bottom-nav .nav-item i {
@@ -308,7 +319,10 @@
         }
 
         [data-theme="dark"] .border,
-        [data-theme="dark"] [class*="border-"],
+        [data-theme="dark"] [class*="border-"] {
+            border-color: var(--border) !important;
+        }
+
         [data-theme="dark"] table,
         [data-theme="dark"] thead,
         [data-theme="dark"] tbody,
@@ -316,7 +330,7 @@
         [data-theme="dark"] th,
         [data-theme="dark"] td {
             border-color: var(--border) !important;
-            color: var(--text-main) !important;
+            color: var(--text-main);
         }
 
         [data-theme="dark"] table:not(.excel-wrapper table) td,
@@ -544,44 +558,87 @@
             box-shadow: 4px 0 16px rgba(0, 0, 0, 0.04);
         }
 
+        .mobile-sidebar .offcanvas-header {
+            padding: 16px 16px 12px !important;
+            gap: 12px;
+        }
+
+        .mobile-sidebar .offcanvas-body {
+            padding: 4px 16px 16px !important;
+        }
+
         .mobile-sidebar .mobile-nav-profile {
             background: var(--bg-subtle);
             border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 16px;
-            margin: 0 16px 8px;
-        }
-
-        .mobile-sidebar .mobile-nav-avatar {
-            width: 44px;
-            height: 44px;
             border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--primary);
-            color: #fff;
-            font-size: 14px;
-            font-weight: 800;
-            letter-spacing: 0.04em;
+            padding: 11px 14px;
+            margin: 0 !important;
+            width: 100%;
         }
 
         .mobile-sidebar .mobile-nav-section {
             background: transparent;
             border: none;
+            border-bottom: 1px solid var(--border);
             border-radius: 0;
-            padding: 10px 8px;
-            margin: 0 8px 12px;
+            padding: 8px 0 !important;
+            margin: 0 !important;
+        }
+
+        .mobile-sidebar .mobile-nav-section:last-child {
+            border-bottom: none;
+        }
+
+        .mobile-sidebar .mobile-nav-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .mobile-sidebar .mobile-nav-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mobile-sidebar .mobile-nav-row > .mobile-nav-link {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .mobile-sidebar .mobile-nav-toggle-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg-subtle);
+            color: var(--text-muted);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .mobile-sidebar .mobile-nav-toggle-btn i {
+            font-size: 12px;
+            transition: transform 0.18s ease;
+        }
+
+        .mobile-sidebar .mobile-nav-toggle-btn[aria-expanded="true"] i {
+            transform: rotate(180deg);
         }
 
         .mobile-sidebar .mobile-nav-link {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 11px 14px;
+            gap: 11px;
+            padding: 9px 12px;
             border-radius: 12px;
             color: var(--text-main);
             font-weight: 700;
+            font-size: 0.94rem;
             text-decoration: none;
             transition: background-color 0.15s ease, color 0.15s ease;
         }
@@ -604,9 +661,9 @@
         }
 
         .mobile-sidebar .mobile-nav-icon {
-            width: 38px;
-            height: 38px;
-            border-radius: 10px;
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -620,28 +677,36 @@
         }
 
         .mobile-sidebar .mobile-nav-children {
+            display: none;
+            gap: 5px;
+            padding-left: 12px;
+            margin: 6px 0 4px 16px;
+            border-left: 2px solid var(--border);
+        }
+
+        .mobile-sidebar .mobile-nav-children.is-open {
             display: grid;
-            gap: 6px;
-            padding-left: 52px;
         }
 
         .mobile-sidebar .mobile-nav-grandchildren {
-            padding-left: 14px;
+            padding-left: 10px;
+            margin-left: 10px;
         }
 
         .mobile-sidebar .mobile-subnav-link {
             min-height: 0;
-            padding: 10px 12px;
-            border-radius: 12px;
-            font-size: 0.92rem;
+            padding: 8px 11px;
+            border-radius: 10px;
+            font-size: 0.88rem;
+            font-weight: 600;
             background: var(--bg-subtle);
             border: 1px solid var(--border);
         }
 
         .mobile-sidebar .mobile-subnav-link-nested {
-            padding: 9px 10px;
-            border-radius: 10px;
-            font-size: 0.86rem;
+            padding: 7px 10px;
+            border-radius: 9px;
+            font-size: 0.84rem;
         }
 
         .sidebar-unit-info {
@@ -716,9 +781,9 @@
         }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-responsive.css') }}?v=1.0.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/flat-theme.css') }}?v=1.0.1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/flat-theme.css') }}?v=1.0.3">
     {% block extra_head %}{% endblock %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/pc06-premium.css') }}?v=1.3.7">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pc06-premium.css') }}?v=1.5.3">
 </head>
 
 <body class="pc06-bdhvs-body">
@@ -733,11 +798,8 @@
     <aside class="desktop-sidebar d-none d-lg-flex">
         <div class="desktop-sidebar-inner" id="desktopSidebarInner">
             <a href="/admin" class="desktop-brand text-decoration-none">
-                <div class="desktop-brand-badge">
-                    <i class="fa-solid fa-shield-halved"></i>
-                </div>
                 <div>
-                    <strong>PC06</strong>
+                    <strong>Hệ thống PC06</strong>
                 </div>
             </a>
 
@@ -770,6 +832,10 @@
                         {% endif %}
                     </div>
                     {% endif %}
+                    <a href="/dossiers" class="desktop-nav-link {% if request.endpoint == 'dossier_bp.list_dossiers_page' %}active{% endif %}">
+                        <span class="desktop-nav-icon"><i class="fa-solid fa-folder-open"></i></span>
+                        <span>Sổ theo dõi hồ sơ</span>
+                    </a>
                 </div>
             </div>
 
@@ -805,7 +871,7 @@
                         </a>
                         <div class="desktop-nav-children">
                             <a href="/admin/system-center" class="desktop-nav-link desktop-subnav-link pc-nav-item {% if request.endpoint == 'admin_bp.system_center' %}active{% endif %}">
-                                <span><i class="fa-solid fa-gears me-1 text-primary"></i>Trung tâm quản trị</span>
+                                <span>Trung tâm quản trị</span>
                             </a>
                             {% if can_module('user', 'view') %}
                             <a href="/roles" class="desktop-nav-link desktop-subnav-link pc-nav-item {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">
@@ -858,30 +924,26 @@
                     <i class="fa-solid fa-bars-staggered text-primary"></i>
                 </button>
 
-                <!-- Brand Logo CAND & Title -->
+                <!-- Brand Title -->
                 <a href="/admin" class="desktop-brand text-decoration-none d-flex align-items-center gap-2 me-lg-3">
-                    <div class="desktop-brand-badge p-2 rounded-3 shadow-sm" style="width: 36px; height: 36px; display:flex; align-items:center; justify-content:center; background: #C53030; color: #fff;">
-                        <i class="fa-solid fa-shield-halved fs-6"></i>
-                    </div>
                     <div>
-                        <strong class="fs-6 fw-bold text-primary d-block leading-none" style="letter-spacing: -0.02em;">PC06 PRO</strong>
+                        <strong class="fs-6 fw-bold text-primary d-block leading-none" style="letter-spacing: -0.02em;">Hệ thống PC06</strong>
                         <span class="text-muted d-none d-sm-block" style="font-size: 10.5px; font-weight: 600;">ĐỀ ÁN 06 TUYÊN QUANG</span>
                     </div>
                 </a>
 
-                <!-- Nút quay lại Bàn Làm Việc (khi ở trang con) -->
+                <!-- Nút quay lại Trang chủ (khi ở trang con) -->
                 {% if request.endpoint != 'admin_bp.index' %}
-                <a href="/admin" class="btn btn-sm btn-light border rounded-pill px-3 py-1 d-none d-lg-inline-flex align-items-center gap-2 text-decoration-none ms-2" title="Quay lại bàn làm việc chức năng">
-                    <i class="fa-solid fa-table-cells-large text-primary"></i>
-                    <span class="fw-bold small text-dark">Bàn làm việc</span>
+                <a href="/admin" class="btn btn-sm btn-light border rounded-pill px-3 py-1 d-none d-lg-inline-flex align-items-center gap-2 text-decoration-none ms-2" title="Quay lại trang chủ">
+                    <span class="fw-bold small text-dark">Trang chủ</span>
                 </a>
                 {% endif %}
             </div>
 
             <div class="nav-right d-flex align-items-center gap-3">
                 <div class="dropdown">
-                    <button class="btn btn-light position-relative rounded-pill p-2 notif-trigger" type="button"
-                        data-bs-toggle="dropdown" id="bellBtn">
+                    <button class="btn position-relative rounded-pill p-0 notif-trigger" type="button"
+                        data-bs-toggle="dropdown" id="bellBtn" aria-label="Thông báo">
                         <span class="notif-icon-wrap">
                             <i class="fa-solid fa-bell notif-bell-icon"></i>
                             <span class="badge bg-danger notif-badge" id="notifCount">0</span>
@@ -927,6 +989,11 @@
         <div class="container-fluid px-lg-5 py-4 h-100">
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
+            <div class="d-none" id="pcFlashStore" aria-hidden="true">
+                {% for category, message in messages %}
+                <span data-pc-flash data-category="{{ category }}" data-message="{{ message }}"></span>
+                {% endfor %}
+            </div>
             <script>
                 document.addEventListener('DOMContentLoaded', function () {
                     const Toast = Swal.mixin({
@@ -934,24 +1001,32 @@
                         position: 'top-end',
                         showConfirmButton: false,
                         timer: 3000,
-                        timerProgressBar: true
-                    });
-                    {% for category, message in messages %}
-                    {% if category == 'success' %}
-                    Toast.fire({ icon: 'success', title: '{{ message }}' });
-                    {% else %}
-                    Swal.fire({
-                        icon: '{{ "error" if category == "danger" else category }}',
-                        text: '{{ message }}',
-                        confirmButtonColor: 'var(--bs-primary)',
+                        timerProgressBar: true,
                         customClass: {
                             popup: 'pc-swal-popup',
                             title: 'pc-swal-title',
                             htmlContainer: 'pc-swal-html'
                         }
                     });
-                    {% endif %}
-                    {% endfor %}
+                    document.querySelectorAll('#pcFlashStore [data-pc-flash]').forEach((el) => {
+                        const category = el.dataset.category || 'info';
+                        const message = el.dataset.message || '';
+                        if (!message) return;
+                        if (category === 'success') {
+                            Toast.fire({ icon: 'success', title: message });
+                        } else {
+                            Swal.fire({
+                                icon: category === 'danger' ? 'error' : category,
+                                text: message,
+                                confirmButtonColor: 'var(--bs-primary)',
+                                customClass: {
+                                    popup: 'pc-swal-popup',
+                                    title: 'pc-swal-title',
+                                    htmlContainer: 'pc-swal-html'
+                                }
+                            });
+                        }
+                    });
                 });
             </script>
             {% endif %}
@@ -961,26 +1036,24 @@
     </main>
 
     <div class="offcanvas offcanvas-start border-0 shadow-lg mobile-sidebar d-lg-none" tabindex="-1" id="mobileMenu"
-        style="width: 300px;">
-        <div class="offcanvas-header p-4 d-flex flex-column align-items-start">
-            <div class="d-flex justify-content-between w-100 align-items-center mb-3">
-                <h5 class="offcanvas-title fw-bold text-primary d-flex align-items-center gap-2">
-                    <i class="fa-solid fa-shield-halved"></i>HỆ THỐNG PC06
+        style="width: 300px; z-index: 1060;">
+        <div class="offcanvas-header d-flex flex-column align-items-stretch">
+            <div class="d-flex justify-content-between w-100 align-items-center">
+                <h5 class="offcanvas-title fw-bold text-primary mb-0">
+                    Hệ thống PC06
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng menu"></button>
             </div>
 
-            <div class="mobile-nav-profile w-100">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="mobile-nav-avatar">{{ session.get('fullname', 'CB')[:2].upper() }}</div>
-                    <div style="min-width: 0;">
-                        <div class="fw-bold text-dark text-truncate">{{ session.get('fullname', 'User') }}</div>
-                    </div>
-                </div>
+            <div class="mobile-nav-profile">
+                <div class="fw-bold text-dark text-truncate">{{ session.get('fullname', 'User') }}</div>
+                {% if session.get('unit') or session.get('role_name') %}
+                <div class="tiny text-muted text-truncate mt-1">{{ session.get('role_name') or '' }}{% if session.get('role_name') and session.get('unit') %} · {% endif %}{{ session.get('unit') or '' }}</div>
+                {% endif %}
             </div>
         </div>
 
-        <div class="offcanvas-body p-0 pb-3">
+        <div class="offcanvas-body">
             <div class="mobile-nav-section">
                 <div class="mobile-nav-list">
                     <a href="/admin"
@@ -989,15 +1062,29 @@
                         <span>Trang chủ</span>
                     </a>
 
+                    <a href="/tong-quan-lanh-dao"
+                        class="mobile-nav-link {% if request.endpoint == 'admin_bp.executive_overview' %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-chart-pie"></i></span>
+                        <span>Tổng hợp số liệu</span>
+                    </a>
+
                     {% if can_module('task', 'view') %}
+                    {% set has_task_children = (submenu_parent == 'tasks' and sidebar_submenu_items) %}
                     <div class="mobile-nav-group">
-                        <a href="/tasks"
-                            class="mobile-nav-link {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">
-                            <span class="mobile-nav-icon"><i class="fa-solid fa-list-check"></i></span>
-                            <span>Công việc</span>
-                        </a>
-                        {% if submenu_parent == 'tasks' and sidebar_submenu_items %}
-                        <div class="mobile-nav-children">
+                        <div class="mobile-nav-row">
+                            <a href="/tasks"
+                                class="mobile-nav-link {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">
+                                <span class="mobile-nav-icon"><i class="fa-solid fa-list-check"></i></span>
+                                <span>Công việc</span>
+                            </a>
+                            {% if has_task_children %}
+                            <button type="button" class="mobile-nav-toggle-btn" data-mobile-nav-toggle="mobileSubTasks" aria-expanded="false" aria-label="Thu gọn/mở rộng Công việc">
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                        {% if has_task_children %}
+                        <div class="mobile-nav-children" id="mobileSubTasks">
                             {% for item in sidebar_submenu_items %}
                             <a href="{{ item.href }}" class="mobile-nav-link mobile-subnav-link {% if item.active %}active{% endif %}">
                                 <span>{{ item.label }}</span>
@@ -1008,6 +1095,11 @@
                     </div>
                     {% endif %}
 
+                    <a href="/dossiers"
+                        class="mobile-nav-link {% if request.endpoint == 'dossier_bp.list_dossiers_page' %}active{% endif %}">
+                        <span class="mobile-nav-icon"><i class="fa-solid fa-folder-open"></i></span>
+                        <span>Sổ theo dõi hồ sơ</span>
+                    </a>
                 </div>
             </div>
 
@@ -1036,29 +1128,42 @@
             </div>
 
             {% if can_module('user', 'view') or can_module('sys', 'view') %}
+            {% set sys_open = system_page_active or request.endpoint in ['admin_bp.system_center', 'admin_bp.units', 'admin_bp.delegations'] %}
             <div class="mobile-nav-section">
                 <div class="mobile-nav-list">
                     <div class="mobile-nav-group">
-                        <a href="{{ system_root_href }}" class="mobile-nav-link {% if system_page_active %}active{% endif %}">
-                            <span class="mobile-nav-icon"><i class="fa-solid fa-gear"></i></span>
-                            <span>Hệ thống</span>
-                        </a>
-                        <div class="mobile-nav-children">
+                        <div class="mobile-nav-row">
+                            <a href="{{ system_root_href }}" class="mobile-nav-link {% if sys_open %}active{% endif %}">
+                                <span class="mobile-nav-icon"><i class="fa-solid fa-gear"></i></span>
+                                <span>Hệ thống</span>
+                            </a>
+                            <button type="button" class="mobile-nav-toggle-btn" data-mobile-nav-toggle="mobileSubSystem" aria-expanded="{{ 'true' if sys_open else 'false' }}" aria-label="Thu gọn/mở rộng Hệ thống">
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </button>
+                        </div>
+                        <div class="mobile-nav-children {% if sys_open %}is-open{% endif %}" id="mobileSubSystem">
                             <a href="/admin/system-center" class="mobile-nav-link mobile-subnav-link {% if request.endpoint == 'admin_bp.system_center' %}active{% endif %}">
-                                <span><i class="fa-solid fa-gears me-1 text-primary"></i>Trung tâm quản trị</span>
+                                <span>Trung tâm quản trị</span>
                             </a>
                             {% if can_module('user', 'view') %}
                             <a href="/roles" class="mobile-nav-link mobile-subnav-link {% if request.endpoint == 'admin_bp.roles' %}active{% endif %}">
-                                <span>Tài khoản & Vai trò</span>
+                                <span>Tài khoản &amp; Vai trò</span>
                             </a>
                             {% endif %}
                             {% if can_module('sys', 'view') %}
                             <div class="mobile-nav-group">
-                                <a href="/admin/module-categories" class="mobile-nav-link mobile-subnav-link {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">
-                                    <span>Thiết lập danh mục</span>
-                                </a>
+                                <div class="mobile-nav-row">
+                                    <a href="/admin/module-categories" class="mobile-nav-link mobile-subnav-link {% if request.endpoint == 'admin_bp.module_categories' %}active{% endif %}">
+                                        <span>Thiết lập danh mục</span>
+                                    </a>
+                                    {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}
+                                    <button type="button" class="mobile-nav-toggle-btn" data-mobile-nav-toggle="mobileSubCats" aria-expanded="false" aria-label="Thu gọn/mở rộng Thiết lập danh mục">
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
                                 {% if submenu_parent == 'module_categories' and sidebar_submenu_items %}
-                                <div class="mobile-nav-children mobile-nav-grandchildren">
+                                <div class="mobile-nav-children mobile-nav-grandchildren" id="mobileSubCats">
                                     {% for item in sidebar_submenu_items %}
                                     <a href="{{ item.href }}" class="mobile-nav-link mobile-subnav-link mobile-subnav-link-nested {% if item.active %}active{% endif %}">
                                         <span>{{ item.label }}</span>
@@ -1097,8 +1202,8 @@
             </div>
         </div>
 
-        <div class="offcanvas-footer p-4 border-top bg-light bg-opacity-50">
-            <div class="text-center text-muted tiny">HỆ THỐNG PC06</div>
+        <div class="offcanvas-footer p-3 border-top bg-light bg-opacity-50">
+            <div class="text-center text-muted tiny">Hệ thống PC06</div>
         </div>
     </div>
 
@@ -1111,6 +1216,10 @@
         <a href="/tasks" class="nav-item {% if request.endpoint == 'tasks_bp.tasks' %}active{% endif %}">
             <i class="fa-solid fa-list-check"></i>
             <span>CÔNG VIỆC</span>
+        </a>
+        <a href="/dossiers" class="nav-item {% if request.endpoint == 'dossier_bp.list_dossiers_page' %}active{% endif %}">
+            <i class="fa-solid fa-folder-open"></i>
+            <span>SỔ HỒ SƠ</span>
         </a>
         <a href="/thong-bao" class="nav-item {% if request.endpoint == 'portal_bp.notifications_board' %}active{% endif %}">
             <i class="fa-solid fa-bullhorn"></i>
@@ -1126,9 +1235,24 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/category-picker.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/unsaved-guard.js') }}?v=1.0"></script>
     {% block scripts %}{% endblock %}
 
     <script>
+        // ===== Thu gọn / mở rộng nhóm con trong menu trái Mobile =====
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest('[data-mobile-nav-toggle]');
+            if (!btn) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const targetId = btn.getAttribute('data-mobile-nav-toggle');
+            const panel = targetId ? document.getElementById(targetId) : null;
+            if (!panel) return;
+            const willOpen = !panel.classList.contains('is-open');
+            panel.classList.toggle('is-open', willOpen);
+            btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        });
+
         // ===== Dialog chuẩn hóa (SweetAlert2) — thay alert/confirm native =====
         window.pcAlert = function (message, type) {
             if (typeof Swal === 'undefined') { window.alert(message); return; }
@@ -1257,6 +1381,8 @@
         async function checkUpdates() {
             try {
                 const r = await fetch('/api/notifications');
+                const ct = (r.headers.get('content-type') || '').toLowerCase();
+                if (!r.ok || r.redirected || !ct.includes('application/json')) return;
                 const d = await r.json();
                 if (!Array.isArray(d)) return;
                 const unread = d.filter(x => !x.is_read).length;

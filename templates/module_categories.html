@@ -4,24 +4,56 @@
 
 {% block content %}
 <div class="pc06-page-shell">
-    <div class="pc06-page-summary-bar">
-        <div class="pc06-page-summary">
-            <div class="pc06-page-summary-card"><span>Nhóm danh mục</span><strong>{{ groups|length }}</strong></div>
+    <div class="pc06-page-summary-bar cat-summary-bar">
+        <div class="pc06-page-summary cat-summary-grid">
+            <div class="pc06-page-summary-card"><span>Nhóm</span><strong>{{ groups|length }}</strong></div>
             <div class="pc06-page-summary-card"><span>Phân hệ</span><strong>{{ modules|length }}</strong></div>
-            <div class="pc06-page-summary-card"><span>Field cấu hình</span><strong>{{ module_fields.values()|map('length')|sum }}</strong></div>
+            <div class="pc06-page-summary-card"><span>Field</span><strong>{{ module_fields.values()|map('length')|sum }}</strong></div>
         </div>
         <div class="pc06-page-summary-side">
-            <div class="pc06-page-actions">
-                <button class="btn btn-bdhvs primary" data-bs-toggle="modal" data-bs-target="#addGroupModal">
+            <div class="pc06-page-actions cat-top-actions">
+                <form method="POST" class="m-0">
+                    <input type="hidden" name="action" value="harvest_all">
+                    <input type="hidden" name="return_pane" value="{{ current_pane }}">
+                    <button type="submit" class="pc-btn pc-btn-secondary w-100" title="Gom danh mục từ các chức năng" aria-label="Gom từ chức năng">
+                        <i class="fa-solid fa-rotate"></i>
+                        <span class="cat-btn-label">Gom từ chức năng</span>
+                    </button>
+                </form>
+                <button type="button" class="pc-btn pc-btn-primary" data-bs-toggle="modal" data-bs-target="#addGroupModal" title="Thêm danh mục mới" aria-label="Thêm danh mục">
                     <i class="fa-solid fa-plus"></i>
-                    Thêm danh mục
+                    <span class="cat-btn-label">Thêm danh mục</span>
                 </button>
-                <button class="btn btn-bdhvs light" data-bs-toggle="modal" data-bs-target="#deleteGroupModal">
+                <button type="button" class="pc-btn pc-btn-secondary" data-bs-toggle="modal" data-bs-target="#deleteGroupModal" title="Xóa danh mục" aria-label="Xóa danh mục">
                     <i class="fa-solid fa-trash"></i>
-                    Xóa danh mục
+                    <span class="cat-btn-label">Xóa danh mục</span>
                 </button>
             </div>
         </div>
+    </div>
+
+    <div class="cat-pane-bar d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div class="cat-pane-tabs d-flex flex-wrap gap-2" role="tablist" aria-label="Chế độ quản trị danh mục">
+            <a href="{{ url_for('admin_bp.module_categories', pane='groups') }}" class="pc-btn btn-sm cat-pane-tab {% if current_pane == 'groups' %}pc-btn-primary{% else %}pc-btn-secondary{% endif %}" title="Nhóm danh mục">
+                <i class="fa-solid fa-layer-group"></i>
+                <span class="d-none d-md-inline">Nhóm danh mục</span>
+                <span class="d-md-none">Nhóm</span>
+            </a>
+            <a href="{{ url_for('admin_bp.module_categories', pane='categories') }}" class="pc-btn btn-sm cat-pane-tab {% if current_pane == 'categories' %}pc-btn-primary{% else %}pc-btn-secondary{% endif %}" title="Danh mục">
+                <i class="fa-solid fa-list-ul"></i>
+                <span>Danh mục</span>
+            </a>
+            <a href="{{ url_for('admin_bp.module_categories', pane='bindings') }}" class="pc-btn btn-sm cat-pane-tab {% if current_pane == 'bindings' %}pc-btn-primary{% else %}pc-btn-secondary{% endif %}" title="Liên kết field">
+                <i class="fa-solid fa-link"></i>
+                <span class="d-none d-md-inline">Liên kết field</span>
+                <span class="d-md-none">Liên kết</span>
+            </a>
+        </div>
+        {% if current_pane == 'categories' %}
+        <div class="cat-search-wrap" style="min-width: 240px; max-width: 340px; flex: 1 1 240px;">
+            <input type="text" id="catItemSearchInput" class="form-control form-control-sm" placeholder="Tìm nhanh thành phần trong nhóm...">
+        </div>
+        {% endif %}
     </div>
 
     <div class="pc06-section-pane-shell">
@@ -31,49 +63,105 @@
                     <h2>Nhóm danh mục</h2>
                 </div>
                 <div class="system-filter-list">
-                    <button type="button" class="system-filter-chip active" data-category-group-filter="ALL">
+                    <a href="{{ url_for('admin_bp.module_categories', pane='categories') }}" class="system-filter-chip active text-decoration-none">
                         <strong>Tất cả danh mục</strong>
                         <span>{{ groups|length }}</span>
-                    </button>
+                    </a>
                     {% for g in groups %}
-                    <button type="button" class="system-filter-chip" data-category-group-filter="{{ g.id }}">
-                        <strong>{{ g.name }}</strong>
-                        <span>{{ g.items|length }}</span>
-                    </button>
+                    {% set g_items = group_items_map.get(g.id, g.items) %}
+                    <a href="{{ url_for('admin_bp.module_categories', pane='categories', group=g.id) }}" class="system-filter-chip text-decoration-none">
+                        <div>
+                            <strong>{{ g.name }}</strong>
+                            {% if g.code %}<div class="tiny text-muted">{{ g.code }}</div>{% endif %}
+                        </div>
+                        <span>{{ g_items|length }}</span>
+                    </a>
                     {% endfor %}
                 </div>
         </section>
         {% elif current_pane == 'categories' %}
         <section class="pc06-panel">
-                <div class="pc06-panel-head">
+                <div class="cat-group-chip-bar d-flex flex-wrap gap-2 mb-3">
+                    <button type="button" class="system-filter-chip-mini {% if not selected_group_filter or selected_group_filter == 'ALL' %}active{% endif %}" data-category-group-filter="ALL">
+                        Tất cả ({{ groups|length }})
+                    </button>
+                    {% for g in groups %}
+                    {% set g_items = group_items_map.get(g.id, g.items) %}
+                    <button type="button" class="system-filter-chip-mini {% if selected_group_filter|string == g.id|string %}active{% endif %}" data-category-group-filter="{{ g.id }}">
+                        {{ g.name }} ({{ g_items|length }})
+                    </button>
+                    {% endfor %}
+                </div>
+                <div class="pc06-panel-head" id="categorySelectedHead">
                     <div>
                         <h2 id="categorySelectedTitle">Tất cả danh mục</h2>
                     </div>
                 </div>
                 <div class="category-grid-bdhvs">
                     {% for g in groups %}
-                    <article class="category-group-card category-group-section" data-category-group="{{ g.id }}">
+                    {% set g_items = group_items_map.get(g.id, g.items) %}
+                    <article class="category-group-card category-group-section" data-category-group="{{ g.id }}" data-group-name="{{ g.name }}">
                         <div class="category-group-head">
                             <div>
                                 <h3>{{ g.name }}</h3>
+                                {% if g.code %}<p class="cat-code-muted">{{ g.code }}</p>{% endif %}
                             </div>
-                            <span class="pc06-soft-tag neutral">{{ g.items|length }} mục</span>
+                            <span class="pc06-soft-tag neutral">{{ g_items|length }} mục</span>
                         </div>
                         <div class="category-group-items">
-                            {% if g.items %}
-                            {% for item in g.items %}
-                            <div class="category-item-manage-row">
+                            {% if g_items %}
+                            {% for item in g_items %}
+                            <div class="category-item-manage-row {% if not item.is_active %}opacity-50{% endif %}" data-item-name="{{ (item.name ~ ' ' ~ (item.code or ''))|lower }}">
                                 <form method="POST" class="category-item-edit-form">
                                     <input type="hidden" name="action" value="rename_item">
                                     <input type="hidden" name="item_id" value="{{ item.id }}">
-                                    <input type="text" name="item_name" class="form-control" value="{{ item.name }}" required>
-                                    <button type="submit" class="btn btn-light border text-primary">Sửa</button>
+                                    <input type="hidden" name="return_pane" value="categories">
+                                    <input type="hidden" name="selected_group" value="{{ g.id }}">
+                                    <input type="text" name="item_name" class="form-control form-control-sm" value="{{ item.name }}" required>
+                                    <button type="submit" class="btn btn-sm btn-light border text-primary text-nowrap cat-item-save-btn" title="Lưu tên mới" aria-label="Lưu">
+                                        <i class="fa-solid fa-check d-md-none"></i>
+                                        <span class="d-none d-md-inline">Lưu</span>
+                                    </button>
                                 </form>
-                                <form method="POST" class="m-0">
-                                    <input type="hidden" name="action" value="delete_item">
-                                    <input type="hidden" name="item_id" value="{{ item.id }}">
-                                    <button type="submit" class="btn btn-light text-danger border">Xóa</button>
-                                </form>
+                                <div class="cat-item-ops">
+                                    <form method="POST" class="m-0">
+                                        <input type="hidden" name="action" value="move_item">
+                                        <input type="hidden" name="item_id" value="{{ item.id }}">
+                                        <input type="hidden" name="direction" value="up">
+                                        <input type="hidden" name="return_pane" value="categories">
+                                        <input type="hidden" name="selected_group" value="{{ g.id }}">
+                                        <button type="submit" class="btn btn-sm btn-light border cat-op-btn" title="Đưa lên"><i class="fa-solid fa-arrow-up"></i></button>
+                                    </form>
+                                    <form method="POST" class="m-0">
+                                        <input type="hidden" name="action" value="move_item">
+                                        <input type="hidden" name="item_id" value="{{ item.id }}">
+                                        <input type="hidden" name="direction" value="down">
+                                        <input type="hidden" name="return_pane" value="categories">
+                                        <input type="hidden" name="selected_group" value="{{ g.id }}">
+                                        <button type="submit" class="btn btn-sm btn-light border cat-op-btn" title="Đưa xuống"><i class="fa-solid fa-arrow-down"></i></button>
+                                    </form>
+                                    <form method="POST" class="m-0">
+                                        <input type="hidden" name="action" value="toggle_item">
+                                        <input type="hidden" name="item_id" value="{{ item.id }}">
+                                        <input type="hidden" name="return_pane" value="categories">
+                                        <input type="hidden" name="selected_group" value="{{ g.id }}">
+                                        <button type="submit" class="btn btn-sm btn-light border cat-op-btn" title="{{ 'Ẩn khỏi lựa chọn' if item.is_active else 'Hiện lại' }}">
+                                            <i class="fa-solid {{ 'fa-eye' if item.is_active else 'fa-eye-slash text-warning' }}"></i>
+                                        </button>
+                                    </form>
+                                    {% if g_items|length > 1 %}
+                                    <button type="button" class="btn btn-sm btn-light border text-secondary cat-op-btn" title="Gộp vào mục khác" data-group-id="{{ g.id }}" data-item-id="{{ item.id }}" data-item-name="{{ item.name }}" onclick="openMergeItemModal(this.dataset.groupId, this.dataset.itemId, this.dataset.itemName)">
+                                        <i class="fa-solid fa-code-merge"></i>
+                                    </button>
+                                    {% endif %}
+                                    <form method="POST" class="m-0" onsubmit="return pc06ConfirmSubmit(event, 'Xóa danh mục này?')">
+                                        <input type="hidden" name="action" value="delete_item">
+                                        <input type="hidden" name="item_id" value="{{ item.id }}">
+                                        <input type="hidden" name="return_pane" value="categories">
+                                        <input type="hidden" name="selected_group" value="{{ g.id }}">
+                                        <button type="submit" class="btn btn-sm btn-light text-danger border cat-op-btn" title="Xóa"><i class="fa-solid fa-trash"></i></button>
+                                    </form>
+                                </div>
                             </div>
                             {% endfor %}
                             {% else %}
@@ -84,7 +172,9 @@
                             <form method="POST" class="flex-grow-1">
                                 <input type="hidden" name="action" value="add_item">
                                 <input type="hidden" name="group_id" value="{{ g.id }}">
-                                <div class="input-group">
+                                <input type="hidden" name="return_pane" value="categories">
+                                <input type="hidden" name="selected_group" value="{{ g.id }}">
+                                <div class="input-group input-group-sm">
                                     <input type="text" name="item_name" class="form-control" placeholder="Thêm thành phần" required>
                                     <button type="submit" class="btn btn-success"><i class="fa-solid fa-plus"></i></button>
                                 </div>
@@ -92,6 +182,8 @@
                             <form method="POST" enctype="multipart/form-data" class="m-0">
                                 <input type="hidden" name="action" value="import_items_excel">
                                 <input type="hidden" name="group_id" value="{{ g.id }}">
+                                <input type="hidden" name="return_pane" value="categories">
+                                <input type="hidden" name="selected_group" value="{{ g.id }}">
                                 <input type="file" name="items_excel" id="excel-import-{{ g.id }}" class="d-none" accept=".xlsx,.xls" onchange="this.form.submit()">
                                 <button type="button" class="btn btn-light btn-circle btn-circle-sm border shadow-sm" onclick="document.getElementById('excel-import-{{ g.id }}').click()" title="Import Excel">
                                     <i class="fa-solid fa-paperclip tiny"></i>
@@ -126,6 +218,7 @@
                                 <input type="hidden" name="action" value="save_binding">
                                 <input type="hidden" name="module_id" value="{{ module.id }}">
                                 <input type="hidden" name="field_code" value="{{ field.code }}">
+                                <input type="hidden" name="return_pane" value="bindings">
                                 <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
                                     <div>
                                         <strong>{{ field.label }}</strong>
@@ -151,7 +244,10 @@
                                         <input class="form-check-input" type="checkbox" name="is_required" id="required_{{ module.id }}_{{ loop.index }}" {% if binding and binding.is_required %}checked{% endif %}>
                                         <label class="form-check-label small" for="required_{{ module.id }}_{{ loop.index }}">Bắt buộc nhập</label>
                                     </div>
-                                    <button type="submit" class="btn btn-bdhvs primary btn-sm">Lưu binding</button>
+                                    <button type="submit" class="pc-btn pc-btn-primary btn-sm" title="Lưu liên kết" aria-label="Lưu liên kết">
+                                        <i class="fa-solid fa-floppy-disk"></i>
+                                        <span class="cat-btn-label">Lưu liên kết</span>
+                                    </button>
                                 </div>
                             </form>
                             {% else %}
@@ -163,6 +259,37 @@
                 </div>
         </section>
         {% endif %}
+    </div>
+</div>
+
+<div class="modal fade" id="mergeItemModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4">
+            <form method="POST">
+                <input type="hidden" name="action" value="merge_item">
+                <input type="hidden" name="return_pane" value="categories">
+                <input type="hidden" name="selected_group" id="mergeSelectedGroupInput" value="">
+                <input type="hidden" name="source_item_id" id="mergeSourceItemIdInput" value="">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold">Gộp danh mục trùng</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Mục nguồn (sẽ gộp và xóa)</label>
+                        <input type="text" class="form-control" id="mergeSourceItemName" readonly>
+                    </div>
+                    <div>
+                        <label class="form-label small fw-bold">Gộp vào mục chuẩn</label>
+                        <select name="target_item_id" id="mergeTargetItemSelect" class="form-select" required></select>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="pc-btn pc-btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="pc-btn pc-btn-primary">Xác nhận gộp</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -297,20 +424,77 @@
     .system-filter-chip.active span { color: #fff; }
     .system-filter-chip.active span { background: rgba(255, 255, 255, 0.18); }
     .category-grid-bdhvs, .binding-grid-bdhvs { display: grid; gap: 18px; }
-    .category-grid-bdhvs { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-    .binding-grid-bdhvs { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
-    .category-group-card, .binding-module-card { padding: 20px; border-radius: 24px; background: rgba(255,255,255,0.96); border: 1px solid rgba(148,163,184,0.16); box-shadow: 0 18px 40px rgba(15,23,42,0.06); }
+    .category-grid-bdhvs { grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); }
+    .binding-grid-bdhvs { grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); }
+    .category-group-card, .binding-module-card { padding: 20px; border-radius: 24px; background: rgba(255,255,255,0.96); border: 1px solid rgba(148,163,184,0.16); box-shadow: 0 18px 40px rgba(15,23,42,0.06); min-width: 0; }
+    .cat-summary-grid {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+    .cat-code-muted {
+        margin: 2px 0 0 !important;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11.5px !important;
+        color: var(--pc-text-muted) !important;
+    }
     .category-group-head, .binding-module-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
-    .category-group-head h3, .binding-module-head h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-main); }
+    .category-group-head > div, .binding-module-head > div { min-width: 0; flex: 1 1 auto; }
+    .category-group-head .pc06-soft-tag, .binding-module-head .pc06-soft-tag { flex-shrink: 0; white-space: nowrap; }
+    .category-group-head h3, .binding-module-head h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-main); word-break: break-word; }
     .category-group-head p, .binding-module-head p { margin: 4px 0 0; color: var(--text-muted); font-size: 0.82rem; }
-    .category-group-links, .category-group-items, .binding-module-list { display: flex; flex-direction: column; gap: 10px; }
+    .category-group-links, .binding-module-list { display: flex; flex-direction: column; gap: 10px; }
+    .category-group-items { display: flex; flex-direction: column; gap: 8px; max-height: 430px; overflow-y: auto; padding-right: 4px; }
+    .system-filter-chip-mini {
+        border: 1px solid var(--pc-border);
+        background: var(--pc-bg-card);
+        color: var(--pc-text);
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .system-filter-chip-mini.active {
+        background: var(--pc-primary);
+        border-color: var(--pc-primary);
+        color: #fff;
+    }
     .category-item-picker { display: grid; gap: 8px; }
     .category-item-picker-row { display: flex; gap: 10px; align-items: center; }
     .category-item-picker-row .form-select { min-width: 0; }
-    .category-item-manage-row { display: flex; gap: 10px; align-items: center; }
-    .category-item-edit-form { display: flex; gap: 10px; align-items: center; flex: 1 1 auto; min-width: 0; }
-    .category-item-edit-form .form-control { min-width: 0; }
-    .category-group-actions { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
+    .category-item-manage-row { display: flex; gap: 5px; align-items: center; min-width: 0; }
+    .category-item-edit-form { display: flex; gap: 5px; align-items: center; flex: 1 1 auto; min-width: 0; }
+    .category-item-edit-form .form-control { min-width: 0; height: 30px; padding: 3px 8px; font-size: 13px; }
+    .cat-item-save-btn {
+        height: 30px;
+        min-height: 0 !important;
+        padding: 0 9px !important;
+        font-size: 12px !important;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+    .cat-item-ops {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+        flex-wrap: nowrap;
+    }
+    .cat-op-btn {
+        width: 28px !important;
+        height: 30px !important;
+        min-width: 28px !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px !important;
+        border-radius: 7px !important;
+    }
+    .category-group-actions { display: flex; gap: 8px; align-items: center; margin-top: 14px; min-width: 0; }
+    .category-group-actions > form.flex-grow-1 { min-width: 0; }
     .binding-form-card { padding: 16px; border-radius: 18px; background: #f8fafc; border: 1px solid rgba(148,163,184,0.14); }
     [data-theme="dark"] .category-group-card, [data-theme="dark"] .binding-module-card { background: rgba(15,23,42,0.84); border-color: rgba(148,163,184,0.18); box-shadow: 0 18px 40px rgba(2,6,23,0.32); }
     [data-theme="dark"] .binding-form-card { background: rgba(30,41,59,0.92); }
@@ -318,35 +502,171 @@
         .system-module-workspace { grid-template-columns: 1fr; }
     }
     @media (max-width: 768px) {
+        .cat-summary-bar {
+            gap: 10px !important;
+            margin-bottom: 12px !important;
+        }
+        .cat-summary-grid {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 8px !important;
+            width: 100%;
+        }
+        .cat-summary-grid .pc06-page-summary-card {
+            min-width: 0 !important;
+            padding: 9px 10px !important;
+            border-radius: 14px !important;
+            text-align: center;
+        }
+        .cat-summary-grid .pc06-page-summary-card span {
+            font-size: 11px !important;
+            white-space: nowrap;
+        }
+        .cat-summary-grid .pc06-page-summary-card strong {
+            font-size: 18px !important;
+            margin-top: 2px !important;
+        }
+        .cat-top-actions {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 8px !important;
+            width: 100%;
+        }
+        .cat-top-actions .pc-btn {
+            width: 100%;
+            height: var(--pc-control-h-md, 38px);
+            min-height: var(--pc-control-h-md, 38px);
+            padding: 0 8px !important;
+            justify-content: center;
+            font-size: 15px;
+        }
+        .cat-btn-label {
+            display: none !important;
+        }
+        .cat-pane-tabs {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 6px !important;
+            width: 100%;
+        }
+        .cat-pane-tab {
+            justify-content: center;
+            height: var(--pc-control-h-sm, 34px);
+            min-height: var(--pc-control-h-sm, 34px);
+            padding: 0 8px !important;
+            font-size: 12.5px !important;
+            white-space: nowrap;
+            gap: 5px;
+        }
+        .cat-search-wrap {
+            min-width: 0 !important;
+            max-width: none !important;
+            flex: 1 1 100% !important;
+            width: 100%;
+        }
+        .cat-group-chip-bar {
+            flex-wrap: nowrap !important;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .cat-group-chip-bar::-webkit-scrollbar { display: none; }
+        .cat-group-chip-bar .system-filter-chip-mini {
+            flex: 0 0 auto;
+            white-space: nowrap;
+        }
+        .system-filter-panel { padding: 14px; }
+        .system-filter-list { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+        .system-filter-chip { padding: 11px 13px; border-radius: 14px; }
+        .system-filter-chip span { min-width: 32px; height: 32px; font-size: 0.85rem; }
+        .cat-item-save-btn {
+            width: var(--pc-control-h-sm, 34px);
+            height: var(--pc-control-h-sm, 34px);
+            min-height: var(--pc-control-h-sm, 34px) !important;
+            padding: 0 !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .category-grid-bdhvs, .binding-grid-bdhvs { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+        .category-group-card, .binding-module-card { padding: 14px; border-radius: 18px; overflow: hidden; }
         .category-item-picker-row { flex-direction: column; align-items: stretch; }
-        .category-item-manage-row, .category-item-edit-form { flex-direction: column; align-items: stretch; }
+        .category-item-manage-row { flex-direction: column; align-items: stretch; gap: 6px; padding-bottom: 8px; border-bottom: 1px dashed rgba(148, 163, 184, 0.25); }
+        .category-item-edit-form { flex-direction: row; align-items: center; width: 100%; }
+        .cat-item-ops { justify-content: flex-end; flex-wrap: nowrap; width: 100%; gap: 6px; }
+        .cat-op-btn { width: var(--pc-control-h-sm, 34px) !important; height: var(--pc-control-h-sm, 34px) !important; min-width: var(--pc-control-h-sm, 34px) !important; }
     }
 </style>
 <script>
+    const GROUP_ITEMS_MAP = {
+        {% for g in groups %}
+        {{ g.id|tojson }}: [
+            {% for item in group_items_map.get(g.id, g.items) %}
+            { id: {{ item.id|tojson }}, name: {{ item.name|tojson }} }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ]{% if not loop.last %},{% endif %}
+        {% endfor %}
+    };
+
+    window.openMergeItemModal = function(groupId, sourceId, sourceName) {
+        const grpInput = document.getElementById('mergeSelectedGroupInput');
+        const srcInput = document.getElementById('mergeSourceItemIdInput');
+        const srcNameEl = document.getElementById('mergeSourceItemName');
+        const tgtSel = document.getElementById('mergeTargetItemSelect');
+        if (!grpInput || !srcInput || !srcNameEl || !tgtSel) return;
+        grpInput.value = String(groupId);
+        srcInput.value = String(sourceId);
+        srcNameEl.value = sourceName || '';
+        const items = (GROUP_ITEMS_MAP[String(groupId)] || []).filter(it => Number(it.id) !== Number(sourceId));
+        tgtSel.innerHTML = items.map(it => `<option value="${it.id}">${it.name.replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}</option>`).join('');
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('mergeItemModal')).show();
+    };
+
     document.addEventListener('DOMContentLoaded', function () {
         const chips = document.querySelectorAll('[data-category-group-filter]');
         const sections = document.querySelectorAll('[data-category-group]');
         const titleNode = document.getElementById('categorySelectedTitle');
+        const headNode = document.getElementById('categorySelectedHead');
+        const searchInput = document.getElementById('catItemSearchInput');
 
         function applyCategoryGroupFilter(value, label) {
             sections.forEach((section) => {
-                section.classList.toggle('d-none', value !== 'ALL' && section.dataset.categoryGroup !== value);
+                section.classList.toggle('d-none', value !== 'ALL' && section.dataset.categoryGroup !== String(value));
             });
+            if (headNode) {
+                headNode.classList.toggle('d-none', value !== 'ALL');
+            }
             if (titleNode) {
-                titleNode.textContent = label;
+                titleNode.textContent = label || 'Tất cả danh mục';
             }
         }
 
         chips.forEach((chip) => {
             chip.addEventListener('click', function () {
                 const value = this.dataset.categoryGroupFilter || 'ALL';
-                const label = this.querySelector('strong')?.textContent?.trim() || 'Tất cả danh mục';
+                const section = Array.from(sections).find(s => s.dataset.categoryGroup === String(value));
+                const label = value === 'ALL' ? 'Tất cả danh mục' : (section?.dataset.groupName || this.textContent.trim());
                 chips.forEach((item) => item.classList.toggle('active', item === this));
                 applyCategoryGroupFilter(value, label);
             });
         });
 
-        applyCategoryGroupFilter('ALL', 'Tất cả danh mục');
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                const kw = (this.value || '').trim().toLowerCase();
+                document.querySelectorAll('.category-item-manage-row').forEach(row => {
+                    const txt = (row.dataset.itemName || '').toLowerCase();
+                    row.classList.toggle('d-none', Boolean(kw && !txt.includes(kw)));
+                });
+            });
+        }
+
+        const initialFilter = {{ (selected_group_filter or 'ALL')|tojson }};
+        const initSection = Array.from(sections).find(s => s.dataset.categoryGroup === String(initialFilter));
+        const initLabel = initialFilter === 'ALL' ? 'Tất cả danh mục' : (initSection?.dataset.groupName || 'Tất cả danh mục');
+        applyCategoryGroupFilter(initialFilter, initLabel);
     });
 </script>
 {% endblock %}

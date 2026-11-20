@@ -48,8 +48,8 @@ class SeedTwoTierGovernmentAccountsTests(unittest.TestCase):
             summary = seeder.run_seed(dry_run=True, init_password="TestSeed@2026")
             db.session.rollback()
 
-            self.assertEqual(summary["units_processed"], 267)
-            self.assertEqual(summary["total_accounts"], 534)
+            self.assertEqual(summary["units_processed"], 271)
+            self.assertEqual(summary["total_accounts"], 1061)
             self.assertEqual(summary["csv_path"], "")
             self.assertEqual(Unit.query.count(), before_units)
             self.assertEqual(User.query.count(), before_users)
@@ -60,8 +60,8 @@ class SeedTwoTierGovernmentAccountsTests(unittest.TestCase):
             if summary["csv_path"]:
                 self._created_files.append(summary["csv_path"])
 
-            self.assertEqual(summary["units_processed"], 267)
-            self.assertEqual(summary["total_accounts"], 534)
+            self.assertEqual(summary["units_processed"], 271)
+            self.assertEqual(summary["total_accounts"], 1061)
             self.assertTrue(summary["csv_path"])
 
             # CSV phải nằm ngoài exports/ (trong BACKUP_FOLDER)
@@ -71,23 +71,50 @@ class SeedTwoTierGovernmentAccountsTests(unittest.TestCase):
 
             with open(csv_path, "r", encoding="utf-8-sig") as f:
                 rows = list(csv.DictReader(f))
-            self.assertEqual(len(rows), 534)
+            self.assertEqual(len(rows), 1061)
 
             # Kiểm tra 19 sở ngành chuẩn mới (có pvhcc, sonnmt, sodttg; không có tq_* hay sở cũ)
             self.assertIsNotNone(Unit.query.filter_by(code="tt_pvhcc", level="province").first())
             self.assertIsNone(Unit.query.filter_by(code="so_tttt").first())
             self.assertEqual(Unit.query.filter(Unit.code.like("tq_%")).count(), 0)
 
-            bc_tu_phap = User.query.filter_by(username="bc_sotuphap").first()
-            admin_tu_phap = User.query.filter_by(username="admin_sotuphap").first()
+            # Kiểm tra chuẩn tên tài khoản Sở ngành, Công an xã/phường, UBND xã/phường, Phòng nội bộ CAT
+            for uname in (
+                "caxminhquang",
+                "caxminhquang_chihuy",
+                "caxminhquang_canbo",
+                "caxminhquang_quantri",
+                "capantuong",
+                "capantuong_chihuy",
+                "capantuong_canbo",
+                "capantuong_quantri",
+                "ubndxaminhquang",
+                "ubndphuongantuong",
+                "ubndxaminhquang_lanhdao",
+                "ubndxaminhquang_chuyenvien",
+                "ubndxaminhquang_quantri",
+                "sokhoahoccongnghe_lanhdao",
+                "sokhoahoccongnghe_chuyenvien",
+                "sokhoahoccongnghe_quantri",
+                "thammuu_quantri",
+                "thammuu_lanhdao",
+                "thammuu_canbo",
+            ):
+                self.assertIsNotNone(User.query.filter_by(username=uname).first(), f"Missing account: {uname}")
+
+            bc_tu_phap = User.query.filter_by(username="sotuphap_chuyenvien").first()
+            admin_tu_phap = User.query.filter_by(username="sotuphap_quantri").first()
+            ld_tu_phap = User.query.filter_by(username="sotuphap_lanhdao").first()
             self.assertIsNotNone(bc_tu_phap)
             self.assertIsNotNone(admin_tu_phap)
+            self.assertIsNotNone(ld_tu_phap)
             self.assertEqual(bc_tu_phap.unit_key, "so_tu_phap")
             self.assertTrue(bc_tu_phap.check_password("InitSeed@2026"))
             self.assertEqual(bc_tu_phap.role.name, "Cán bộ báo cáo")
             self.assertEqual(admin_tu_phap.role.name, "Quản trị đơn vị")
+            self.assertEqual(ld_tu_phap.role.name, "Lãnh đạo đơn vị")
 
-            # Đảm bảo contact_unit có đủ 267 Unit (bao gồm cấp tỉnh và cấp xã) và không nhân bản CategoryItem có code slug cũ
+            # Đảm bảo contact_unit có đủ Unit (bao gồm cấp tỉnh và cấp xã) và không nhân bản CategoryItem có code slug cũ
             contact_group = CategoryGroup.query.filter_by(code="contact_unit").first()
             self.assertIsNotNone(contact_group)
             CategoryItem.query.filter_by(group_id=contact_group.id, code="vp_ubnd").update({"code": "van_phong_ubnd_tinh"})
@@ -114,7 +141,7 @@ class SeedTwoTierGovernmentAccountsTests(unittest.TestCase):
 
             rerun = seeder.run_seed(dry_run=False, init_password="InitSeed@2026", no_export_csv=True)
             self.assertEqual(rerun["users_created"], 0)
-            bc_tu_phap = User.query.filter_by(username="bc_sotuphap").first()
+            bc_tu_phap = User.query.filter_by(username="sotuphap_chuyenvien").first()
             self.assertTrue(bc_tu_phap.check_password("CustomChanged!99"))
             self.assertFalse(bc_tu_phap.must_change_password)
 
@@ -125,7 +152,7 @@ class SeedTwoTierGovernmentAccountsTests(unittest.TestCase):
                 reset_existing=True,
                 no_export_csv=True,
             )
-            bc_tu_phap = User.query.filter_by(username="bc_sotuphap").first()
+            bc_tu_phap = User.query.filter_by(username="sotuphap_chuyenvien").first()
             self.assertTrue(bc_tu_phap.check_password("ResetSeed@2026"))
             self.assertTrue(bc_tu_phap.must_change_password)
 

@@ -360,6 +360,222 @@ class TaskFormFieldScopeRouteTests(unittest.TestCase):
         self.assertNotIn("Đồng chí Tân Quang", list_html)
         self.assertNotIn("Công an phường Tân Quang", list_html)
 
+    def test_form_detail_matches_linear_matrix_collapses_unit_and_shows_return_reason(self):
+        first_user = self._create_assignee("Đồng chí Minh Xuân 1", "Công an phường Minh Xuân", "minh-xuan")
+        second_user = self._create_assignee("Đồng chí Minh Xuân 2", "Công an phường Minh Xuân", "minh-xuan")
+        manager_user = self._create_assignee("Đồng chí Quản trị", "Phòng PC06", "pc06")
+        with app.app_context():
+            admin_role = AppRole.query.filter_by(name="Quản trị hệ thống").first()
+            if admin_role:
+                manager_user_obj = db.session.get(User, manager_user.id)
+                manager_user_obj.role_id = admin_role.id
+                db.session.commit()
+            task = Task(
+                title="[TEST] Biểu mẫu chuẩn Linear",
+                content="Kiểm tra nhất quán với đề cương.",
+                deadline=date.today(),
+                author_id=manager_user.id,
+                author_name=manager_user.fullname,
+                priority="Cao",
+                task_type="Công việc thường xuyên",
+                initial_status="Chưa tiếp nhận",
+                task_mode="FORM",
+                created_at=datetime.now(),
+            )
+            db.session.add(task)
+            db.session.flush()
+            a1 = TaskAssignment(
+                task_id=task.id,
+                user_id=first_user.id,
+                assignee_type="unit",
+                title_snapshot=task.title,
+                status="assigned",
+                assigned_at=datetime.now(),
+            )
+            a2 = TaskAssignment(
+                task_id=task.id,
+                user_id=second_user.id,
+                assignee_type="unit",
+                title_snapshot=task.title,
+                status="assigned",
+                assigned_at=datetime.now(),
+            )
+            db.session.add_all([a1, a2])
+            db.session.add(
+                TaskFormField(
+                    task_id=task.id,
+                    field_key="ho_so_tiep_nhan",
+                    field_label="Số hồ sơ tiếp nhận",
+                    field_type="number",
+                    is_required=True,
+                    sort_order=0,
+                )
+            )
+            db.session.commit()
+            self.task_id = task.id
+            a1_id = a1.id
+
+        # Tạo bản nháp rỗng giả lập _lazy_repair_task_runtime -> không hiện nút Xem báo cáo hay 0/1 trường
+        with app.app_context():
+            draft_sub = TaskSubmission(
+                task_id=self.task_id,
+                assignment_id=a1_id,
+                submitted_by=first_user.id,
+                status="draft",
+                payload_json=json.dumps({"mode": "form_report", "values": {}}, ensure_ascii=False),
+                submitted_at=None,
+            )
+            db.session.add(draft_sub)
+            db.session.flush()
+            a1_row = db.session.get(TaskAssignment, a1_id)
+            a1_row.last_submission_id = draft_sub.id
+            db.session.commit()
+
+        self._login_user(manager_user)
+        before_page = self.client.get(f"/tasks/{self.task_id}")
+        self.assertEqual(before_page.status_code, 200)
+        before_list_html = self._form_list_pane(before_page.get_data(as_text=True))
+        before_table_html = before_list_html[
+            before_list_html.index('id="formMatrixTable"'):before_list_html.index("</table>")
+        ]
+        self.assertIn("Chưa tiếp nhận", before_table_html)
+        self.assertNotIn("Xem báo cáo", before_table_html)
+        self.assertNotIn("data-review-open", before_table_html)
+        self.assertNotIn("Đã nhập 0/1 trường", before_table_html)
+
+        # Cán bộ 1 nộp số liệu -> 2 tài khoản cùng đơn vị gộp thành 1 lượt nộp duy nhất
+        self._login_user(first_user)
+        with self.client.session_transaction() as sess:
+            sess["role_id"] = None
+        submit_res = self.client.post(
+            f"/tasks/{self.task_id}/submit_report",
+            data={"csrf_token": self.csrf_token, "form_field_ho_so_tiep_nhan": "25"},
+        )
+        self.assertEqual(submit_res.status_code, 302)
+
+        # Giao diện của cán bộ nộp không còn thanh tab thừa khi chỉ có 1 chế độ làm việc
+        reporter_page = self.client.get(f"/tasks/{self.task_id}")
+        reporter_html = reporter_page.get_data(as_text=True)
+        self.assertNotIn('id="taskWorkspaceTabs"', reporter_html)
+        self.assertIn("Phần việc cần nộp", self._form_submit_pane(reporter_html))
+
+        # Giao diện quản lý dùng bảng Linear gọn gàng, gộp đơn vị, ẩn form cũ
+        self._login_user(manager_user)
+        manager_page = self.client.get(f"/tasks/{self.task_id}")
+        self.assertEqual(manager_page.status_code, 200)
+        manager_html = manager_page.get_data(as_text=True)
+        self.assertIn("1 lượt giao · Đã nộp <strong>1/1</strong> (100%)", manager_html)
+        list_html = self._form_list_pane(manager_html)
+        self.assertIn('id="formMatrixTable"', list_html)
+        self.assertIn("Xem báo cáo", list_html)
+        self.assertIn(f'data-item-id="form-{a1_id}"', list_html)
+        self.assertIn("Cộng gộp số liệu tự động", list_html)
+        self.assertNotIn("Tổng quan theo vai trò", list_html)
+        self.assertNotIn("Tổng quan theo đơn vị", list_html)
+        self.assertNotIn("Chi tiết theo cán bộ", list_html)
+        self.assertNotIn("Trả lại bổ sung", list_html)
+
+        # Trả lại bài nộp -> đơn vị nhìn thấy lý do yêu cầu bổ sung ngay trong #pane-form-submit
+        ret_res = self.client.post(
+            f"/tasks/{self.task_id}/assignments/{a1_id}/return",
+            data={"csrf_token": self.csrf_token, "return_reason": "Rà lại số liệu tháng 11"},
+        )
+        self.assertEqual(ret_res.status_code, 302)
+        self._login_user(first_user)
+        with self.client.session_transaction() as sess:
+            sess["role_id"] = None
+        returned_page = self.client.get(f"/tasks/{self.task_id}")
+        returned_submit_html = self._form_submit_pane(returned_page.get_data(as_text=True))
+        self.assertIn("Yêu cầu bổ sung từ người giao: Rà lại số liệu tháng 11", returned_submit_html)
+
+    def test_tasks_page_and_form_assign_page_parallel_workflow(self):
+        admin_user = self._create_assignee("Admin Biểu Mẫu", "Hệ thống", "hethong")
+        plain_user = self._create_assignee("Cán bộ Thường", "Sở Tư pháp", "sotuphap")
+        with app.app_context():
+            admin_role = AppRole.query.filter_by(name="Quản trị hệ thống").first()
+            if admin_role:
+                u = db.session.get(User, admin_user.id)
+                u.role_id = admin_role.id
+                db.session.commit()
+        self._login_user(admin_user)
+        with self.client.session_transaction() as sess:
+            sess["is_admin"] = True
+        response = self.client.get("/tasks")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("Tạo công việc", html)
+        self.assertIn('id="chooseTaskTypeModal"', html)
+        self.assertIn("Giao việc theo biểu mẫu", html)
+        self.assertIn('href="/bieu-mau-giao-viec"', html)
+        self.assertIn('href="/outline-giao-viec"', html)
+        self.assertNotIn('data-wizard-source="OUTLINE"', html)
+        self.assertNotIn('id="wizardRowAssignModal"', html)
+
+        form_page_res = self.client.get("/bieu-mau-giao-viec")
+        self.assertEqual(form_page_res.status_code, 200)
+        form_html = form_page_res.get_data(as_text=True)
+        self.assertIn("Giao việc theo biểu mẫu", form_html)
+        self.assertIn("/api/outline-assignees", form_html)
+        self.assertIn("Tải file Excel (.xlsx)", form_html)
+        self.assertIn("Kẻ bảng Excel nhanh", form_html)
+        self.assertNotIn('data-wizard-source="OUTLINE"', form_html)
+        self.assertNotIn('id="wizardRowAssignModal"', form_html)
+
+        self._login_user(plain_user)
+        denied = self.client.get("/bieu-mau-giao-viec")
+        self.assertEqual(denied.status_code, 403)
+
+    def test_resolve_unit_id_matches_category_item_and_underscored_code(self):
+        from models import CategoryItem, Unit
+        from routes.admin import _resolve_unit_id
+        from services.task_units import _resolve_task_unit_label
+
+        suffix = uuid.uuid4().hex[:6]
+        with app.app_context():
+            unit = Unit(
+                code=f"so_kiem_thu_{suffix}",
+                name=f"Sở Kiểm thử {suffix}",
+                is_active=True,
+            )
+            cat_item = CategoryItem(
+                code=f"so_kiem_thu_{suffix}",
+                name=f"Sở Kiểm thử {suffix}",
+                is_active=True,
+            )
+            db.session.add_all([unit, cat_item])
+            db.session.commit()
+            try:
+                resolved_id = _resolve_unit_id(f"sokiemthu{suffix}", f"category_item:{cat_item.id}")
+                self.assertEqual(resolved_id, unit.id)
+                self.assertEqual(
+                    _resolve_task_unit_label(f"category_item:{cat_item.id}"),
+                    f"Sở Kiểm thử {suffix}",
+                )
+            finally:
+                CategoryItem.query.filter_by(id=cat_item.id).delete()
+                Unit.query.filter_by(id=unit.id).delete()
+                db.session.commit()
+
+    def test_delete_user_cleanly_handles_trusted_device_and_submissions(self):
+        from models import UserTrustedDevice
+        from routes.admin import _delete_user_cleanly
+
+        victim = self._create_assignee("Tài khoản Xóa Thử", "Sở Tư pháp", "so_tu_phap")
+        with app.app_context():
+            db.session.add(
+                UserTrustedDevice(
+                    user_id=victim.id,
+                    device_key=f"dev_{uuid.uuid4().hex[:8]}",
+                    device_label="Test Browser",
+                )
+            )
+            db.session.commit()
+            user_row = db.session.get(User, victim.id)
+            _delete_user_cleanly(user_row)
+            db.session.commit()
+            self.assertIsNone(db.session.get(User, victim.id))
+            self.user_ids = [uid for uid in self.user_ids if uid != victim.id]
+
 
 if __name__ == "__main__":
     unittest.main()

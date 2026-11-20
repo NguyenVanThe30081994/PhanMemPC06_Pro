@@ -8,19 +8,157 @@
             <a href="{{ url_for('tasks_bp.task_detail', tid=task.id) }}" class="pc-btn pc-btn-secondary pc-btn-sm">&larr; Quay lại</a>
             <h1 class="pc-page-title mb-0" style="font-size: var(--pc-text-h2);">Dữ liệu biểu mẫu: {{ task.title }}</h1>
         </div>
-        {% if available_cycles %}
-        <form method="GET" class="d-flex align-items-center gap-2">
-            <label for="cycle_key" class="pc-label mb-0">Chu kỳ:</label>
-            <select name="cycle_key" id="cycle_key" class="pc-select" style="width:auto;" onchange="this.form.submit()">
-                {% for c in available_cycles %}
-                <option value="{{ c.key }}" {% if c.key == cycle_key %}selected{% endif %}>{{ c.label }}</option>
-                {% endfor %}
-            </select>
-        </form>
-        {% endif %}
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            {% if available_cycles %}
+            <form method="GET" class="d-flex align-items-center gap-2 m-0">
+                <label for="cycle_key" class="pc-label mb-0">Chu kỳ:</label>
+                <select name="cycle_key" id="cycle_key" class="pc-select" style="width:auto;" onchange="this.form.submit()">
+                    {% for c in available_cycles %}
+                    <option value="{{ c.key }}" {% if c.key == cycle_key %}selected{% endif %}>{{ c.label }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+            {% endif %}
+            <a href="{{ url_for('tasks_bp.export_form_task_v2', tid=task.id) }}" class="pc-btn pc-btn-primary pc-btn-sm">
+                <i class="fa-solid fa-file-excel me-1"></i>Xuất Excel tổng hợp
+            </a>
+        </div>
     </div>
 
-    {% if rows %}
+    {% if excel_schema and excel_aggregation %}
+    {% set excel_cols = excel_schema.columns or [] %}
+    {% set header_rows = excel_schema.header_grid or [] %}
+    <div class="pc-card p-3 mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <div>
+                <div class="fw-bold">Bảng tổng hợp số liệu Excel</div>
+                <div class="small text-muted">
+                    {% if excel_aggregation.is_unit_rows %}
+                    Tổng hợp trực tiếp theo từng dòng đơn vị trong biểu mẫu gốc · {{ excel_aggregation.submitted_unit_count }}/{{ excel_aggregation.unit_entries|length }} đơn vị đã nộp
+                    {% elif excel_aggregation.is_fixed_indicators %}
+                    Cộng gộp trực tiếp theo từng dòng chỉ tiêu của biểu mẫu gốc · {{ excel_aggregation.submitted_unit_count }}/{{ excel_aggregation.unit_entries|length }} đơn vị đã nộp
+                    {% else %}
+                    Tổng hợp toàn bộ dòng dữ liệu từ {{ excel_aggregation.submitted_unit_count }}/{{ excel_aggregation.unit_entries|length }} đơn vị đã nộp
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% if excel_schema.banner_rows %}
+        <div class="text-center mb-3">
+            {% for banner in excel_schema.banner_rows %}
+            <div class="{% if loop.first %}fw-bold{% else %}small text-muted{% endif %}">{{ banner }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle mb-0 pc-excel-agg-table">
+                <thead>
+                    {% if header_rows %}
+                        {% for h_row in header_rows %}
+                        <tr>
+                            {% if loop.first and excel_aggregation.show_unit_prefix_col %}
+                            <th rowspan="{{ header_rows|length }}" class="text-center align-middle" style="min-width:170px;">Đơn vị báo cáo</th>
+                            {% endif %}
+                            {% for cell in h_row %}
+                            <th colspan="{{ cell.colspan or 1 }}" rowspan="{{ cell.rowspan or 1 }}" class="text-center align-middle">{{ cell.text if cell.text is defined else cell.label }}</th>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                    <tr>
+                        {% if excel_aggregation.show_unit_prefix_col %}
+                        <th class="text-center align-middle" style="min-width:170px;">Đơn vị báo cáo</th>
+                        {% endif %}
+                        {% for col in excel_cols %}
+                        <th class="text-center align-middle">{{ col.label }}</th>
+                        {% endfor %}
+                    </tr>
+                    {% endif %}
+                </thead>
+                <tbody>
+                    {% if excel_aggregation.merged_rows %}
+                        {% for mrow in excel_aggregation.merged_rows %}
+                        <tr>
+                            {% if excel_aggregation.show_unit_prefix_col %}
+                            <td class="fw-semibold">{{ mrow.unit_name }}</td>
+                            {% endif %}
+                            {% for col in excel_cols %}
+                            {% set c_val = mrow.cells[loop.index0] if loop.index0 < mrow.cells|length else '' %}
+                            <td class="{% if col.is_stt %}text-center{% elif col.type == 'number' %}text-end fw-semibold{% endif %}">{{ c_val }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="{{ excel_cols|length + (1 if excel_aggregation.show_unit_prefix_col else 0) }}" class="text-center text-muted py-4">
+                            Chưa có đơn vị nào nộp số liệu.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+                {% if excel_cols|selectattr('type', 'equalto', 'number')|list and excel_aggregation.merged_rows %}
+                <tfoot>
+                    <tr class="fw-bold table-secondary">
+                        {% if excel_aggregation.show_unit_prefix_col %}
+                        <td class="text-center">{{ excel_schema.summary_label or 'Tổng cộng' }}</td>
+                        {% endif %}
+                        {% for col in excel_cols %}
+                        <td class="{% if col.type == 'number' %}text-end{% elif (excel_aggregation.is_unit_rows and loop.index0 == excel_aggregation.unit_col_index) or (excel_aggregation.is_fixed_indicators and loop.first) %}text-center{% endif %}">
+                            {% if (excel_aggregation.is_fixed_indicators and loop.first and col.type != 'number') or (excel_aggregation.is_unit_rows and loop.index0 == excel_aggregation.unit_col_index) %}
+                                {{ excel_schema.summary_label or 'Tổng cộng' }}
+                            {% elif col.type == 'number' %}
+                                {{ excel_aggregation.column_totals[loop.index0] }}
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    <div class="d-flex flex-column gap-2">
+        <div class="fw-bold small text-uppercase text-muted">Chi tiết báo cáo theo từng đơn vị</div>
+        {% for entry in excel_aggregation.unit_entries %}
+        <details class="pc-card p-3" {% if entry.submitted and loop.first %}open{% endif %}>
+            <summary class="d-flex flex-wrap justify-content-between align-items-center gap-2" style="cursor:pointer;">
+                <span class="fw-semibold">{{ entry.unit_name }}{% if entry.user_name and entry.user_name != entry.unit_name %} <span class="text-muted fw-normal">({{ entry.user_name }})</span>{% endif %}</span>
+                <span class="d-flex align-items-center gap-2">
+                    {% if entry.submitted_at %}<span class="small text-muted">{{ entry.submitted_at }}</span>{% endif %}
+                    {% if entry.submitted %}
+                    <span class="pc-badge pc-badge-success">Đã nộp {{ entry.rows|length }} dòng</span>
+                    {% else %}
+                    <span class="pc-badge pc-badge-neutral">Chưa nộp</span>
+                    {% endif %}
+                </span>
+            </summary>
+            {% if entry.submitted %}
+            <div class="table-responsive mt-3">
+                <table class="table table-sm table-bordered align-middle mb-0">
+                    <thead>
+                        <tr>
+                            {% for col in excel_cols %}
+                            <th class="text-center">{{ col.full_label or col.label }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r_vals in entry.rows %}
+                        <tr>
+                            {% for col in excel_cols %}
+                            <td class="{% if col.is_stt %}text-center{% elif col.type == 'number' %}text-end{% endif %}">{{ r_vals[loop.index0] if loop.index0 < r_vals|length else '' }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </details>
+        {% endfor %}
+    </div>
+    {% elif rows %}
     <div class="table-responsive">
         <table class="pc-table">
             <thead>

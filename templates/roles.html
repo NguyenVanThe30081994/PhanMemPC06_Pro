@@ -2,108 +2,418 @@
 
 {% block title %}Tài khoản và vai trò{% endblock %}
 
+{% block extra_head %}
+<style>
+    .roles-head-row {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 10px !important;
+        flex-wrap: nowrap !important;
+        margin-bottom: 14px !important;
+    }
+    .roles-head-title {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+    }
+    .roles-head-title h2 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: var(--pc-text);
+        white-space: nowrap;
+    }
+    .roles-count-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2px 9px;
+        border-radius: 999px;
+        background: var(--pc-bg-subtle);
+        border: 1px solid var(--pc-border);
+        color: var(--pc-primary-strong);
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    /* ── Vai trò cards (gọn, không liệt kê lộn xộn 20 pill & không scrollbar) ── */
+    .roles-clean-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+    .role-clean-card {
+        background: var(--pc-bg-subtle);
+        border: 1px solid var(--pc-border);
+        border-radius: 14px;
+        padding: 15px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-width: 0;
+    }
+    .role-clean-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+    .role-clean-head h3 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 800;
+        color: var(--pc-text);
+    }
+    .role-perm-full-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 12px;
+        border-radius: 10px;
+        background: var(--pc-primary-subtle, #eaf2ff);
+        color: var(--pc-primary);
+        font-size: 12.5px;
+        font-weight: 700;
+        width: fit-content;
+    }
+    .role-perm-matrix {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+    }
+    .role-perm-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        padding: 6px 9px;
+        border-radius: 9px;
+        background: var(--pc-bg-card);
+        border: 1px solid var(--pc-border);
+        font-size: 12px;
+        min-width: 0;
+    }
+    .role-perm-mod {
+        font-weight: 700;
+        color: var(--pc-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .role-perm-tier {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 1px 7px;
+        border-radius: 999px;
+        flex-shrink: 0;
+    }
+    .role-perm-tier.tone-primary { background: rgba(43, 83, 150, 0.12); color: var(--pc-primary); }
+    .role-perm-tier.tone-success { background: rgba(22, 163, 74, 0.12); color: #15803d; }
+    .role-perm-tier.tone-neutral { background: var(--pc-bg-subtle); color: var(--pc-text-muted); border: 1px solid var(--pc-border); }
+    .role-clean-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding-top: 10px;
+        border-top: 1px solid var(--pc-border);
+        margin-top: auto;
+        min-width: 0;
+        width: 100%;
+    }
+    .role-foot-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        flex-shrink: 0;
+    }
+    .role-delete-btn {
+        width: 34px !important;
+        min-width: 34px !important;
+        padding: 0 !important;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    /* ── Tài khoản toolbar & bảng ── */
+    .users-action-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .users-filter-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+    }
+    .users-search-wrap {
+        flex: 1 1 240px;
+        min-width: 0;
+    }
+    .users-role-form {
+        flex: 0 0 auto;
+    }
+    .users-role-form .pc-select {
+        min-width: 210px;
+    }
+    .users-table-wrap {
+        overflow-x: auto;
+    }
+    .user-action-btns {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+        flex-wrap: nowrap;
+    }
+
+    [data-theme="dark"] .role-perm-full-badge { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+    [data-theme="dark"] .role-perm-tier.tone-primary { background: rgba(59, 130, 246, 0.22); color: #93c5fd; }
+    [data-theme="dark"] .role-perm-tier.tone-success { background: rgba(22, 163, 74, 0.22); color: #86efac; }
+
+    @media (max-width: 991.98px) {
+        .roles-clean-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 767.98px) {
+        .roles-workspace-root .pc06-section-menu-shell {
+            padding: 8px !important;
+        }
+        .roles-workspace-root .pc06-section-menu {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            width: 100%;
+            gap: 6px;
+        }
+        .roles-workspace-root .pc06-section-menu-tab {
+            width: 100%;
+            justify-content: center;
+            padding: 0 10px !important;
+        }
+        .roles-workspace-root .pc06-panel {
+            padding: 14px !important;
+        }
+        .role-perm-matrix {
+            grid-template-columns: minmax(0, 1fr);
+        }
+        .users-panel-head {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+        }
+        .users-action-bar {
+            display: grid !important;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 6px !important;
+            width: 100%;
+        }
+        .users-action-bar .pc-btn {
+            width: 100%;
+            height: var(--pc-control-h-md, 38px);
+            min-height: var(--pc-control-h-md, 38px);
+            padding: 0 !important;
+            justify-content: center;
+        }
+        .users-action-bar .users-btn-label {
+            display: none !important;
+        }
+        .users-filter-bar {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 8px;
+            align-items: stretch;
+        }
+        .users-search-wrap,
+        .users-role-form,
+        .users-role-form .pc-select {
+            flex: 0 0 auto !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            height: auto !important;
+        }
+        .role-clean-card {
+            padding: 13px;
+            overflow: hidden;
+        }
+        .role-clean-foot {
+            gap: 6px;
+        }
+        .role-clean-foot .pc-btn {
+            min-height: 34px !important;
+            padding: 0 10px !important;
+            font-size: 12px !important;
+            white-space: nowrap;
+        }
+        .role-clean-foot .role-foot-users-btn {
+            flex: 1 1 auto;
+            min-width: 0;
+            justify-content: center;
+        }
+        .role-clean-foot .role-foot-actions {
+            gap: 5px;
+        }
+        #usersMainTable {
+            table-layout: fixed;
+            width: 100% !important;
+        }
+        #usersMainTable th.u-col-chk,
+        #usersMainTable td.u-col-chk {
+            width: 32px !important;
+            padding: 8px 4px !important;
+        }
+        #usersMainTable th.u-col-user,
+        #usersMainTable td.u-col-user {
+            padding: 8px 6px !important;
+            white-space: normal !important;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            overflow: hidden;
+        }
+        #usersMainTable td.u-col-user .u-uname {
+            font-size: 12.5px;
+            line-height: 1.3;
+            white-space: normal !important;
+            word-break: break-all;
+            overflow-wrap: anywhere;
+        }
+        #usersMainTable td.u-col-user .u-submeta {
+            font-size: 11px;
+            white-space: normal !important;
+            word-break: break-word;
+            line-height: 1.35;
+        }
+        #usersMainTable th.u-col-act,
+        #usersMainTable td.u-col-act {
+            width: 104px !important;
+            padding: 8px 4px !important;
+            white-space: nowrap !important;
+        }
+        .user-action-btns {
+            gap: 4px;
+            justify-content: flex-end;
+        }
+        .user-action-btns .btn-circle-sm {
+            width: 28px !important;
+            height: 28px !important;
+            min-width: 28px !important;
+            padding: 0 !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="pc06-page-shell">
+<div class="pc06-page-shell roles-workspace-root">
     <div class="pc06-section-workspace" data-section-menu-container data-default-pane="{{ 'users' if selected_role_id else 'roles' }}">
         <div class="pc06-section-menu-shell{% if can_manage_roles %} with-actions{% endif %}">
             <div class="pc06-section-menu" role="tablist" aria-label="Các khu vực chức năng của tài khoản và vai trò">
-                <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="roles" role="tab" aria-selected="true">
-                    <i class="fa-solid fa-user-tag"></i>
-                    Vai trò
-                </button>
-                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="users" role="tab" aria-selected="false">
-                    <i class="fa-solid fa-users"></i>
-                    Tài khoản
-                </button>
+                <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="roles" role="tab" aria-selected="true">Vai trò</button>
+                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="users" role="tab" aria-selected="false">Tài khoản</button>
             </div>
         </div>
 
         <div class="pc06-section-pane-shell">
             <div class="pc06-section-pane" data-section-pane="users">
                 <section class="pc06-panel">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>Tài khoản{% if selected_role %} — vai trò {{ selected_role.name }}{% endif %}</h2>
-                        <p>{{ users|length }} tài khoản đang hiển thị.</p>
+                <div class="pc06-panel-head users-panel-head mb-2">
+                    <div class="roles-head-title">
+                        <h2>Tài khoản{% if selected_role %} — {{ selected_role.name }}{% endif %}</h2>
+                        <span class="roles-count-pill" id="usersVisibleBadge">{{ users|length }}</span>
                     </div>
-                    <div class="d-flex align-items-center gap-2 gap-lg-3 flex-wrap">
-                        <form method="GET" class="d-flex align-items-center">
-                            {% if selected_unit %}<input type="hidden" name="unit" value="{{ selected_unit }}">{% endif %}
-                            {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
-                            <select name="role_id" class="pc-select" style="width: auto; min-width: 190px;" onchange="this.form.submit()" aria-label="Lọc tài khoản theo vai trò">
-                                <option value="">Tất cả vai trò</option>
-                                {% for r in roles %}
-                                <option value="{{ r.id }}" {% if selected_role_id == r.id %}selected{% endif %}>{{ r.name }} ({{ role_user_counts.get(r.id, 0) }})</option>
-                                {% endfor %}
-                            </select>
-                        </form>
-                        {% if can_manage_roles %}
-                        <a class="pc-btn pc-btn-secondary" href="{{ url_for('admin_bp.export_users', role_id=selected_role_id, unit=selected_unit, q=search_query) }}">
+                    {% if can_manage_roles %}
+                    <div class="users-action-bar">
+                        <a class="pc-btn pc-btn-secondary" href="{{ url_for('admin_bp.export_users', role_id=selected_role_id, unit=selected_unit, q=search_query) }}" title="Xuất danh sách Excel" aria-label="Xuất danh sách Excel">
                             <i class="fa-solid fa-file-arrow-down"></i>
-                            <span class="d-none d-xl-inline">{{ 'Xuất ' ~ selected_role.name if selected_role else 'Xuất danh sách' }}</span>
-                            <span class="d-xl-none">Xuất</span>
+                            <span class="users-btn-label">Xuất Excel</span>
                         </a>
-                        <button class="pc-btn pc-btn-secondary" data-bs-toggle="modal" data-bs-target="#importUserModal">
+                        <button type="button" class="pc-btn pc-btn-secondary" data-bs-toggle="modal" data-bs-target="#importUserModal" title="Nhập từ Excel" aria-label="Nhập từ Excel">
                             <i class="fa-solid fa-file-excel"></i>
-                            <span class="d-none d-xl-inline">Nhập Excel</span>
-                            <span class="d-xl-none">Nhập</span>
+                            <span class="users-btn-label">Nhập Excel</span>
                         </button>
-                        <button type="button" class="pc-btn pc-btn-secondary" data-bs-toggle="modal" data-bs-target="#bulkResetByUnitsModal" {% if not units_with_counts %}disabled title="Chưa có đơn vị nào có tài khoản để reset"{% endif %}>
+                        <button type="button" class="pc-btn pc-btn-secondary" data-bs-toggle="modal" data-bs-target="#bulkResetByUnitsModal" {% if not units_with_counts %}disabled{% endif %} title="Reset mật khẩu theo đơn vị" aria-label="Reset mật khẩu theo đơn vị">
                             <i class="fa-solid fa-building-circle-arrow-right"></i>
-                            <span class="d-none d-xl-inline">Reset theo đơn vị</span>
-                            <span class="d-xl-none">Reset ĐV</span>
+                            <span class="users-btn-label">Reset ĐV</span>
                         </button>
-                        <button class="pc-btn pc-btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                        <button type="button" class="pc-btn pc-btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal" title="Thêm tài khoản mới" aria-label="Thêm tài khoản mới">
                             <i class="fa-solid fa-user-plus"></i>
-                            <span class="d-none d-xl-inline">Thêm tài khoản</span>
-                            <span class="d-xl-none">Thêm</span>
+                            <span class="users-btn-label">Thêm tài khoản</span>
                         </button>
-                        {% endif %}
                     </div>
+                    {% endif %}
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+
+                <div class="users-filter-bar">
+                    <div class="users-search-wrap">
+                        <input type="search" id="userLiveSearch" class="form-control form-control-sm" placeholder="Tìm nhanh tài khoản, tên đơn vị...">
+                    </div>
+                    <form method="GET" class="users-role-form">
+                        {% if selected_unit %}<input type="hidden" name="unit" value="{{ selected_unit }}">{% endif %}
+                        {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+                        <select name="role_id" class="pc-select form-select-sm" onchange="this.form.submit()" aria-label="Lọc tài khoản theo vai trò">
+                            <option value="">Tất cả vai trò</option>
+                            {% for r in roles %}
+                            <option value="{{ r.id }}" {% if selected_role_id == r.id %}selected{% endif %}>{{ r.name }} ({{ role_user_counts.get(r.id, 0) }})</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </div>
+
+                <div class="users-table-wrap">
+                    <table class="table table-hover align-middle mb-0" id="usersMainTable">
                         <thead class="pill-thead" scope="col">
                             <tr>
                                 {% if can_manage_roles %}
-                                <th style="width: 52px;" class="text-center" scope="col">
+                                <th style="width: 44px;" class="text-center u-col-chk" scope="col">
                                     <input type="checkbox" class="form-check-input" id="userCheckAll" onchange="handleUserCheckAllChange()">
                                 </th>
                                 {% endif %}
-                                <th class="ps-4" scope="col">Người dùng</th>
-                                <th scope="col">Đơn vị</th>
-                                <th scope="col">Vai trò</th>
-                                <th scope="col">Trạng thái</th>
-                                <th class="pe-4 text-end" scope="col">Thao tác</th>
+                                <th class="ps-2 ps-md-4 u-col-user" scope="col">Tài khoản</th>
+                                <th class="d-none d-md-table-cell" scope="col">Đơn vị</th>
+                                <th class="d-none d-md-table-cell" scope="col">Vai trò</th>
+                                <th class="d-none d-md-table-cell" scope="col">Trạng thái</th>
+                                <th class="pe-2 pe-md-4 text-end u-col-act" scope="col">Thao tác</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="usersTableBody">
                             {% if users %}
                             {% for u in users %}
-                            <tr>
+                            <tr class="user-data-row" data-search="{{ (u.username ~ ' ' ~ (u.fullname or '') ~ ' ' ~ (u.unit_area_display or u.unit_area or '') ~ ' ' ~ (u.role.name if u.role else ''))|lower }}">
                                 {% if can_manage_roles %}
-                                <td class="text-center">
+                                <td class="text-center u-col-chk">
                                     <input type="checkbox" class="form-check-input user-row-check" value="{{ u.id }}" {% if u.username == 'admin' %}disabled{% endif %} onchange="updateUserBulkSelectionState()">
                                 </td>
                                 {% endif %}
-                                <td class="ps-4 py-3">
-                                    <div class="fw-bold text-dark">{{ u.username }}</div>
+                                <td class="ps-2 ps-md-4 py-2 py-md-3 u-col-user">
+                                    <div class="fw-bold u-uname">{{ u.username }}</div>
+                                    <div class="d-md-none text-muted mt-1 u-submeta">
+                                        {{ u.unit_area_display or u.unit_area }} · <span class="fw-semibold">{{ u.role.name if u.role else 'Chưa cấp' }}</span>
+                                    </div>
                                 </td>
-                                <td class="fw-bold">{{ u.unit_area_display or u.unit_area }}</td>
-                                <td>
+                                <td class="fw-bold d-none d-md-table-cell">{{ u.unit_area_display or u.unit_area }}</td>
+                                <td class="d-none d-md-table-cell">
                                     <span class="pc06-soft-tag neutral">{{ u.role.name if u.role else 'Chưa cấp' }}</span>
                                     {% if u.extra_role_names %}
                                     <div class="tiny text-muted mt-1"><i class="fa-solid fa-plus me-1"></i>{{ u.extra_role_names }}</div>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td class="d-none d-md-table-cell">
                                     <span class="pc06-status-badge {% if u.is_active %}done{% else %}neutral{% endif %}">
                                         {{ 'Hoạt động' if u.is_active else 'Vô hiệu hóa' }}
                                     </span>
                                 </td>
-                                <td class="pe-4 text-end">
+                                <td class="pe-2 pe-md-4 text-end u-col-act">
                                     {% if can_manage_roles %}
-                                    <div class="d-flex justify-content-end gap-2">
+                                    <div class="user-action-btns">
                                         <button class="btn btn-light btn-circle btn-circle-sm border shadow-sm" title="Chỉnh sửa" onclick='openEditUser({{ u.id }}, {{ u.username|tojson }}, {{ u.fullname|tojson }}, {{ u.unit_area|tojson }}, {{ u.role_id }}, {{ u.email|tojson }}, {{ u.extra_role_ids|tojson }})'>
                                             <i class="fa-solid fa-pen-to-square tiny text-primary"></i>
                                         </button>
@@ -158,51 +468,66 @@
 
             <div class="pc06-section-pane is-active" data-section-pane="roles">
                 <section class="pc06-panel">
-                <div class="pc06-panel-head">
-                    <div>
+                <div class="roles-head-row">
+                    <div class="roles-head-title">
                         <h2>Vai trò</h2>
-                        <p>{{ roles|length }} vai trò — bấm "Phân quyền" để gán quyền theo chức năng, "Xem tài khoản" để lọc danh sách tài khoản.</p>
+                        <span class="roles-count-pill">{{ roles|length }}</span>
                     </div>
                     {% if can_manage_roles %}
-                    <button class="pc-btn pc-btn-primary" data-bs-toggle="modal" data-bs-target="#addRoleModal">
+                    <button class="pc-btn pc-btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addRoleModal">
                         <i class="fa-solid fa-plus"></i>
-                        Thêm vai trò
+                        <span class="d-none d-sm-inline">Thêm vai trò</span>
+                        <span class="d-sm-none">Thêm</span>
                     </button>
                     {% endif %}
                 </div>
-                <div class="pc06-compact-grid">
+                <div class="roles-clean-grid">
                     {% for r in roles %}
-                    <article class="pc06-compact-card">
-                        <div class="pc06-compact-card-head">
-                            <div>
-                                <h3>{{ r.name }}</h3>
-                            </div>
-                            <span class="pc06-chip-count">{{ role_user_counts.get(r.id, 0) }}</span>
+                    <article class="role-clean-card">
+                        <div class="role-clean-head">
+                            <h3>{{ r.name }}</h3>
+                            <span class="roles-count-pill">{{ role_user_counts.get(r.id, 0) }} TK</span>
                         </div>
-                        <div class="pc06-perm-tags">
-                            {% for label in get_label_list(r.perms) %}
-                            <span class="pc06-perm-tag">{{ label }}</span>
-                            {% else %}
-                            <span class="pc06-perm-tag is-empty">Chưa phân quyền</span>
+
+                        {% if r.perm_summary and r.perm_summary.is_full %}
+                        <div>
+                            <span class="role-perm-full-badge">
+                                <i class="fa-solid fa-shield-halved"></i>
+                                Toàn quyền hệ thống
+                            </span>
+                        </div>
+                        {% elif r.perm_summary and r.perm_summary['modules'] %}
+                        <div class="role-perm-matrix">
+                            {% for item in r.perm_summary['modules'] %}
+                            <div class="role-perm-row">
+                                <span class="role-perm-mod">{{ item.module }}</span>
+                                <span class="role-perm-tier tone-{{ item.tone }}">{{ item.tier }}</span>
+                            </div>
                             {% endfor %}
                         </div>
-                        <div class="pc06-toolbar-actions">
-                            <a href="{{ url_for('admin_bp.roles', role_id=r.id) }}" class="pc-btn pc-btn-secondary pc-btn-icon" title="Xem tài khoản" aria-label="Xem tài khoản">
-                                <i class="fa-solid fa-users"></i>
+                        {% else %}
+                        <div class="small text-muted">Chưa phân quyền</div>
+                        {% endif %}
+
+                        <div class="role-clean-foot">
+                            <a href="{{ url_for('admin_bp.roles', role_id=r.id) }}" class="pc-btn pc-btn-secondary btn-sm role-foot-users-btn">
+                                <i class="fa-solid fa-users me-1"></i>Tài khoản
                             </a>
                             {% if can_manage_roles %}
-                            <button class="pc-btn pc-btn-primary pc-btn-icon" title="Phân quyền" aria-label="Phân quyền" onclick='openEditPerms({{ r.id }}, {{ r.name|tojson }}, {{ r.form_perms_json|safe }})'>
-                                <i class="fa-solid fa-user-gear"></i>
-                            </button>
-                            {% if r.name not in ['Quản trị hệ thống', 'admin_system'] %}
-                            <form method="POST" class="d-inline m-0" onsubmit="return pc06ConfirmSubmit(event, 'Xóa vai trò này?')">
-                                <input type="hidden" name="action" value="delete_role">
-                                <input type="hidden" name="role_id" value="{{ r.id }}">
-                                <button type="submit" class="pc-btn pc-btn-secondary pc-btn-icon text-danger" title="Xóa vai trò" aria-label="Xóa vai trò">
-                                    <i class="fa-solid fa-trash-can"></i>
+                            <div class="role-foot-actions">
+                                <button class="pc-btn pc-btn-primary btn-sm" title="Phân quyền" aria-label="Phân quyền" onclick='openEditPerms({{ r.id }}, {{ r.name|tojson }}, {{ r.form_perms_json|safe }})'>
+                                    <i class="fa-solid fa-user-gear me-1"></i>Phân quyền
                                 </button>
-                            </form>
-                            {% endif %}
+                                {% if r.name not in ['Quản trị hệ thống', 'admin_system'] %}
+                                <form method="POST" class="d-inline m-0" onsubmit="return pc06ConfirmSubmit(event, 'Xóa vai trò này?')">
+                                    <input type="hidden" name="action" value="delete_role">
+                                    <input type="hidden" name="role_id" value="{{ r.id }}">
+                                    <button type="submit" class="pc-btn pc-btn-secondary btn-sm text-danger role-delete-btn" title="Xóa vai trò" aria-label="Xóa vai trò">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
                             {% endif %}
                         </div>
                     </article>
@@ -395,12 +720,12 @@
                     <div class="row g-3 mb-3">
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">TÀI KHOẢN</label>
-                            <input type="text" name="username" class="pc-input" placeholder="ID đăng nhập" required>
+                            <input type="text" name="username" id="add_username_input" class="pc-input" placeholder="Tự sinh theo đơn vị &amp; vai trò">
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-bold text-dark small">MẬT KHẨU</label>
                             <div class="d-flex gap-2">
-                                <input type="password" name="password" class="pc-input" value="123" required>
+                                <input type="password" name="password" class="pc-input" placeholder="Để trống tự sinh MK mạnh">
                                 <button class="pc-btn pc-btn-secondary toggle-password flex-shrink-0" type="button">HIỆN</button>
                             </div>
                         </div>
@@ -523,8 +848,7 @@
                 <div class="modal-body p-4">
                     <div class="pc-alert pc-alert-info mb-4">
                         <i class="fa-solid fa-circle-info me-2"></i>
-                        Hệ thống tự sinh mã tài khoản và mật khẩu mặc định `123456`.
-                        Hỗ trợ 2 định dạng: `1 cột đơn vị` hoặc `2 cột Họ tên + Chức vụ` để tạo tài khoản chỉ huy đội dạng `pc06.hotenkhongdau.dt/pdt`.
+                        Hệ thống tự sinh mã tài khoản theo chuẩn đơn vị &amp; vai trò (ví dụ: <code>caxminhquang_chihuy</code>, <code>ubndxaminhquang_lanhdao</code>, <code>sokhoahoccongnghe_chuyenvien</code>, <code>thammuu_canbo</code>) kèm mật khẩu tạm thời an toàn.
                         Nếu file không có dòng tiêu đề, bỏ chọn mục tương ứng bên dưới để tránh mất dòng đầu tiên.
                     </div>
                     <div class="mb-4">
@@ -602,6 +926,113 @@ function openEditUser(id, user, full, unit, rid, email, extraIds) {
     });
     new bootstrap.Modal(document.getElementById('editUserModal')).show();
 }
+
+// Tự động gợi ý tên đăng nhập chuẩn khi chọn Đơn vị + Vai trò trong modal Thêm tài khoản
+(function initAutoUsernameSuggest() {
+    function asciiUnitText(val) {
+        if (!val) return '';
+        return String(val).trim().toLowerCase()
+            .replace(/đ/g, 'd')
+            .normalize('NFKD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9\s]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+    function buildUnitBaseSlug(unitName) {
+        const norm = asciiUnitText(unitName);
+        if (!norm) return '';
+        const patterns = [
+            ['cong an xa ', 'cax'],
+            ['cong an phuong ', 'cap'],
+            ['cong an thi tran ', 'catt'],
+            ['ubnd xa ', 'ubndxa'],
+            ['ubnd phuong ', 'ubndphuong'],
+            ['ubnd thi tran ', 'ubndthitran'],
+            ['uy ban nhan dan xa ', 'ubndxa'],
+            ['uy ban nhan dan phuong ', 'ubndphuong'],
+            ['uy ban nhan dan thi tran ', 'ubndthitran'],
+        ];
+        for (const [pref, code] of patterns) {
+            if (norm.startsWith(pref)) {
+                return code + norm.slice(pref.length).replace(/[^a-z0-9]+/g, '');
+            }
+        }
+        if (norm.startsWith('cong an tinh')) return 'congantinh';
+        if (norm.startsWith('phong ')) {
+            let tail = norm.slice(6).trim()
+                .replace(/\s+cong an tinh tuyen quang$/, '')
+                .replace(/\s+cong an tinh$/, '');
+            return tail.replace(/[^a-z0-9]+/g, '');
+        }
+        let tokens = norm.split(' ').filter(t => t && t !== 'va');
+        if (norm.startsWith('so ')) {
+            if (tokens.length > 2 && tokens.slice(-2).join(' ') === 'tuyen quang') tokens = tokens.slice(0, -2);
+            if (tokens.length > 2 && tokens[tokens.length - 1] === 'tinh') tokens = tokens.slice(0, -1);
+        }
+        return tokens.join('');
+    }
+    function buildRoleUsername(roleName, unitName) {
+        const base = buildUnitBaseSlug(unitName);
+        if (!base) return '';
+        const r = asciiUnitText(roleName);
+        if (!r) return base;
+        const u = asciiUnitText(unitName);
+        const isCommunePolice = u.startsWith('cong an xa ') || u.startsWith('cong an phuong ') || u.startsWith('cong an thi tran ');
+        const isCatDept = u.startsWith('phong ') || u.startsWith('cong an tinh') || r.includes('cat');
+        let suffix = '';
+        if (r.includes('quan tri') || r.includes('admin')) suffix = 'quantri';
+        else if (r.includes('chi huy') || r.includes('lanh dao')) suffix = isCommunePolice ? 'chihuy' : 'lanhdao';
+        else if (r.includes('can bo') || r.includes('chuyen vien') || r.includes('bao cao')) suffix = (isCommunePolice || isCatDept) ? 'canbo' : 'chuyenvien';
+        return suffix ? `${base}_${suffix}` : base;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const modal = document.getElementById('addUserModal');
+        if (!modal) return;
+        const unameInput = modal.querySelector('#add_username_input');
+        const unitSel = modal.querySelector('select[name="unit"]');
+        const roleSel = modal.querySelector('select[name="role_id"]');
+        if (!unameInput || !unitSel || !roleSel) return;
+        let lastAuto = '';
+
+        function syncSuggestedUsername() {
+            const uOpt = unitSel.options[unitSel.selectedIndex];
+            const rOpt = roleSel.options[roleSel.selectedIndex];
+            const unitLabel = (uOpt && !uOpt.disabled) ? uOpt.textContent.trim() : '';
+            const roleLabel = (rOpt && !rOpt.disabled) ? rOpt.textContent.trim() : '';
+            const suggested = buildRoleUsername(roleLabel, unitLabel);
+            if (!suggested) return;
+            if (!unameInput.value.trim() || unameInput.value.trim() === lastAuto) {
+                unameInput.value = suggested;
+                lastAuto = suggested;
+            }
+        }
+        unitSel.addEventListener('change', syncSuggestedUsername);
+        roleSel.addEventListener('change', syncSuggestedUsername);
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('userLiveSearch');
+        const badge = document.getElementById('usersVisibleBadge');
+        if (!searchInput) return;
+        let timer = null;
+        searchInput.addEventListener('input', function () {
+            clearTimeout(timer);
+            timer = setTimeout(function () {
+                const q = (searchInput.value || '').trim().toLowerCase();
+                let visible = 0;
+                document.querySelectorAll('#usersTableBody tr.user-data-row').forEach(function (row) {
+                    const hay = row.getAttribute('data-search') || '';
+                    const match = !q || hay.includes(q);
+                    row.style.display = match ? '' : 'none';
+                    if (match) visible += 1;
+                });
+                if (badge) badge.textContent = String(visible);
+            }, 120);
+        });
+    });
+})();
 
 function updateUserBulkSelectionState() {
     const checks = Array.from(document.querySelectorAll('.user-row-check'));

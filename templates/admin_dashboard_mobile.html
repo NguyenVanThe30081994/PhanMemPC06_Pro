@@ -1,6 +1,6 @@
 {% extends "base_mobile.html" %}
 
-{% block title %}Bàn Làm Việc — PC06 Mobile{% endblock %}
+{% block title %}Trang chủ — Hệ thống PC06{% endblock %}
 
 {% block head %}
 <style>
@@ -46,54 +46,43 @@
     .mobile-app-tile {
         background: var(--pc-bg-card, #FFFFFF);
         border: 1px solid var(--pc-border, #E2E8F0);
-        border-radius: 14px;
-        padding: 16px 14px;
+        border-left: 3.5px solid var(--pc-primary, #2b5396);
+        border-radius: 13px;
+        padding: 14px 12px;
         text-decoration: none;
         color: var(--pc-text, #1A202C);
         display: flex;
         flex-direction: column;
-        align-items: center;
-        text-align: center;
-        gap: 8px;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        justify-content: center;
+        align-items: flex-start;
+        text-align: left;
+        gap: 6px;
+        min-height: 64px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
         position: relative;
     }
     .mobile-app-tile:active {
-        transform: scale(0.97);
-        background: #F8FAFC;
-    }
-    .mobile-tile-icon {
-        width: 44px;
-        height: 44px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 19px;
+        transform: scale(0.98);
+        background: var(--pc-bg-subtle, #F8FAFC);
     }
     .mobile-tile-title {
-        font-size: 13px;
+        font-size: 13.5px;
         font-weight: 700;
-        line-height: 1.25;
+        line-height: 1.3;
     }
     .mobile-urgent-badge {
-        position: absolute;
-        top: 6px;
-        right: 8px;
-        font-size: 9px;
+        font-size: 10.5px;
         font-weight: 800;
-        padding: 1px 6px;
+        padding: 2px 8px;
         border-radius: 999px;
     }
-
-    .bg-blue-soft    { background: #EBF8FF; color: #2B6CB0; }
-    .bg-emerald-soft { background: #ECFDF5; color: #059669; }
-    .bg-indigo-soft  { background: #EEF2FF; color: #4F46E5; }
-    .bg-rose-soft    { background: #FFF1F2; color: #E11D48; }
-    .bg-amber-soft   { background: #FFFBEB; color: #D97706; }
-    .bg-teal-soft    { background: #F0FDFA; color: #0D9488; }
-    .bg-sky-soft     { background: #F0F9FF; color: #0284C7; }
-    .bg-slate-soft   { background: #F1F5F9; color: #475569; }
+    .tile-accent-blue    { border-left-color: #2b5396; }
+    .tile-accent-emerald { border-left-color: #059669; }
+    .tile-accent-sky     { border-left-color: #0284c7; }
+    .tile-accent-rose    { border-left-color: #e11d48; }
+    .tile-accent-amber   { border-left-color: #d97706; }
+    .tile-accent-teal    { border-left-color: #0d9488; }
+    .tile-accent-slate   { border-left-color: #475569; }
 </style>
 {% endblock %}
 
@@ -110,69 +99,63 @@
         {% endfor %}
     </div>
 
-    <!-- TIÊU ĐỀ LƯỚI ỨNG DỤNG -->
-    <div class="d-flex align-items-center justify-content-between mb-2 px-1">
-        <span class="fw-bold text-muted small text-uppercase"><i class="fa-solid fa-grip me-1 text-primary"></i>Ứng Dụng Làm Việc</span>
-        <span class="text-muted small" style="font-size: 11px;">{{ now_str }}</span>
-    </div>
+    {% if exec_snapshot %}
+    <a href="/tong-quan-lanh-dao" class="d-block text-decoration-none mb-3 p-3 rounded-4 border" style="background: var(--pc-bg-card, #fff); border-color: var(--pc-border, #e2e8f0) !important; border-left: 4px solid var(--pc-primary, #2b5396) !important; color: var(--pc-text, #1e293b);">
+        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+            <span class="fw-bold" style="font-size:14px;">Tổng hợp số liệu</span>
+            <span class="small fw-bold text-primary">Xem chi tiết <i class="fa-solid fa-arrow-right ms-1"></i></span>
+        </div>
+        <div class="d-grid gap-2" style="grid-template-columns: repeat(4, minmax(0, 1fr)); font-size:11.5px;">
+            <div class="px-2 py-1 rounded-3 border text-center" style="background:var(--pc-bg-subtle,#f8fafc);"><div class="text-muted" style="font-size:10px;">Tổng HS</div><strong>{{ exec_snapshot.overall.total }}</strong></div>
+            <div class="px-2 py-1 rounded-3 border text-center text-danger" style="background:rgba(220,38,38,.08);"><div style="font-size:10px;">Quá hạn</div><strong>{{ exec_snapshot.overall.overdue }}</strong></div>
+            <div class="px-2 py-1 rounded-3 border text-center text-warning" style="background:rgba(217,119,6,.1);"><div style="font-size:10px;">Sắp hạn</div><strong>{{ exec_snapshot.overall.soon }}</strong></div>
+            <div class="px-2 py-1 rounded-3 border text-center text-success" style="background:rgba(22,163,74,.08);"><div style="font-size:10px;">Xong</div><strong>{{ exec_snapshot.overall.done }}</strong></div>
+        </div>
+    </a>
+    {% endif %}
 
-    <!-- LƯỚI ỨNG DỤNG MOBILE -->
+    <!-- LƯỚI CHỨC NĂNG MOBILE -->
     <div class="mobile-app-grid">
 
         {% if is_admin or can_module('task', 'process') %}
-        <a href="/outline-giao-viec" class="mobile-app-tile">
-            <div class="mobile-tile-icon bg-blue-soft">
-                <i class="fa-solid fa-file-contract"></i>
-            </div>
-            <div class="mobile-tile-title">Giao việc đề cương</div>
+        <a href="/outline-giao-viec" class="mobile-app-tile tile-accent-blue">
+            <div class="mobile-tile-title">Giao việc theo đề cương</div>
+        </a>
+        {% endif %}
+
+        {% if is_admin or can_module('task', 'process') %}
+        <a href="/bieu-mau-giao-viec" class="mobile-app-tile tile-accent-emerald">
+            <div class="mobile-tile-title">Giao việc theo biểu mẫu</div>
         </a>
         {% endif %}
 
         {% if is_admin or can_module('task', 'view') %}
-        <a href="/tasks" class="mobile-app-tile">
-            <div class="mobile-tile-icon bg-emerald-soft">
-                <i class="fa-solid fa-table-list"></i>
-            </div>
-            <div class="mobile-tile-title">{% if is_admin or can_module('task', 'process') %}Giao việc theo biểu mẫu{% else %}Công việc được giao{% endif %}</div>
+        <a href="/tasks" class="mobile-app-tile tile-accent-sky">
+            <div class="mobile-tile-title">{% if is_admin or can_module('task', 'process') %}Quản lý công việc{% else %}Công việc được giao{% endif %}</div>
         </a>
         {% endif %}
 
-        <a href="/dossiers" class="mobile-app-tile position-relative">
-            <div class="mobile-tile-icon bg-rose-soft">
-                <i class="fa-solid fa-clock-rotate-left"></i>
-            </div>
-            <div class="mobile-tile-title">Sổ theo dõi hồ sơ</div>
+        <a href="/dossiers" class="mobile-app-tile tile-accent-rose">
+            <div class="mobile-tile-title">Theo dõi thời hạn hồ sơ</div>
             {% if dossier_urgent_count > 0 %}
-            <span class="mobile-urgent-badge bg-danger text-white">{{ dossier_urgent_count }}</span>
+            <span class="mobile-urgent-badge bg-danger text-white">{{ dossier_urgent_count }} sát hạn</span>
             {% endif %}
         </a>
 
-        <a href="/thong-bao" class="mobile-app-tile">
-            <div class="mobile-tile-icon bg-amber-soft">
-                <i class="fa-solid fa-bullhorn"></i>
-            </div>
-            <div class="mobile-tile-title">Bảng tin & Thư viện</div>
+        <a href="/thong-bao" class="mobile-app-tile tile-accent-amber">
+            <div class="mobile-tile-title">Bảng tin &amp; Thư viện</div>
         </a>
 
-        <a href="/links" class="mobile-app-tile">
-            <div class="mobile-tile-icon bg-teal-soft">
-                <i class="fa-solid fa-qrcode"></i>
-            </div>
-            <div class="mobile-tile-title">QR & Rút gọn link</div>
+        <a href="/links" class="mobile-app-tile tile-accent-teal">
+            <div class="mobile-tile-title">Mã QR &amp; Link rút gọn</div>
         </a>
 
-        <a href="/contacts" class="mobile-app-tile">
-            <div class="mobile-tile-icon bg-sky-soft">
-                <i class="fa-solid fa-address-book"></i>
-            </div>
+        <a href="/contacts" class="mobile-app-tile tile-accent-sky">
             <div class="mobile-tile-title">Danh bạ cơ quan</div>
         </a>
 
         {% if is_admin or can_module('user', 'view') or can_module('sys', 'view') %}
-        <a href="/admin/system-center" class="mobile-app-tile">
-            <div class="mobile-tile-icon bg-slate-soft">
-                <i class="fa-solid fa-gears"></i>
-            </div>
+        <a href="/admin/system-center" class="mobile-app-tile tile-accent-slate">
             <div class="mobile-tile-title">Quản trị hệ thống</div>
         </a>
         {% endif %}

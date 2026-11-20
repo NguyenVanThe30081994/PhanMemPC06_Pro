@@ -36,14 +36,20 @@ class TaskCreateWizardTests(unittest.TestCase):
         self.client = app.test_client()
         self.created_user_ids = []
         self.created_task_ids = []
+        self.created_category_group_ids = []
+        self.created_category_item_ids = []
 
     def tearDown(self):
         with app.app_context():
-            created_category_ids = getattr(self, "created_category_ids", []) or []
-            if created_category_ids:
-                for cid in created_category_ids:
-                    CategoryItem.query.filter_by(group_id=cid).delete()
-                    CategoryGroup.query.filter_by(id=cid).delete()
+            if self.created_category_item_ids:
+                CategoryItem.query.filter(
+                    CategoryItem.id.in_(self.created_category_item_ids)
+                ).delete(synchronize_session=False)
+            if self.created_category_group_ids:
+                CategoryGroup.query.filter(
+                    CategoryGroup.id.in_(self.created_category_group_ids)
+                ).delete(synchronize_session=False)
+            if self.created_category_item_ids or self.created_category_group_ids:
                 db.session.commit()
             # Thứ tự xóa theo khóa ngoại trên SQLite (server dùng MySQL mặc
             # định không ép FK, nhưng SQLite ép trên mọi kết nối):
@@ -200,16 +206,24 @@ class TaskCreateWizardTests(unittest.TestCase):
         self._login(admin.id)
         with app.app_context():
             group = CategoryGroup.query.filter_by(name="Đơn vị").first()
+            created_group = False
             if not group:
                 group = CategoryGroup(name="Đơn vị", code="don-vi")
                 db.session.add(group)
                 db.session.flush()
+                created_group = True
             item = CategoryItem.query.filter_by(group_id=group.id, name="Sở Tư pháp").first()
+            created_item = False
             if not item:
                 item = CategoryItem(group_id=group.id, name="Sở Tư pháp", code="sotuphap", is_active=True)
                 db.session.add(item)
+                db.session.flush()
+                created_item = True
             db.session.commit()
-            self.created_category_ids = [group.id, item.id]
+            if created_group:
+                self.created_category_group_ids.append(group.id)
+            if created_item:
+                self.created_category_item_ids.append(item.id)
 
         document = Document()
         table = document.add_table(rows=3, cols=3)
@@ -665,16 +679,24 @@ class TaskCreateWizardTests(unittest.TestCase):
         self._create_user("Đội B", "b")
         with app.app_context():
             group = CategoryGroup.query.filter_by(name="Đơn vị").first()
+            created_group = False
             if not group:
                 group = CategoryGroup(name="Đơn vị", code="don-vi")
                 db.session.add(group)
                 db.session.flush()
+                created_group = True
             item = CategoryItem.query.filter_by(group_id=group.id, name="Đội A").first()
+            created_item = False
             if not item:
                 item = CategoryItem(group_id=group.id, name="Đội A", code="doia", is_active=True)
                 db.session.add(item)
+                db.session.flush()
+                created_item = True
             db.session.commit()
-            self.created_category_ids = [group.id, item.id]
+            if created_group:
+                self.created_category_group_ids.append(group.id)
+            if created_item:
+                self.created_category_item_ids.append(item.id)
 
         document = Document()
         table = document.add_table(rows=3, cols=4)

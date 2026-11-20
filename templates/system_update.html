@@ -2,6 +2,26 @@
 
 {% block title %}Cập nhật bản vá{% endblock %}
 
+{% block extra_head %}
+<style>
+@media (max-width: 767.98px) {
+    .sysupdate-tabs {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        width: 100%;
+        gap: 6px;
+    }
+    .sysupdate-tabs .pc06-section-menu-tab {
+        width: 100%;
+        justify-content: center;
+        padding: 0 4px !important;
+        font-size: 12px !important;
+        white-space: nowrap;
+    }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="pc06-page-shell">
     <div class="pc06-page-summary">
@@ -12,18 +32,15 @@
 
     <div class="pc06-section-workspace" data-section-menu-container data-default-pane="package">
         <div class="pc06-section-menu-shell">
-            <div class="pc06-section-menu" role="tablist" aria-label="Các khu vực chức năng của cập nhật bản vá">
+            <div class="pc06-section-menu sysupdate-tabs" role="tablist" aria-label="Các khu vực chức năng của cập nhật bản vá">
                 <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="package" role="tab" aria-selected="true">
-                    <i class="fa-solid fa-box-open"></i>
                     Tải bản vá
                 </button>
                 <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="git" role="tab" aria-selected="false">
-                    <i class="fa-solid fa-code-branch"></i>
                     Đồng bộ Git
                 </button>
                 <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="version" role="tab" aria-selected="false">
-                    <i class="fa-solid fa-circle-info"></i>
-                    Thông tin phiên bản
+                    Phiên bản
                 </button>
             </div>
         </div>

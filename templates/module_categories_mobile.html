@@ -28,12 +28,17 @@
 {% endblock %}
 
 {% block content %}
-<section class="mobile-page-actions">
+<section class="mobile-page-actions cols-3">
+    <form method="POST" class="m-0 w-100">
+        <input type="hidden" name="action" value="harvest_all">
+        <button class="btn btn-mobile w-100" type="submit" style="background:#eff6ff;color:#0052cc;" aria-label="Gom từ chức năng" title="Gom từ chức năng"><i class="fa-solid fa-rotate"></i><span class="visually-hidden">Gom từ chức năng</span></button>
+    </form>
     <button class="btn btn-mobile" type="button" style="background:#eff6ff;color:#0052cc;" data-bs-toggle="modal" data-bs-target="#addGroupModal" aria-label="Thêm danh mục" title="Thêm danh mục"><i class="fa-solid fa-plus"></i><span class="visually-hidden">Thêm danh mục</span></button>
     <button class="btn btn-mobile btn-mobile-primary" type="button" data-bs-toggle="modal" data-bs-target="#deleteGroupModal" aria-label="Xóa danh mục" title="Xóa danh mục"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xóa danh mục</span></button>
 </section>
 
 {% for g in groups %}
+{% set g_items = group_items_map.get(g.id, g.items) %}
 <section class="mobile-category-card">
     <div class="mobile-category-summary">
         <div class="mobile-category-summary-copy">
@@ -41,7 +46,7 @@
             <div class="tiny text-muted">Code: {{ g.code or 'Chưa đặt' }}</div>
         </div>
         <div class="d-flex align-items-center gap-2">
-            <span class="pc06-soft-tag neutral">{{ g.items|length }} mục</span>
+            <span class="pc06-soft-tag neutral">{{ g_items|length }} mục</span>
             <button type="button" class="btn btn-light border mobile-category-summary-toggle" data-group-toggle="category-group-{{ g.id }}" aria-label="Mở thành phần" title="Mở thành phần">
                 <i class="fa-solid fa-chevron-down"></i>
                 <span class="visually-hidden">Mở thành phần</span>
@@ -57,8 +62,8 @@
             {% endif %}
         </div>
         <div class="mb-3">
-            {% for item in g.items %}
-            <div class="mobile-category-item-row">
+            {% for item in g_items %}
+            <div class="mobile-category-item-row {% if not item.is_active %}opacity-50{% endif %}">
                 <div class="mobile-category-item-head">
                     <div class="mobile-category-item-name text-truncate">{{ item.name }}</div>
                     <button type="button" class="btn btn-light border mobile-category-item-toggle" data-item-toggle="category-item-{{ item.id }}" aria-label="Mở thao tác" title="Mở thao tác">
@@ -73,11 +78,30 @@
                         <input type="text" name="item_name" class="form-control form-control-sm" value="{{ item.name }}" required>
                         <button type="submit" class="btn btn-light border text-primary mobile-category-item-icon-btn" aria-label="Lưu mục" title="Lưu mục"><i class="fa-solid fa-pen"></i><span class="visually-hidden">Lưu mục</span></button>
                     </form>
-                    <form method="POST" class="mobile-category-item-form mt-2">
-                        <input type="hidden" name="action" value="delete_item">
-                        <input type="hidden" name="item_id" value="{{ item.id }}">
-                        <button type="submit" class="btn btn-light border text-danger mobile-category-item-icon-btn" aria-label="Xóa mục" title="Xóa mục"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xóa mục</span></button>
-                    </form>
+                    <div class="d-flex align-items-center justify-content-end gap-2 mt-2">
+                        <form method="POST" class="m-0">
+                            <input type="hidden" name="action" value="move_item">
+                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                            <input type="hidden" name="direction" value="up">
+                            <button type="submit" class="btn btn-light border mobile-category-item-icon-btn" title="Đưa lên"><i class="fa-solid fa-arrow-up"></i></button>
+                        </form>
+                        <form method="POST" class="m-0">
+                            <input type="hidden" name="action" value="move_item">
+                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                            <input type="hidden" name="direction" value="down">
+                            <button type="submit" class="btn btn-light border mobile-category-item-icon-btn" title="Đưa xuống"><i class="fa-solid fa-arrow-down"></i></button>
+                        </form>
+                        <form method="POST" class="m-0">
+                            <input type="hidden" name="action" value="toggle_item">
+                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                            <button type="submit" class="btn btn-light border mobile-category-item-icon-btn" title="{{ 'Ẩn' if item.is_active else 'Hiện' }}"><i class="fa-solid {{ 'fa-eye' if item.is_active else 'fa-eye-slash text-warning' }}"></i></button>
+                        </form>
+                        <form method="POST" class="m-0" onsubmit="return pc06ConfirmSubmit(event, 'Xóa mục này?')">
+                            <input type="hidden" name="action" value="delete_item">
+                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                            <button type="submit" class="btn btn-light border text-danger mobile-category-item-icon-btn" aria-label="Xóa mục" title="Xóa mục"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Xóa mục</span></button>
+                        </form>
+                    </div>
                 </div>
             </div>
             {% else %}

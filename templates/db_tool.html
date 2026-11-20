@@ -2,22 +2,48 @@
 
 {% block title %}Công cụ database{% endblock %}
 
+{% block extra_head %}
+<style>
+@media (max-width: 767.98px) {
+    .dbtool-summary-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+    }
+    .dbtool-summary-grid .pc06-page-summary-card {
+        padding: 10px 12px !important;
+        border-radius: 14px !important;
+    }
+    .dbtool-tabs {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+        gap: 6px;
+    }
+    .dbtool-tabs .pc06-section-menu-tab {
+        width: 100%;
+        justify-content: center;
+        font-size: 12.5px !important;
+        padding: 0 6px !important;
+    }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="pc06-page-shell">
-    <div class="pc06-page-summary">
+    <div class="pc06-page-summary dbtool-summary-grid">
         <div class="pc06-page-summary-card"><span>Vùng thao tác</span><strong>Nhạy cảm</strong></div>
-        <div class="pc06-page-summary-card"><span>Sao lưu</span><strong>Tệp `.db`</strong></div>
+        <div class="pc06-page-summary-card"><span>Sao lưu</span><strong>SQLite (.db)</strong></div>
     </div>
 
     <div class="pc06-section-workspace" data-section-menu-container data-default-pane="backup">
         <div class="pc06-section-menu-shell">
-            <div class="pc06-section-menu" role="tablist" aria-label="Các khu vực chức năng của công cụ database">
+            <div class="pc06-section-menu dbtool-tabs" role="tablist" aria-label="Các khu vực chức năng của công cụ database">
                 <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="backup" role="tab" aria-selected="true">
-                    <i class="fa-solid fa-database"></i>
                     Sao lưu dữ liệu
                 </button>
                 <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="reset" role="tab" aria-selected="false">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
                     Khởi tạo lại hệ thống
                 </button>
             </div>
@@ -50,13 +76,12 @@
                         <p>Xóa toàn bộ dữ liệu và tạo lại trạng thái ban đầu.</p>
                     </div>
                 </div>
-                <div class="pc06-comment-card mb-3" style="border-color: rgba(239, 68, 68, 0.18); background: rgba(254, 242, 242, 0.9);">
-                    <strong class="text-danger">Cảnh báo</strong>
-                    <p class="mb-0">Thao tác này không thể hoàn tác và sẽ xóa sạch dữ liệu hiện có.</p>
+                <div class="pc-alert pc-alert-danger mb-3">
+                    <strong>Cảnh báo:</strong> Thao tác này không thể hoàn tác và sẽ xóa sạch dữ liệu hiện có.
                 </div>
                 <form id="resetForm" action="{{ url_for('admin_bp.db_manage') }}" method="POST">
                     <input type="hidden" name="action" value="reset">
-                    <button type="button" class="btn btn-danger w-100 rounded-pill fw-bold" onclick="ModernConfirm('Cảnh báo nghiêm trọng', 'Xác nhận reset toàn bộ hệ thống. Dữ liệu hiện tại sẽ bị xóa vĩnh viễn.', 'error', 'Thực hiện reset', () => { document.getElementById('resetForm').submit(); })">
+                    <button type="button" class="pc-btn pc-btn-danger" onclick="ModernConfirm('Cảnh báo nghiêm trọng', 'Xác nhận reset toàn bộ hệ thống. Dữ liệu hiện tại sẽ bị xóa vĩnh viễn.', 'error', 'Thực hiện reset', () => { document.getElementById('resetForm').submit(); })">
                         Reset toàn bộ hệ thống
                     </button>
                 </form>

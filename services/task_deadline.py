@@ -30,6 +30,9 @@ def _parse_deadline(form):
         except Exception:
             return None
 
+    if deadline_type == "day":
+        return now.date()
+
     if deadline_type == "week":
         weekday = int(form.get("weekday", 0))
         days_until = (weekday - now.weekday()) % 7

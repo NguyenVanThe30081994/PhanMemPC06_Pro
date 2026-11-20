@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, current_app, Response, send_from_directory
 from sqlalchemy import func
-from models import db, User, AppRole, SystemLog, Task, NewsDoc, DocumentLib, NotificationDoc, Contact, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding
+from models import db, User, AppRole, UserRole, SystemLog, Task, NewsDoc, DocumentLib, NotificationDoc, Contact, CategoryGroup, CategoryItem, ModuleRegistry, CategoryGroupModule, ModuleFieldBinding
 from werkzeug.security import generate_password_hash
 from urllib.parse import urlparse
 import ipaddress
@@ -49,13 +49,20 @@ from category_helpers import (
     canonicalize_category_value,
     category_resolver,
     ensure_category_item_alias,
+    ensure_unified_category_catalog,
     get_module_field_items,
     get_category_items,
+    harvest_feature_categories_to_admin,
+    merge_category_items,
     module_category_options,
+    rename_and_propagate_category_item,
     resolve_category_display,
+    safe_delete_category_item,
     slugify_code,
     stable_form_category_options,
     sync_record_categories,
+    sync_unit_to_category_item,
+    toggle_and_propagate_category_item,
 )
 
 admin_bp = Blueprint('admin_bp', __name__)
@@ -232,16 +239,54 @@ def _get_admin_perms():
 
 
 def _resolve_unit_id(unit_key, unit_area):
-    """Tìm Unit.id theo unit_key hoặc unit_area (dữ liệu cũ)."""
-    from models import Unit
-    if unit_key:
-        unit = Unit.query.filter_by(code=unit_key).first()
+    """Tìm Unit.id theo unit_key, unit_area (kể cả category_item:<id>) hoặc mã chuẩn hóa."""
+    from models import CategoryItem, Unit
+    from utils import extract_unit_key
+    raw_key = str(unit_key or '').strip()
+    raw_area = str(unit_area or '').strip()
+    resolved_name = ''
+    if raw_area:
+        if raw_area.lower().startswith('category_item:'):
+            try:
+                item_id = int(raw_area.split(':', 1)[1])
+                cat_item = db.session.get(CategoryItem, item_id)
+                if cat_item:
+                    resolved_name = str(cat_item.name or '').strip()
+                    if cat_item.code:
+                        unit = Unit.query.filter(
+                            Unit.code == cat_item.code.strip(),
+                            ~Unit.name.ilike('category_item:%'),
+                        ).first()
+                        if unit:
+                            return unit.id
+            except (TypeError, ValueError):
+                pass
+        else:
+            resolved_name = raw_area
+        if resolved_name:
+            unit = Unit.query.filter(
+                Unit.name == resolved_name,
+                ~Unit.name.ilike('category_item:%'),
+            ).first()
+            if unit:
+                return unit.id
+    if raw_key:
+        unit = Unit.query.filter(
+            Unit.code == raw_key,
+            ~Unit.name.ilike('category_item:%'),
+        ).first()
         if unit:
             return unit.id
-    if unit_area:
-        unit = Unit.query.filter(Unit.name == unit_area).first()
-        if unit:
-            return unit.id
+    target_key = extract_unit_key(resolved_name or raw_key or raw_area)
+    if target_key:
+        for candidate in Unit.query.filter_by(is_active=True).order_by(Unit.id.asc()).all():
+            if str(candidate.name or '').strip().lower().startswith('category_item:'):
+                continue
+            if (
+                extract_unit_key(candidate.code or '') == target_key
+                or extract_unit_key(candidate.name or '') == target_key
+            ):
+                return candidate.id
     return None
 
 
@@ -709,17 +754,25 @@ def index():
         task_metrics = _task_dashboard_unit_metrics(visible_task_ids=visible_task_ids)
         overdue_count = _overdue_task_count(visible_task_ids=visible_task_ids)
 
-        # Thống kê hồ sơ TTHC sát/quá hạn từ phân hệ Dossier
+        # Thống kê hồ sơ TTHC sát/quá hạn từ phân hệ Dossier (đồng bộ với Tổng hợp Lãnh đạo)
+        exec_snapshot = None
         dossier_urgent_count = 0
         try:
-            from models import Dossier
-            today_d = date.today()
-            dossier_urgent_count = Dossier.query.filter(
-                Dossier.trang_thai == 'dang_xu_ly',
-                Dossier.han_tra <= today_d + timedelta(days=2)
-            ).count()
-        except Exception as _de:
-            dossier_urgent_count = 0
+            from services.executive_summary import build_executive_summary
+            exec_snapshot = build_executive_summary(authz, session.get('uid'))
+            dossier_urgent_count = int((exec_snapshot.get('overall') or {}).get('urgent') or 0)
+        except Exception:
+            exec_snapshot = None
+            try:
+                from models import Dossier
+                today_d = date.today()
+                dossier_urgent_count = Dossier.query.filter(
+                    Dossier.trang_thai == 'dang_xu_ly',
+                    db.or_(Dossier.has_deadline.is_(True), Dossier.has_deadline.is_(None)),
+                    Dossier.han_tra <= today_d + timedelta(days=2)
+                ).count()
+            except Exception:
+                dossier_urgent_count = 0
 
         overview_metrics = [
             {
@@ -899,6 +952,7 @@ def index():
             now_str=now_str, 
             is_admin=is_admin,
             dossier_urgent_count=dossier_urgent_count,
+            exec_snapshot=exec_snapshot,
             dashboard_cards=dashboard_cards,
             dashboard_snapshots=dashboard_snapshots,
             workspace_groups=workspace_groups,
@@ -919,12 +973,11 @@ def db_tool():
 
 @admin_bp.route('/admin/categories')
 def category_admin():
-    """Trang quản lý danh mục tập trung"""
+    """Chuyển hướng về trang Quản trị danh mục tập trung (/admin/module-categories)."""
     from permissions import can_module
-    if not can_module('sys', 'view'): return redirect(url_for('auth_bp.login'))
-    from models import Category
-    categories = Category.query.order_by(Category.type, Category.order, Category.name).all()
-    return render_template('category_admin.html', categories=categories)
+    if not can_module('sys', 'view'):
+        return redirect(url_for('auth_bp.login'))
+    return redirect(url_for('admin_bp.module_categories', pane='categories'))
 
 
 @admin_bp.route('/admin/styleguide')
@@ -1044,8 +1097,10 @@ def roles():
                     if user_count:
                         flash(f'Không thể xóa vai trò đang có {user_count} tài khoản sử dụng.', 'danger')
                         return redirect(url_for('admin_bp.roles'))
+                    UserRole.query.filter_by(role_id=r.id).delete(synchronize_session=False)
                     name = r.name
                     db.session.delete(r)
+                    db.session.commit()
                     log_permission_change('delete_role', 'role', name)
                     flash(f'Đã xóa vai trò {name}.', 'success')
                     return redirect(url_for('admin_bp.roles'))
@@ -1063,7 +1118,8 @@ def roles():
                     flash('Thiếu thông tin bắt buộc!', 'danger')
                 else:
                     if not username:
-                        username = build_role_account_username(role.name if role else '', unit, unit_key)
+                        unit_display = resolve_category_display(unit, _unit_category_options(), fallback_label=unit)['display_name']
+                        username = build_role_account_username(role.name if role else '', unit_display or unit, unit_key)
                     if not username:
                         flash('Không thể sinh tên đăng nhập từ đơn vị đã chọn!', 'danger')
                     else:
@@ -1129,11 +1185,47 @@ def roles():
     unit_options = _unit_category_options()
     selected_unit = canonicalize_category_value(selected_unit, unit_options, prefer_stable=True) if selected_unit else ''
 
+    def _summarize_role_permissions(form_perms, role_name=''):
+        """Gom quyền theo từng phân hệ (chỉ giữ mức cao nhất mỗi phân hệ) để hiển thị gọn gàng."""
+        role_key = (role_name or '').strip().lower()
+        if role_key in ('quản trị hệ thống', 'admin_system', 'admin'):
+            return {
+                'is_full': True,
+                'headline': 'Toàn quyền hệ thống',
+                'modules': [],
+            }
+        items = []
+        for mod_code, mod_label in PERMISSION_MODULES:
+            has_view = bool(form_perms.get(f'p_{mod_code}_view'))
+            has_proc = bool(form_perms.get(f'p_{mod_code}_process'))
+            has_exec = bool(form_perms.get(f'p_{mod_code}_exec'))
+            if not (has_view or has_proc or has_exec):
+                continue
+            if has_proc:
+                tier_label, tone = 'Xử lý', 'primary'
+            elif has_exec:
+                tier_label, tone = 'Thực hiện', 'success'
+            else:
+                tier_label, tone = 'Xem', 'neutral'
+            items.append({'module': mod_label, 'tier': tier_label, 'tone': tone})
+        if len(items) == len(PERMISSION_MODULES) and all(it['tone'] == 'primary' for it in items):
+            return {
+                'is_full': True,
+                'headline': 'Toàn quyền hệ thống',
+                'modules': [],
+            }
+        return {
+            'is_full': False,
+            'headline': f'{len(items)} phân hệ',
+            'modules': items,
+        }
+
     roles = AppRole.query.order_by(AppRole.name.asc()).all()
     for role in roles:
         form_perms = role_permission_form_payload(role.perms, role_name=role.name)
         setattr(role, 'form_perms_json', json.dumps(form_perms, ensure_ascii=False))
         setattr(role, 'default_permission_tier', role_default_permission_tier(role.name))
+        setattr(role, 'perm_summary', _summarize_role_permissions(form_perms, role.name))
     selected_role, users_query = _build_role_user_query(
         selected_role_id=selected_role_id,
         selected_unit=selected_unit,
@@ -1315,6 +1407,66 @@ def export_users():
         headers={"Content-disposition": f"attachment; filename={filename}"}
     )
 
+def _delete_user_cleanly(user):
+    """Xóa sạch các bản ghi phụ thuộc khóa ngoại của User trước khi xóa User."""
+    from models import (
+        CheckInSession,
+        Delegation,
+        Dossier,
+        Notification,
+        ShortLink,
+        TaskAssignment,
+        TaskImportDraft,
+        TaskParticipant,
+        TaskSubmission,
+        TaskSubmissionFile,
+        UserRole,
+        UserTrustedDevice,
+    )
+
+    uid = user.id
+    UserTrustedDevice.query.filter_by(user_id=uid).delete(synchronize_session=False)
+    UserRole.query.filter_by(user_id=uid).delete(synchronize_session=False)
+    Delegation.query.filter(
+        db.or_(Delegation.delegator_id == uid, Delegation.delegatee_id == uid)
+    ).delete(synchronize_session=False)
+    Notification.query.filter_by(user_id=uid).delete(synchronize_session=False)
+
+    sub_ids = [
+        row[0]
+        for row in db.session.query(TaskSubmission.id).filter_by(submitted_by=uid).all()
+    ]
+    if sub_ids:
+        TaskAssignment.query.filter(TaskAssignment.last_submission_id.in_(sub_ids)).update(
+            {TaskAssignment.last_submission_id: None}, synchronize_session=False
+        )
+        TaskSubmissionFile.query.filter(TaskSubmissionFile.submission_id.in_(sub_ids)).delete(
+            synchronize_session=False
+        )
+        TaskSubmission.query.filter(TaskSubmission.id.in_(sub_ids)).delete(
+            synchronize_session=False
+        )
+
+    TaskAssignment.query.filter_by(user_id=uid).update(
+        {TaskAssignment.last_submission_id: None}, synchronize_session=False
+    )
+    TaskAssignment.query.filter_by(user_id=uid).delete(synchronize_session=False)
+    TaskParticipant.query.filter_by(user_id=uid).delete(synchronize_session=False)
+    TaskImportDraft.query.filter_by(created_by=uid).delete(synchronize_session=False)
+    ShortLink.query.filter_by(created_by=uid).update(
+        {ShortLink.created_by: None}, synchronize_session=False
+    )
+    CheckInSession.query.filter_by(created_by=uid).update(
+        {CheckInSession.created_by: None}, synchronize_session=False
+    )
+    Dossier.query.filter_by(created_by=uid).update(
+        {Dossier.created_by: None}, synchronize_session=False
+    )
+    db.session.flush()
+    db.session.expire(user)
+    db.session.delete(user)
+
+
 @admin_bp.route('/admin/user/delete/<int:uid>', methods=['POST'])
 def delete_user(uid):
     from permissions import can_module
@@ -1327,7 +1479,7 @@ def delete_user(uid):
             flash('Không thể xóa tài khoản Quản trị hệ thống!', 'danger')
         else:
             name = u.username
-            db.session.delete(u)
+            _delete_user_cleanly(u)
             db.session.commit()
             log_action(session['uid'], session['fullname'], "Xóa tài khoản", "Tài khoản", name)
             flash(f'Đã xóa tài khoản {name} thành công!', 'success')
@@ -1360,7 +1512,7 @@ def delete_users_bulk():
             skipped_admin = True
             continue
         deleted_names.append(user.username)
-        db.session.delete(user)
+        _delete_user_cleanly(user)
 
     db.session.commit()
     if deleted_names:
@@ -1960,11 +2112,31 @@ def module_categories():
     if request.method == 'POST' and not can_module('sys', 'process'):
         flash('Bạn không có quyền thay đổi danh mục hệ thống.', 'danger')
         return redirect(url_for('admin_bp.module_categories'))
-    
+
+    selected_group_param = (
+        request.form.get('selected_group')
+        or request.values.get('group')
+        or request.args.get('group')
+        or 'ALL'
+    ).strip()
+
     if request.method == 'POST':
         action = request.form.get('action')
-        
-        if action == 'add_group':
+        return_pane = (request.form.get('return_pane') or request.args.get('pane') or '').strip().lower()
+        if not return_pane:
+            if action in ('add_group', 'delete_group'):
+                return_pane = 'groups'
+            elif action == 'save_binding':
+                return_pane = 'bindings'
+            else:
+                return_pane = 'categories'
+
+        if action == 'harvest_all':
+            ensure_unified_category_catalog(commit=False)
+            res = harvest_feature_categories_to_admin(commit=True)
+            flash(f"Đã gom danh mục từ các chức năng về Quản trị (thêm mới {res.get('added_items', 0)} mục chưa có).", 'success')
+
+        elif action == 'add_group':
             name = request.form.get('name', '').strip()
             code = request.form.get('code', '').strip() or slugify_code(name)
             targets = request.form.getlist('targets')
@@ -1979,25 +2151,44 @@ def module_categories():
                         db.session.add(CategoryGroupModule(group_id=group.id, module_id=module.id))
                 db.session.commit()
                 flash(f'Đã thêm danh mục hệ thống: {name}', 'success')
-                
+
         elif action == 'delete_group':
             group_id = request.form.get('group_id')
             group = CategoryGroup.query.get(group_id)
             if group:
                 name = group.name
-                # Delete all items in group first
-                CategoryItem.query.filter_by(group_id=group_id).delete()
+                for item in list(group.items):
+                    safe_delete_category_item(item)
+                ModuleFieldBinding.query.filter_by(group_id=group.id).delete(synchronize_session=False)
+                CategoryGroupModule.query.filter_by(group_id=group.id).delete(synchronize_session=False)
                 db.session.delete(group)
                 db.session.commit()
                 flash(f'Đã xóa danh mục hệ thống: {name}', 'warning')
-                
+
         elif action == 'add_item':
-            group_id = request.form.get('group_id')
+            group_id = request.form.get('group_id', type=int)
             item_name = request.form.get('item_name', '').strip()
             if group_id and item_name:
-                db.session.add(CategoryItem(group_id=group_id, code=slugify_code(item_name), name=item_name))
-                db.session.commit()
-                flash(f'Đã thêm thành phần: {item_name}', 'success')
+                grp = db.session.get(CategoryGroup, group_id)
+                dup = CategoryItem.query.filter(
+                    CategoryItem.group_id == group_id,
+                    func.lower(CategoryItem.name) == item_name.lower(),
+                ).first()
+                if dup:
+                    flash(f'Thành phần "{item_name}" đã tồn tại trong danh mục này.', 'warning')
+                else:
+                    max_order = db.session.query(func.max(CategoryItem.sort_order)).filter_by(group_id=group_id).scalar() or 0
+                    db.session.add(CategoryItem(
+                        group_id=group_id,
+                        code=slugify_code(item_name),
+                        name=item_name,
+                        is_active=True,
+                        sort_order=int(max_order) + 10,
+                    ))
+                    db.session.commit()
+                    flash(f'Đã thêm thành phần: {item_name}', 'success')
+                if grp and selected_group_param == 'ALL':
+                    selected_group_param = str(grp.id)
 
         elif action == 'import_items_excel':
             group_id = request.form.get('group_id')
@@ -2040,10 +2231,12 @@ def module_categories():
                             }
 
                             added = 0
+                            max_order = db.session.query(func.max(CategoryItem.sort_order)).filter_by(group_id=group_id).scalar() or 0
                             for name in deduped:
                                 if name.lower() in existing:
                                     continue
-                                db.session.add(CategoryItem(group_id=group_id, code=slugify_code(name), name=name))
+                                max_order = int(max_order) + 10
+                                db.session.add(CategoryItem(group_id=group_id, code=slugify_code(name), name=name, is_active=True, sort_order=max_order))
                                 existing.add(name.lower())
                                 added += 1
 
@@ -2056,20 +2249,19 @@ def module_categories():
                 except Exception as e:
                     db.session.rollback()
                     flash(f'Lỗi import Excel: {e}', 'danger')
-                
+
         elif action == 'delete_item':
-            item_id = request.form.get('item_id')
-            item = CategoryItem.query.get(item_id)
+            item_id = request.form.get('item_id', type=int)
+            item = db.session.get(CategoryItem, item_id) if item_id else None
             if item:
                 name = item.name
-                db.session.delete(item)
-                db.session.commit()
-                flash(f'Đã xóa thành phần: {name}', 'info')
+                safe_delete_category_item(item)
+                flash(f'Đã xóa thành phần "{name}" và giữ toàn vẹn dữ liệu cũ.', 'info')
 
         elif action == 'rename_item':
-            item_id = request.form.get('item_id')
+            item_id = request.form.get('item_id', type=int)
             item_name = request.form.get('item_name', '').strip()
-            item = CategoryItem.query.get(item_id)
+            item = db.session.get(CategoryItem, item_id) if item_id else None
             if not item:
                 flash('Không tìm thấy thành phần cần sửa.', 'warning')
             elif not item_name:
@@ -2081,15 +2273,51 @@ def module_categories():
                     CategoryItem.id != item.id,
                 ).first()
                 if duplicate:
-                    flash(f'Tên thành phần "{item_name}" đã tồn tại trong danh mục này.', 'warning')
+                    flash(f'Tên thành phần "{item_name}" đã tồn tại — có thể dùng nút Gộp để chuyển dữ liệu sang.', 'warning')
                 else:
                     old_name = item.name
-                    if not item.code:
-                        item.code = slugify_code(item.name)
-                    item.name = item_name
-                    ensure_category_item_alias(item, old_name)
+                    synced = rename_and_propagate_category_item(item, item_name)
+                    flash(f'Đã đổi tên "{old_name}" → "{item_name}" và cập nhật {synced} liên kết tại các chức năng.', 'success')
+
+        elif action == 'toggle_item':
+            item_id = request.form.get('item_id', type=int)
+            item = db.session.get(CategoryItem, item_id) if item_id else None
+            if item:
+                is_active = toggle_and_propagate_category_item(item)
+                state_txt = 'Hiển thị' if is_active else 'Đã ẩn'
+                flash(f'Đã cập nhật trạng thái "{item.name}": {state_txt}.', 'success')
+
+        elif action == 'move_item':
+            item_id = request.form.get('item_id', type=int)
+            direction = (request.form.get('direction') or '').strip().lower()
+            item = db.session.get(CategoryItem, item_id) if item_id else None
+            if item and direction in ('up', 'down'):
+                siblings = CategoryItem.query.filter_by(group_id=item.group_id).order_by(
+                    CategoryItem.sort_order.asc(), CategoryItem.name.asc(), CategoryItem.id.asc()
+                ).all()
+                for idx, sib in enumerate(siblings, start=1):
+                    sib.sort_order = idx * 10
+                pos = next((i for i, s in enumerate(siblings) if s.id == item.id), -1)
+                swap_pos = pos - 1 if direction == 'up' else pos + 1
+                if pos >= 0 and 0 <= swap_pos < len(siblings):
+                    siblings[pos].sort_order, siblings[swap_pos].sort_order = (
+                        siblings[swap_pos].sort_order,
+                        siblings[pos].sort_order,
+                    )
                     db.session.commit()
-                    flash(f'Đã đổi tên thành phần: {old_name} -> {item_name}', 'success')
+                    flash(f'Đã đổi thứ tự "{item.name}".', 'success')
+
+        elif action == 'merge_item':
+            src_id = request.form.get('source_item_id', type=int)
+            tgt_id = request.form.get('target_item_id', type=int)
+            src = db.session.get(CategoryItem, src_id) if src_id else None
+            tgt = db.session.get(CategoryItem, tgt_id) if tgt_id else None
+            if not src or not tgt or src.id == tgt.id or src.group_id != tgt.group_id:
+                flash('Vui lòng chọn 2 thành phần khác nhau trong cùng một nhóm để gộp.', 'warning')
+            else:
+                src_name, tgt_name = src.name, tgt.name
+                moved = merge_category_items(src, tgt)
+                flash(f'Đã gộp "{src_name}" vào "{tgt_name}" và cập nhật {moved} bản ghi.', 'success')
 
         elif action == 'save_binding':
             module_id = request.form.get('module_id')
@@ -2110,9 +2338,20 @@ def module_categories():
                 db.session.commit()
                 flash('Đã cập nhật liên kết field thành công!', 'success')
 
-        return redirect(url_for('admin_bp.module_categories'))
+        redirect_kwargs = {'pane': return_pane}
+        if selected_group_param and selected_group_param != 'ALL':
+            redirect_kwargs['group'] = selected_group_param
+        return redirect(url_for('admin_bp.module_categories', **redirect_kwargs))
+
+    harvest_feature_categories_to_admin(commit=True)
 
     groups = CategoryGroup.query.order_by(CategoryGroup.sort_order.asc(), CategoryGroup.name.asc()).all()
+    group_items_map = {
+        g.id: CategoryItem.query.filter_by(group_id=g.id).order_by(
+            CategoryItem.sort_order.asc(), CategoryItem.name.asc(), CategoryItem.id.asc()
+        ).all()
+        for g in groups
+    }
     modules = ModuleRegistry.query.order_by(ModuleRegistry.sort_order.asc(), ModuleRegistry.name.asc()).all()
     current_pane = (request.args.get('pane') or 'groups').strip().lower()
     if current_pane not in {'groups', 'categories', 'bindings'}:
@@ -2122,20 +2361,25 @@ def module_categories():
     module_fields = {
         'notify': [
             {'code': 'category', 'label': 'Lĩnh vực / Đội nghiệp vụ'},
-            {'code': 'document_type', 'label': 'Loại tài liệu'}
+            {'code': 'document_type', 'label': 'Loại tài liệu'},
         ],
         'tasks': [
+            {'code': 'category', 'label': 'Lĩnh vực'},
             {'code': 'domain', 'label': 'Đội nghiệp vụ'},
             {'code': 'task_type', 'label': 'Loại công việc'},
             {'code': 'priority', 'label': 'Mức độ ưu tiên'},
-            {'code': 'initial_status', 'label': 'Trạng thái khởi tạo'}
+            {'code': 'initial_status', 'label': 'Trạng thái khởi tạo'},
         ],
         'contacts': [
             {'code': 'contact_group', 'label': 'Nhóm danh bạ'},
             {'code': 'role', 'label': 'Chức vụ'},
             {'code': 'unit_name', 'label': 'Đơn vị'},
-            {'code': 'category', 'label': 'Lĩnh vực'}
-        ]
+            {'code': 'category', 'label': 'Lĩnh vực'},
+        ],
+        'dossiers': [
+            {'code': 'category_tab', 'label': 'Phân hệ hồ sơ'},
+            {'code': 'loai', 'label': 'Loại hồ sơ'},
+        ],
     }
     sidebar_submenu_items = [
         {
@@ -2157,6 +2401,8 @@ def module_categories():
     return render_template(
         'module_categories.html',
         groups=groups,
+        group_items_map=group_items_map,
+        selected_group_filter=selected_group_param,
         modules=modules,
         module_fields=module_fields,
         binding_map=binding_map,
@@ -2203,18 +2449,21 @@ def units():
                 unit = Unit(code=code, name=name, parent_id=parent_id, level=level, is_active=True)
                 db.session.add(unit)
                 db.session.flush()
+                sync_unit_to_category_item(unit)
                 log_permission_change('set_unit', 'unit', name, f'code={code} parent={parent_id}')
                 flash(f'Đã thêm đơn vị {name}.', 'success')
             elif action == 'edit_unit':
                 uid = request.form.get('unit_id', type=int)
                 unit = db.session.get(Unit, uid)
                 if unit:
+                    old_name, old_code = unit.name, unit.code
                     unit.name = (request.form.get('name') or unit.name).strip()
                     unit.code = (request.form.get('code') or unit.code).strip()
                     unit.level = (request.form.get('level') or unit.level).strip()
                     unit.parent_id = request.form.get('parent_id', type=int) or None
                     unit.is_active = request.form.get('is_active') == '1'
                     db.session.flush()
+                    sync_unit_to_category_item(unit, old_name=old_name, old_code=old_code)
                     log_permission_change('set_unit', 'unit', unit.name, f'edit id={uid}')
                     flash('Đã cập nhật đơn vị.', 'success')
             elif action == 'delete_unit':
@@ -2228,8 +2477,16 @@ def units():
                     if user_count:
                         flash(f'Không thể xóa đơn vị còn {user_count} tài khoản.', 'danger')
                         return redirect(url_for('admin_bp.units'))
+                    from models import TaskAssignment, UserRole
+                    UserRole.query.filter_by(unit_id=unit.id).delete(synchronize_session=False)
+                    TaskAssignment.query.filter_by(unit_id=unit.id).update(
+                        {TaskAssignment.unit_id: None}, synchronize_session=False
+                    )
                     name = unit.name
+                    old_code = unit.code
+                    sync_unit_to_category_item(unit, old_name=name, old_code=old_code, deleted=True)
                     db.session.delete(unit)
+                    db.session.commit()
                     log_permission_change('set_unit', 'unit', name, 'delete')
                     flash(f'Đã xóa đơn vị {name}.', 'success')
             db.session.commit()
@@ -2359,4 +2616,77 @@ def delegations():
         sidebar_submenu_parent='module_categories',
         sidebar_submenu_title='Ủy quyền',
         sidebar_submenu_items=[],
+    )
+
+
+@admin_bp.route('/admin/mobile-preview')
+def mobile_preview():
+    """Khung mô phỏng điện thoại cho quản trị viên kiểm tra trực tiếp giao diện mobile."""
+    from permissions import can_module
+    if not can_module('sys', 'view'):
+        return redirect(url_for('auth_bp.login'))
+    raw_path = (request.args.get('path') or '/dossiers').strip()
+    if not raw_path.startswith('/') or raw_path.startswith('//') or '\\' in raw_path:
+        raw_path = '/dossiers'
+    return render_template('mobile_preview.html', initial_path=raw_path)
+
+
+@admin_bp.route('/tong-quan-lanh-dao')
+@admin_bp.route('/admin/overview')
+def executive_overview():
+    """Màn hình Tổng hợp nhanh cho Lãnh đạo / Chỉ huy: xem tổng số hồ sơ, đơn vị & báo cáo."""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    from permissions import current_authz
+    from services.executive_summary import build_executive_summary
+    authz = current_authz()
+    tab_filter = (request.args.get('tab') or 'all').strip()
+    summary = build_executive_summary(authz, session.get('uid'), tab_filter=tab_filter)
+    return render_template(
+        'executive_overview.html',
+        title='Tổng hợp số liệu',
+        summary=summary,
+        is_admin=authz['is_admin'],
+    )
+
+
+@admin_bp.route('/api/executive-summary', methods=['GET'])
+def api_executive_summary():
+    """API JSON trả số liệu Tổng hợp Lãnh đạo (hỗ trợ lọc theo lĩnh vực & tìm đơn vị)."""
+    if not session.get('uid'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    from permissions import current_authz
+    from services.executive_summary import build_executive_summary
+    authz = current_authz()
+    tab_filter = (request.args.get('tab') or 'all').strip()
+    unit_search = (request.args.get('q') or '').strip()
+    only_urgent = (request.args.get('only_urgent') or '').strip().lower() in ('1', 'true', 'yes')
+    summary = build_executive_summary(
+        authz,
+        session.get('uid'),
+        tab_filter=tab_filter,
+        unit_search=unit_search,
+        only_urgent=only_urgent,
+    )
+    return jsonify(summary)
+
+
+@admin_bp.route('/api/executive-summary/export', methods=['GET'])
+def api_executive_summary_export():
+    """Xuất báo cáo tổng hợp Lãnh đạo ra file Excel 3 sheet."""
+    if not session.get('uid'):
+        return redirect(url_for('auth_bp.login'))
+    from flask import send_file
+    from permissions import current_authz
+    from services.executive_summary import build_executive_summary, export_executive_summary_xlsx
+    authz = current_authz()
+    tab_filter = (request.args.get('tab') or 'all').strip()
+    summary = build_executive_summary(authz, session.get('uid'), tab_filter=tab_filter)
+    buf = export_executive_summary_xlsx(summary)
+    filename = f"Bao_cao_tong_hop_PC06_{date.today().strftime('%Y%m%d')}.xlsx"
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )

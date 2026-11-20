@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Phân Công Nhiệm Vụ Theo Đề Cương Văn Bản — PC06 Pro{% endblock %}
+{% block title %}Phân Công Nhiệm Vụ Theo Đề Cương Văn Bản — Hệ thống PC06{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -32,8 +32,8 @@
   .hero-upload-card {
     border-radius: 16px;
     border: 1px solid var(--doc-border);
-    background: var(--pc-card-bg, #FFFFFF);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    background: var(--pc-bg-card);
+    box-shadow: var(--pc-shadow-xs);
   }
 
   .dropzone-box {
@@ -76,11 +76,11 @@
     position: sticky;
     top: 70px;
     z-index: 95;
-    background: var(--pc-card-bg, #FFFFFF);
+    background: var(--pc-bg-card);
     border: 1px solid var(--doc-border);
     border-radius: 12px;
     padding: 12px 20px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--pc-shadow-xs);
   }
 
   /* ── 3. WORKSPACE 2 CỘT ── */
@@ -237,10 +237,10 @@
 
   /* CỘT 2: BẢNG PHÂN CÔNG ĐIỀU KHIỂN (STICKY CONTROL PANEL) */
   .control-rail-panel {
-    background: var(--pc-card-bg, #FFFFFF);
+    background: var(--pc-bg-card);
     border: 1px solid var(--doc-border);
     border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--pc-shadow-sm);
     position: sticky;
     top: 140px;
     max-height: calc(100vh - 160px);
@@ -425,24 +425,29 @@
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- 1. TRẠNG THÁI TIẾP NHẬN TỆP — KHI CHƯA CÓ FILE                        -->
   <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <div id="heroUploadSection" class="hero-upload-card p-4 p-lg-5 mb-4 shadow-sm text-center">
+  <div id="heroUploadSection" class="hero-upload-card pc-card p-4 p-lg-5 mb-4 text-center">
     <div class="mx-auto mb-4" style="max-width: 680px;">
-      <div class="d-inline-flex align-items-center justify-content-center bg-primary-subtle text-primary rounded-circle p-3 mb-3" style="width: 60px; height: 60px;">
-        <i class="fa-solid fa-file-contract fs-3"></i>
-      </div>
-      <h3 class="fw-bold mb-0" style="color: var(--text-main, #1A365D);">
-        Phân Công Nhiệm Vụ Theo Đề Cương Văn Bản
-      </h3>
+      <h1 class="pc-page-title" style="color: var(--pc-text);">
+        Phân công nhiệm vụ theo đề cương văn bản
+      </h1>
     </div>
 
     <!-- KHU VỰC CHỌN TỆP -->
+    <div id="outlineDraftRestoreBanner" class="alert alert-info py-2 px-3 d-none d-flex flex-wrap justify-content-between align-items-center gap-2 mx-auto mb-3 small text-start" style="max-width: 600px;">
+      <span>Có bản cấu hình đề cương đã lưu nháp (<strong id="outlineDraftSavedTime"></strong>).</span>
+      <div class="d-flex gap-2">
+        <button type="button" class="pc-btn pc-btn-primary btn-sm" id="btnRestoreOutlineDraft">Khôi phục cấu hình</button>
+        <button type="button" class="pc-btn pc-btn-secondary btn-sm" id="btnDiscardOutlineDraft">Xóa nháp</button>
+      </div>
+    </div>
+
     <div class="dropzone-box mx-auto" id="dropZoneArea" style="max-width: 600px; padding: 36px 20px;">
       <input type="file" id="filePicker" accept=".docx,.pdf,.txt" class="d-none">
       <div class="d-flex justify-content-center gap-3 mb-3">
-        <i class="fa-solid fa-file-word text-primary" style="font-size: 40px;"></i>
-        <i class="fa-solid fa-file-pdf text-danger" style="font-size: 40px;"></i>
+        <i class="fa-solid fa-file-word text-primary" style="font-size: 36px;"></i>
+        <i class="fa-solid fa-file-pdf text-danger" style="font-size: 36px;"></i>
       </div>
-      <button type="button" class="pc-btn pc-btn-primary btn-lg px-4 shadow-sm" onclick="document.getElementById('filePicker').click()">
+      <button type="button" class="pc-btn pc-btn-primary px-4" onclick="document.getElementById('filePicker').click()">
         <i class="fa-solid fa-cloud-arrow-up me-2"></i>Chọn văn bản (.docx, .pdf)
       </button>
     </div>
@@ -461,7 +466,7 @@
         </div>
         <div>
           <div class="fw-bold fs-6 mb-0 text-truncate" id="currentFileName" style="max-width: 260px;">Văn bản đề cương</div>
-          <button type="button" class="btn btn-link p-0 text-decoration-none small text-muted" onclick="document.getElementById('filePicker').click()">
+          <button type="button" class="btn btn-link p-0 text-decoration-none small text-muted" id="btnChangeOutlineDoc">
             <i class="fa-solid fa-arrows-rotate me-1"></i>Đổi văn bản khác
           </button>
         </div>
@@ -510,18 +515,15 @@
       <div class="control-rail-panel" id="controlRail">
         <div class="rail-header">
           <div class="d-flex align-items-center justify-content-between">
-            <div class="fw-bold text-primary fs-6">
-              <i class="fa-solid fa-sliders me-2"></i>Phân công đơn vị thực hiện
-            </div>
-            <span class="badge bg-primary-subtle text-primary" id="selectedNodeBadge" style="display:none;">Đang chọn</span>
+            <div class="fw-bold text-primary fs-6">Phân công đơn vị thực hiện</div>
+            <span class="pc-badge pc-badge-primary" id="selectedNodeBadge" style="display:none;">Đang chọn</span>
           </div>
         </div>
 
         <div class="rail-body">
           <!-- CHƯA CHỌN MỤC NÀO -->
           <div id="emptyRailPrompt" class="text-center py-5 text-muted">
-            <i class="fa-solid fa-arrow-pointer fs-2 mb-3 text-secondary opacity-50"></i>
-            <h6 class="fw-bold mb-0">Chọn mục nhiệm vụ bên trái để phân công</h6>
+            <div class="fw-semibold mb-0">Chọn mục nhiệm vụ trong đề cương để phân công</div>
           </div>
 
           <!-- KHI ĐÃ CHỌN 1 MỤC -->
@@ -533,36 +535,32 @@
 
             <!-- CHUYỂN ĐỔI CHẾ ĐỘ: ĐƠN VỊ VS CÁN BỘ -->
             <div class="mode-switch-group mb-3">
-              <button type="button" class="mode-switch-btn active" id="btnModeUnit">
-                <i class="fa-solid fa-building me-1"></i>Theo Đơn Vị
-              </button>
-              <button type="button" class="mode-switch-btn" id="btnModeUser">
-                <i class="fa-solid fa-user-tie me-1"></i>Theo Cán Bộ
-              </button>
+              <button type="button" class="mode-switch-btn active" id="btnModeUnit">Theo Đơn Vị</button>
+              <button type="button" class="mode-switch-btn" id="btnModeUser">Theo Cán Bộ</button>
             </div>
 
             <!-- 1. VÙNG PHÂN CÔNG ĐƠN VỊ -->
             <div id="unitAssignmentSection">
               <div class="d-flex flex-wrap gap-1 mb-3" id="presetRowContainer">
-                <button type="button" class="preset-btn" data-preset="khoi_so_nganh">🏛️ 19 Sở Ban Ngành</button>
-                <button type="button" class="preset-btn" data-preset="khoi_ubnd_xa">🏡 124 UBND Xã</button>
-                <button type="button" class="preset-btn" data-preset="khoi_cax">👮 124 Công an Xã</button>
-                <button type="button" class="preset-btn" data-preset="toan_tinh">🌐 Toàn Tỉnh (Sở + Xã)</button>
+                <button type="button" class="preset-btn" data-preset="khoi_so_nganh">19 Sở Ban Ngành</button>
+                <button type="button" class="preset-btn" data-preset="khoi_ubnd_xa">124 UBND Xã</button>
+                <button type="button" class="preset-btn" data-preset="khoi_cax">124 Công an Xã</button>
+                <button type="button" class="preset-btn" data-preset="toan_tinh">Toàn Tỉnh</button>
               </div>
 
               <div class="assignee-tabs-bar mb-2" id="unitTabs">
-                <button type="button" class="assignee-tab-btn active" data-unit-tab="province">🏛️ Sở Ngành (<span id="countProvince">19</span>)</button>
-                <button type="button" class="assignee-tab-btn" data-unit-tab="commune_ubnd">🏡 UBND Xã (<span id="countUbnd">124</span>)</button>
-                <button type="button" class="assignee-tab-btn" data-unit-tab="commune_cax">👮 CAX (<span id="countCax">124</span>)</button>
+                <button type="button" class="assignee-tab-btn active" data-unit-tab="province">Sở Ngành (<span id="countProvince">19</span>)</button>
+                <button type="button" class="assignee-tab-btn" data-unit-tab="commune_ubnd">UBND Xã (<span id="countUbnd">124</span>)</button>
+                <button type="button" class="assignee-tab-btn" data-unit-tab="commune_cax">CAX (<span id="countCax">124</span>)</button>
               </div>
             </div>
 
             <!-- 2. VÙNG PHÂN CÔNG CÁN BỘ -->
             <div id="userAssignmentSection" style="display: none;">
               <div class="assignee-tabs-bar mb-2" id="userTabs">
-                <button type="button" class="assignee-tab-btn active" data-user-tab="province">🏛️ Cán bộ Tỉnh (<span id="countUserProv">38</span>)</button>
-                <button type="button" class="assignee-tab-btn" data-user-tab="commune_ubnd">🏡 Cán bộ UBND Xã (<span id="countUserUbnd">248</span>)</button>
-                <button type="button" class="assignee-tab-btn" data-user-tab="commune_cax">👮 Cán bộ CAX (<span id="countUserCax">248</span>)</button>
+                <button type="button" class="assignee-tab-btn active" data-user-tab="province">Cán bộ Tỉnh (<span id="countUserProv">38</span>)</button>
+                <button type="button" class="assignee-tab-btn" data-user-tab="commune_ubnd">Cán bộ UBND Xã (<span id="countUserUbnd">248</span>)</button>
+                <button type="button" class="assignee-tab-btn" data-user-tab="commune_cax">Cán bộ CAX (<span id="countUserCax">248</span>)</button>
               </div>
             </div>
 
@@ -618,7 +616,7 @@
             <label class="form-label small fw-bold">Phân loại kiểu báo cáo</label>
             <select id="taskReportKindInput" class="form-select">
               <option value="one_time">Báo cáo đột xuất / một lần</option>
-              <option value="periodic">Báo cáo định kỳ (Tuần / Tháng / Quý / Năm)</option>
+              <option value="periodic">Báo cáo định kỳ (Ngày / Tuần / Tháng / Quý / Năm)</option>
               <option value="milestone">Báo cáo theo mốc / giai đoạn</option>
               <option value="ongoing">Nhiệm vụ thường xuyên / duy trì</option>
             </select>
@@ -630,11 +628,16 @@
               <div class="col-6">
                 <label class="form-label small fw-bold mb-1">Chu kỳ lặp lại</label>
                 <select id="taskPeriodSelect" class="form-select form-select-sm">
+                  <option value="day">Hàng ngày</option>
                   <option value="month" selected>Hàng tháng</option>
                   <option value="week">Hàng tuần</option>
                   <option value="quarter">Hàng quý</option>
                   <option value="year">Hàng năm</option>
                 </select>
+              </div>
+              <div class="col-6" id="dailyField" style="display: none;">
+                <label class="form-label small fw-bold mb-1">Chu kỳ chốt số liệu</label>
+                <div class="form-control form-control-sm bg-transparent text-muted">Mỗi ngày</div>
               </div>
               <div class="col-6" id="dayOfMonthField">
                 <label class="form-label small fw-bold mb-1">Ngày nộp trong tháng</label>
@@ -841,6 +844,8 @@
       if (tree.error) throw new Error(tree.error);
       outlineData = tree;
       assignments = {};
+      document.getElementById('taskTitleInput').value = '';
+      document.getElementById('taskDeadlineInput').value = '';
 
       document.getElementById('currentFileName').textContent = file.name;
       document.getElementById('heroUploadSection').style.display = 'none';
@@ -1333,17 +1338,51 @@
 
   document.getElementById('btnClearAll').addEventListener('click', function() {
     if (!outlineData) return;
-    assignments = {};
-    document.querySelectorAll('.doc-segment').forEach(seg => {
-      seg.classList.remove('assigned');
-      const tagSpan = seg.querySelector('.seg-tags');
-      if (tagSpan) tagSpan.innerHTML = '';
-    });
-    if (activeNodeId) {
-      renderCardTags();
-      renderAssigneeSearchList();
+    const hasAssigned = Object.keys(assignments || {}).some(k => hasValidAssignees(assignments[k]));
+    const clearFn = () => {
+      assignments = {};
+      document.querySelectorAll('.doc-segment').forEach(seg => {
+        seg.classList.remove('assigned');
+        const tagSpan = seg.querySelector('.seg-tags');
+        if (tagSpan) tagSpan.innerHTML = '';
+      });
+      if (activeNodeId) {
+        renderCardTags();
+        renderAssigneeSearchList();
+      }
+      updateProgress();
+    };
+    if (hasAssigned && outlineUnsavedGuard) {
+      outlineUnsavedGuard.confirmExitAction(() => {
+        clearFn();
+        outlineUnsavedGuard.enable();
+      }, {
+        title: 'Đặt lại phân công đề cương?',
+        text: 'Các mục đã phân công chưa được phát hành. Bạn có muốn lưu nháp trước khi xóa phân công không?',
+        saveText: 'Lưu nháp & Đặt lại',
+        discardText: 'Không lưu, đặt lại',
+        stayText: 'Giữ nguyên',
+      });
+      return;
     }
-    updateProgress();
+    clearFn();
+  });
+
+  document.getElementById('btnChangeOutlineDoc')?.addEventListener('click', function() {
+    if (outlineUnsavedGuard) {
+      outlineUnsavedGuard.confirmExitAction(() => {
+        outlineUnsavedGuard.enable();
+        filePicker?.click();
+      }, {
+        title: 'Đổi văn bản đề cương?',
+        text: 'Cấu hình đề cương hiện tại chưa phát hành. Bạn có muốn lưu nháp trước khi chọn văn bản khác không?',
+        saveText: 'Lưu nháp & Đổi văn bản',
+        discardText: 'Không lưu, đổi luôn',
+        stayText: 'Ở lại',
+      });
+      return;
+    }
+    filePicker?.click();
   });
 
   function hasValidAssignees(entry) {
@@ -1372,31 +1411,35 @@
   const reportKindInput = document.getElementById('taskReportKindInput');
   const periodicWrap = document.getElementById('periodicConfigWrap');
   const periodSelect = document.getElementById('taskPeriodSelect');
+  const dailyField = document.getElementById('dailyField');
   const weekdayField = document.getElementById('weekdayField');
   const dayOfMonthField = document.getElementById('dayOfMonthField');
+
+  function syncOutlinePeriodFields() {
+    const val = periodSelect ? periodSelect.value : 'month';
+    if (dailyField) dailyField.style.display = val === 'day' ? 'block' : 'none';
+    if (weekdayField) weekdayField.style.display = val === 'week' ? 'block' : 'none';
+    if (dayOfMonthField) dayOfMonthField.style.display = (val === 'day' || val === 'week') ? 'none' : 'block';
+  }
 
   if (reportKindInput) {
     reportKindInput.addEventListener('change', function() {
       periodicWrap.style.display = this.value === 'periodic' ? 'block' : 'none';
+      syncOutlinePeriodFields();
     });
   }
 
   if (periodSelect) {
-    periodSelect.addEventListener('change', function() {
-      if (this.value === 'week') {
-        weekdayField.style.display = 'block';
-        dayOfMonthField.style.display = 'none';
-      } else {
-        weekdayField.style.display = 'none';
-        dayOfMonthField.style.display = 'block';
-      }
-    });
+    periodSelect.addEventListener('change', syncOutlinePeriodFields);
+    syncOutlinePeriodFields();
   }
 
   document.getElementById('btnSubmitTask').addEventListener('click', function() {
     if (!outlineData) return;
-    document.getElementById('taskTitleInput').value = outlineData.title || '';
-    document.getElementById('taskDeadlineInput').value = '';
+    const titleEl = document.getElementById('taskTitleInput');
+    if (titleEl && !titleEl.value.trim()) {
+      titleEl.value = outlineData.title || '';
+    }
 
     let assignedCount = 0;
     Object.keys(assignments).forEach(k => {
@@ -1408,7 +1451,7 @@
         Swal.fire({
           icon: 'warning',
           title: 'Chưa gán mục nào',
-          text: 'Hãy bấm vào từng mục nhiệm vụ bên trái và chọn đơn vị hoặc cán bộ thực hiện trước khi phát hành.'
+          text: 'Hãy bấm vào từng mục nhiệm vụ trong đề cương và chọn đơn vị hoặc cán bộ thực hiện trước khi phát hành.'
         });
       } else {
         alert('Chưa gán mục nào. Hãy chọn đơn vị hoặc cán bộ thực hiện trước khi phát hành.');
@@ -1481,6 +1524,8 @@
     })
     .then(res => {
       if (res.error) throw new Error(res.error);
+      outlineUnsavedGuard?.disable();
+      clearOutlineDraft();
       const modalInstance = bootstrap.Modal.getInstance(document.getElementById('confirmPublishModal'));
       if (modalInstance) modalInstance.hide();
 
@@ -1512,6 +1557,114 @@
     });
   });
 
+  const OUTLINE_DRAFT_KEY = 'pc06_outline_assign_draft_v1_' + String({{ session.get('uid', 0) | tojson }});
+
+  function readOutlineDraft() {
+    try {
+      const raw = localStorage.getItem(OUTLINE_DRAFT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  function clearOutlineDraft() {
+    try { localStorage.removeItem(OUTLINE_DRAFT_KEY); } catch (_err) {}
+  }
+
+  function saveOutlineDraft() {
+    if (!outlineData) return false;
+    const payload = {
+      savedAt: new Date().toISOString(),
+      fileName: document.getElementById('currentFileName')?.textContent || 'Văn bản đề cương',
+      outlineData: outlineData,
+      assignments: assignments || {},
+      modalFields: {
+        title: document.getElementById('taskTitleInput')?.value || '',
+        reportKind: document.getElementById('taskReportKindInput')?.value || 'one_time',
+        period: document.getElementById('taskPeriodSelect')?.value || 'month',
+        dayOfMonth: document.getElementById('taskDayOfMonthSelect')?.value || '20',
+        weekday: document.getElementById('taskWeekdaySelect')?.value || '4',
+        deadline: document.getElementById('taskDeadlineInput')?.value || '',
+      },
+    };
+    try {
+      localStorage.setItem(OUTLINE_DRAFT_KEY, JSON.stringify(payload));
+      return true;
+    } catch (_err) {
+      return false;
+    }
+  }
+
+  async function restoreOutlineDraft(draft) {
+    if (!draft || !draft.outlineData) return;
+    await loadAssignees();
+    outlineData = draft.outlineData;
+    assignments = draft.assignments || {};
+    document.getElementById('currentFileName').textContent = draft.fileName || 'Văn bản đề cương';
+    document.getElementById('heroUploadSection').style.display = 'none';
+    document.getElementById('interactiveWorkspaceSection').style.display = 'block';
+    if (draft.modalFields) {
+      if (draft.modalFields.title) document.getElementById('taskTitleInput').value = draft.modalFields.title;
+      if (draft.modalFields.reportKind && reportKindInput) {
+        reportKindInput.value = draft.modalFields.reportKind;
+        periodicWrap.style.display = draft.modalFields.reportKind === 'periodic' ? 'block' : 'none';
+      }
+      if (draft.modalFields.period && periodSelect) periodSelect.value = draft.modalFields.period;
+      if (draft.modalFields.dayOfMonth) document.getElementById('taskDayOfMonthSelect').value = draft.modalFields.dayOfMonth;
+      if (draft.modalFields.weekday) document.getElementById('taskWeekdaySelect').value = draft.modalFields.weekday;
+      if (draft.modalFields.deadline) document.getElementById('taskDeadlineInput').value = draft.modalFields.deadline;
+      syncOutlinePeriodFields();
+    }
+    renderDocumentTree();
+    Object.keys(assignments || {}).forEach(k => updateSegmentTagOnPage(k));
+    updateProgress();
+  }
+
+  function refreshOutlineDraftBanner() {
+    const banner = document.getElementById('outlineDraftRestoreBanner');
+    const timeEl = document.getElementById('outlineDraftSavedTime');
+    if (!banner) return;
+    const draft = readOutlineDraft();
+    if (!draft || !draft.outlineData) {
+      banner.classList.add('d-none');
+      return;
+    }
+    if (timeEl) {
+      try {
+        timeEl.textContent = new Date(draft.savedAt).toLocaleString('vi-VN');
+      } catch (_err) {
+        timeEl.textContent = 'gần đây';
+      }
+    }
+    banner.classList.remove('d-none');
+  }
+
+  document.getElementById('btnRestoreOutlineDraft')?.addEventListener('click', async () => {
+    const draft = readOutlineDraft();
+    if (!draft) return;
+    await restoreOutlineDraft(draft);
+    document.getElementById('outlineDraftRestoreBanner')?.classList.add('d-none');
+  });
+
+  document.getElementById('btnDiscardOutlineDraft')?.addEventListener('click', () => {
+    clearOutlineDraft();
+    refreshOutlineDraftBanner();
+  });
+
+  const outlineUnsavedGuard = typeof window.pcAttachUnsavedGuard === 'function'
+    ? window.pcAttachUnsavedGuard({
+      isDirty: () => Boolean(outlineData),
+      onSaveAndExit: () => saveOutlineDraft(),
+      title: 'Bạn đang cấu hình đề cương',
+      text: 'Cấu hình đề cương chưa được phát hành. Bạn có muốn lưu bản nháp trước khi thoát không?',
+      saveText: 'Lưu bản nháp & Thoát',
+      discardText: 'Không lưu, thoát',
+      stayText: 'Ở lại tiếp tục',
+    })
+    : null;
+
+  refreshOutlineDraftBanner();
 })();
 </script>
 {% endblock %}

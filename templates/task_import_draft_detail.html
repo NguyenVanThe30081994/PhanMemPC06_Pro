@@ -2144,6 +2144,34 @@
     syncFormRequiredIndexes();
     syncReportRequiredIndexes();
     renderAiAnalysis(currentAiAnalysis);
+
+    const draftFormEl = document.getElementById('taskImportDraftEditForm');
+    let draftStructDirty = false;
+    const draftBaseline = draftFormEl && typeof window.pcSerializeForm === 'function'
+        ? window.pcSerializeForm(draftFormEl)
+        : '';
+    addOutlineRowBtn?.addEventListener('click', () => { draftStructDirty = true; });
+    addFormDraftFieldBtn?.addEventListener('click', () => { draftStructDirty = true; });
+    addReportFieldBtn?.addEventListener('click', () => { draftStructDirty = true; });
+    let draftGuard = null;
+    if (!isLocked && draftFormEl && typeof window.pcAttachUnsavedGuard === 'function') {
+        draftGuard = window.pcAttachUnsavedGuard({
+            isDirty: () => draftStructDirty || (typeof window.pcSerializeForm === 'function' && window.pcSerializeForm(draftFormEl) !== draftBaseline),
+            onSaveAndExit: () => {
+                draftGuard?.disable();
+                if (typeof draftFormEl.requestSubmit === 'function') draftFormEl.requestSubmit();
+                else draftFormEl.submit();
+                return false;
+            },
+            title: 'Lưu cấu hình nháp?',
+            text: 'Thay đổi cấu hình nháp chưa được lưu. Bạn có muốn lưu lại trước khi thoát không?',
+            saveText: 'Lưu nháp',
+            discardText: 'Không lưu, thoát',
+            stayText: 'Ở lại',
+        });
+        draftFormEl.addEventListener('submit', () => draftGuard?.disable());
+        document.querySelector('form[action*="/publish"]')?.addEventListener('submit', () => draftGuard?.disable());
+    }
 })();
 </script>
 {% endblock %}

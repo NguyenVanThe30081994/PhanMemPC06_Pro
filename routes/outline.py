@@ -304,6 +304,12 @@ def giao_viec_page():
             "active": True,
         },
         {
+            "label": "Giao theo Biểu mẫu Excel",
+            "href": "/bieu-mau-giao-viec",
+            "count": None,
+            "active": False,
+        },
+        {
             "label": "Danh sách công việc",
             "href": url_for("tasks_bp.tasks"),
             "count": None,

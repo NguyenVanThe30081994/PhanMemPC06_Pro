@@ -124,7 +124,7 @@ def _task_report_user_matches_units(user, target_unit_domains):
 
 
 def _task_report_item_visible_for_user(item_config, user):
-    if not item_config or not user:
+    if not user or not isinstance(item_config, dict):
         return False
 
     target_type = str(item_config.get("target_type") or "all").strip().lower()

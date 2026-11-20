@@ -380,7 +380,11 @@ body {
     border-radius: 10px !important;
     border: 1px solid var(--border) !important;
     box-shadow: none !important;
-    padding: 9px 14px !important;
+    padding: 9px 14px;
+}
+
+.form-select {
+    padding-right: 2.35rem;
 }
 
 .form-control:focus,

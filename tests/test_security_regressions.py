@@ -3,6 +3,7 @@ import json
 import os
 import time
 import unittest
+import uuid
 from datetime import datetime
 
 from app import app
@@ -178,6 +179,55 @@ class SecurityRegressionTests(unittest.TestCase):
         self.assertIn('cache', clear_site_data)
         self.assertIn('storage', clear_site_data)
         self.assertNotIn('cookies', clear_site_data)
+
+    def test_safari_background_icon_probe_does_not_clear_logged_in_session(self):
+        user = self._create_user_with_role('safari_session_user')
+        self._login_admin_session(user)
+
+        for probe_path in (
+            '/apple-touch-icon.png',
+            '/apple-touch-icon-precomposed.png',
+            '/favicon.ico',
+            '/missing-safari-asset.png',
+        ):
+            probe_res = self.client.get(
+                probe_path,
+                headers={'User-Agent': 'CFNetwork/1496.0.7 Darwin/23.5.0'},
+                follow_redirects=False,
+            )
+            self.assertNotEqual(probe_res.status_code, 302)
+
+        tasks_res = self.client.get('/tasks', headers={'User-Agent': self.TEST_USER_AGENT}, follow_redirects=False)
+        self.assertEqual(tasks_res.status_code, 200)
+
+        # Kiểm tra route ứng dụng thật vẫn chặn đổi User-Agent bình thường
+        hijack_res = self.client.get('/admin', headers={'User-Agent': 'TotallyDifferentAgent/9.9'}, follow_redirects=False)
+        self.assertEqual(hijack_res.status_code, 302)
+        self.assertIn('/login', hijack_res.location or '')
+
+    def test_delete_role_commits_to_database(self):
+        from models import AppRole, db
+
+        admin_user = self._create_user_with_role(
+            'role_delete_admin',
+            perms={'p_user_view': 1, 'p_user_process': 1, 'p_sys_view': 1, 'p_sys_process': 1},
+        )
+        with app.app_context():
+            temp_role = AppRole(name=f'Vai trò nháp {uuid.uuid4().hex[:6]}', perms='{}')
+            db.session.add(temp_role)
+            db.session.commit()
+            temp_role_id = temp_role.id
+
+        self._login_admin_session(admin_user)
+        res = self.client.post(
+            '/roles',
+            data={'action': 'delete_role', 'role_id': str(temp_role_id), 'csrf_token': 'security-regression-csrf'},
+            headers={'User-Agent': self.TEST_USER_AGENT},
+            follow_redirects=False,
+        )
+        self.assertEqual(res.status_code, 302)
+        with app.app_context():
+            self.assertIsNone(db.session.get(AppRole, temp_role_id))
 
 
 if __name__ == '__main__':

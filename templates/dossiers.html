@@ -1,267 +1,966 @@
 {% extends "base.html" %}
 
-{% block title %}Sổ Theo Dõi Thời Hạn Hồ Sơ — PC06 Pro{% endblock %}
+{% block title %}Sổ Theo Dõi Thời Hạn Hồ Sơ — Hệ thống PC06{% endblock %}
 
 {% block extra_head %}
 <style>
   .dossier-stat-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 991.98px) {
+    .dossier-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 575.98px) {
+    .dossier-stat-grid { grid-template-columns: 1fr; }
   }
   .dossier-stat-card {
-    background: var(--pc-card-bg, #FFFFFF);
+    background: var(--pc-bg-card);
     border-radius: 14px;
-    padding: 18px 20px;
-    border: 1px solid var(--pc-border, #E2E8F0);
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+    padding: 14px 18px;
+    border: 1px solid var(--pc-border);
+    box-shadow: var(--pc-shadow-xs);
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    flex-direction: column;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   }
   .dossier-stat-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.08);
+    box-shadow: var(--pc-shadow-md);
+    border-color: var(--pc-border-strong);
   }
-  .dossier-stat-card.stat-danger {
-    border-left: 5px solid #E53E3E;
-    background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
+  .dossier-stat-card.stat-danger  { border-left: 4px solid var(--pc-danger); }
+  .dossier-stat-card.stat-warning { border-left: 4px solid var(--pc-warning); }
+  .dossier-stat-card.stat-info    { border-left: 4px solid var(--pc-primary); }
+  .dossier-stat-card.stat-success { border-left: 4px solid var(--pc-success); }
+  .dossier-stat-card.is-active-filter {
+    border-color: var(--pc-primary);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.22);
+    background: var(--pc-primary-soft);
   }
-  [data-theme="dark"] .dossier-stat-card.stat-danger {
-    background: linear-gradient(135deg, rgba(229, 62, 62, 0.15) 0%, #1A202C 100%);
-    border-left-color: #FC8181;
+  .dossier-stat-card.stat-danger.is-active-filter {
+    border-color: var(--pc-danger);
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.22);
   }
-  .dossier-stat-card.stat-warning {
-    border-left: 5px solid #D69E2E;
-    background: linear-gradient(135deg, #FFFFF0 0%, #FFFFFF 100%);
+  .dossier-stat-card.stat-warning.is-active-filter {
+    border-color: var(--pc-warning);
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.22);
   }
-  [data-theme="dark"] .dossier-stat-card.stat-warning {
-    background: linear-gradient(135deg, rgba(214, 158, 46, 0.15) 0%, #1A202C 100%);
-    border-left-color: #F6E05E;
-  }
-  .dossier-stat-card.stat-info {
-    border-left: 5px solid #3182CE;
-    background: linear-gradient(135deg, #EBF8FF 0%, #FFFFFF 100%);
-  }
-  [data-theme="dark"] .dossier-stat-card.stat-info {
-    background: linear-gradient(135deg, rgba(49, 130, 206, 0.15) 0%, #1A202C 100%);
-    border-left-color: #63B3ED;
-  }
-  .dossier-stat-card.stat-success {
-    border-left: 5px solid #38A169;
-    background: linear-gradient(135deg, #F0FFF4 0%, #FFFFFF 100%);
-  }
-  [data-theme="dark"] .dossier-stat-card.stat-success {
-    background: linear-gradient(135deg, rgba(56, 161, 105, 0.15) 0%, #1A202C 100%);
-    border-left-color: #68D391;
+  .dossier-stat-card.stat-success.is-active-filter {
+    border-color: var(--pc-success);
+    box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.22);
   }
   .stat-num {
-    font-size: 28px;
+    font-size: 25px;
     font-weight: 800;
     line-height: 1.1;
+    font-variant-numeric: tabular-nums;
   }
   .stat-label {
     font-size: 13px;
     font-weight: 600;
-    color: var(--pc-text-muted, #718096);
+    color: var(--pc-text-muted);
+    margin-top: 4px;
   }
-  .badge-state-overdue {
-    background: #FED7D7;
-    color: #9B2C2C;
-    border: 1px solid #FEB2B2;
-    font-weight: 700;
-    padding: 4px 10px;
+
+  /* Tab phân hệ biểu mẫu */
+  .dossier-tabs-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 4px 2px 10px;
+    margin-bottom: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+  }
+  .dossier-tabs-wrap::-webkit-scrollbar { height: 6px; }
+  .dossier-tabs-wrap::-webkit-scrollbar-track { background: transparent !important; }
+  .dossier-tabs-wrap::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.35);
     border-radius: 999px;
   }
-  [data-theme="dark"] .badge-state-overdue {
-    background: rgba(229, 62, 62, 0.25);
-    color: #FEB2B2;
-    border-color: #E53E3E;
-  }
-  .badge-state-soon {
-    background: #FEFCBF;
-    color: #744210;
-    border: 1px solid #F6E05E;
-    font-weight: 700;
-    padding: 4px 10px;
+  .dossier-tab-btn {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
     border-radius: 999px;
-  }
-  [data-theme="dark"] .badge-state-soon {
-    background: rgba(214, 158, 46, 0.25);
-    color: #FAF089;
-    border-color: #D69E2E;
-  }
-  .badge-state-pending {
-    background: #EBF8FF;
-    color: #2B6CB0;
-    border: 1px solid #BEE3F8;
+    border: 1px solid var(--pc-border);
+    background: var(--pc-bg-card);
+    color: var(--pc-text-muted);
+    font-size: 13px;
     font-weight: 600;
-    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .dossier-tab-btn:hover {
+    border-color: var(--pc-primary);
+    color: var(--pc-text);
+  }
+  .dossier-tab-btn.active {
+    background: var(--pc-primary);
+    border-color: var(--pc-primary);
+    color: #fff;
+    box-shadow: var(--pc-shadow-xs);
+  }
+  .dossier-tab-count {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 7px;
     border-radius: 999px;
+    background: var(--pc-bg-subtle);
+    color: var(--pc-text);
+    font-variant-numeric: tabular-nums;
   }
-  [data-theme="dark"] .badge-state-pending {
-    background: rgba(49, 130, 206, 0.25);
-    color: #90CDF4;
-    border-color: #3182CE;
+  .dossier-tab-btn.active .dossier-tab-count {
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
   }
-  .badge-state-done {
-    background: #E2E8F0;
-    color: #4A5568;
-    border: 1px solid #CBD5E0;
+
+  @media (min-width: 992px) {
+    .dossier-page-wrap {
+      width: auto !important;
+      max-width: none !important;
+      margin-inline: -28px;
+    }
+  }
+  .dossier-table-scroll,
+  .dossier-preview-scroll {
+    --dossier-grid-line: #cbd5e1;
+    --dossier-grid-head: #94a3b8;
+    --dossier-head-bg: #eef2f7;
+    border: 1.5px solid var(--dossier-grid-head) !important;
+    border-radius: var(--pc-radius-lg, 10px);
+    background: var(--pc-bg-card);
+  }
+  [data-theme="dark"] .dossier-table-scroll,
+  [data-theme="dark"] .dossier-preview-scroll {
+    --dossier-grid-line: rgba(148, 163, 184, 0.36);
+    --dossier-grid-head: rgba(148, 163, 184, 0.56);
+    --dossier-head-bg: #1e293b;
+  }
+  #dossierMainTable,
+  #previewMainTable {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+  }
+  #dossierMainTable thead,
+  #previewMainTable thead {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 8;
+  }
+  #dossierMainTable th,
+  #dossierMainTable td,
+  #previewMainTable th,
+  #previewMainTable td {
+    border-right: 1px solid var(--dossier-grid-line) !important;
+    border-bottom: 1px solid var(--dossier-grid-line) !important;
+  }
+  #dossierMainTable th:last-child,
+  #dossierMainTable td:last-child,
+  #previewMainTable th:last-child,
+  #previewMainTable td:last-child {
+    border-right: 0 !important;
+  }
+  #dossierMainTable thead th,
+  #previewMainTable thead th {
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word;
+    vertical-align: middle;
+    padding: 8px 7px !important;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.3;
+    background: var(--dossier-head-bg) !important;
+    border-bottom: 1.5px solid var(--dossier-grid-head) !important;
+  }
+  #dossierMainTable thead tr:not(:last-child) th,
+  #previewMainTable thead tr:not(:last-child) th {
+    border-bottom: 1px solid var(--dossier-grid-line) !important;
+  }
+  #dossierMainTable td,
+  #previewMainTable td {
+    white-space: normal;
+    word-break: normal !important;
+    overflow-wrap: break-word;
+    vertical-align: middle;
+    padding: 8px 8px !important;
+    font-size: 13px;
+    line-height: 1.44;
+  }
+  #dossierMainTable th:first-child,
+  #dossierMainTable td:first-child,
+  #previewMainTable th:first-child,
+  #previewMainTable td:first-child {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
+  .dossier-table-scroll {
+    overflow: auto !important;
+    max-height: 68vh;
+    width: 100%;
+    scrollbar-width: thin;
+  }
+  #dossierMainTable .dossier-code-line,
+  #previewMainTable .dossier-code-line {
+    font-weight: 700;
+    color: var(--pc-primary);
+    white-space: nowrap;
+    word-break: keep-all;
+  }
+  #dossierMainTable td.dossier-col-stt,
+  #previewMainTable td.dossier-col-stt,
+  #dossierMainTable th.dossier-col-stt,
+  #previewMainTable th.dossier-col-stt {
+    white-space: nowrap !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
+  #dossierMainTable td.dossier-col-thutuc,
+  #previewMainTable td.dossier-col-thutuc {
+    white-space: normal;
+    line-height: 1.45;
+  }
+  #dossierMainTable td.dossier-col-date,
+  #previewMainTable td.dossier-col-date {
+    white-space: normal;
+  }
+  #dossierMainTable th.dossier-col-actions,
+  #dossierMainTable td.dossier-col-actions {
+    text-align: center !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
+  #dossierMainTable thead th[data-resize-col] {
+    position: relative;
+  }
+  .dossier-col-resizer {
+    position: absolute;
+    top: 0;
+    right: -4px;
+    width: 9px;
+    height: 100%;
+    cursor: col-resize;
+    user-select: none;
+    touch-action: none;
+    z-index: 9;
+  }
+  #dossierMainTable thead th:has(+ th.dossier-col-actions) .dossier-col-resizer {
+    right: 0;
+    width: 7px;
+  }
+  .dossier-col-resizer::after {
+    content: "";
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: 4px;
+    width: 2px;
+    border-radius: 2px;
+    background: transparent;
+    transition: background 0.14s ease;
+  }
+  #dossierMainTable thead th[data-resize-col]:hover .dossier-col-resizer::after,
+  .dossier-col-resizer:hover::after,
+  .dossier-col-resizer.active::after {
+    background: var(--pc-primary, #2563eb);
+  }
+  body.dossier-resizing,
+  body.dossier-resizing * {
+    cursor: col-resize !important;
+    user-select: none !important;
+  }
+  .dossier-col-width-toast {
+    position: fixed;
+    bottom: 18px;
+    right: 22px;
+    z-index: 1080;
+    background: var(--pc-primary, #1d4ed8);
+    color: #fff;
+    font-size: 12px;
     font-weight: 600;
-    padding: 4px 10px;
+    padding: 6px 13px;
     border-radius: 999px;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.22);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
   }
-  [data-theme="dark"] .badge-state-done {
-    background: #2D3748;
-    color: #A0AEC0;
-    border-color: #4A5568;
+  .dossier-col-width-toast.show {
+    opacity: 1;
+  }
+  #dossierMainTable .pc-btn.btn-sm {
+    padding: 0.22rem 0.42rem !important;
+    font-size: 11.5px !important;
+    line-height: 1.25;
+  }
+  #dossierMainTable .text-nowrap,
+  #previewMainTable .text-nowrap {
+    white-space: nowrap !important;
+  }
+  @media (min-width: 576px) {
+    #dossierMainTable th.dossier-col-actions,
+    #dossierMainTable td.dossier-col-actions {
+      position: sticky !important;
+      right: 0 !important;
+      z-index: 6;
+      border-left: 1px solid var(--dossier-grid-line) !important;
+      border-right: 0 !important;
+      box-shadow: -4px 0 10px -6px rgba(15, 23, 42, 0.14);
+    }
+    #dossierMainTable th:has(+ th.dossier-col-actions),
+    #dossierMainTable td:has(+ td.dossier-col-actions) {
+      border-right: 0 !important;
+    }
+    #dossierMainTable thead th.dossier-col-actions {
+      right: 0 !important;
+      background: var(--dossier-head-bg) !important;
+      z-index: 12 !important;
+    }
+    #dossierMainTable tbody td.dossier-col-actions {
+      background: var(--pc-bg-card) !important;
+    }
+    #dossierMainTable tbody tr:hover td.dossier-col-actions {
+      background: var(--pc-bg-subtle) !important;
+    }
+    [data-theme="dark"] #dossierMainTable th.dossier-col-actions,
+    [data-theme="dark"] #dossierMainTable td.dossier-col-actions {
+      box-shadow: -6px 0 14px -4px rgba(2, 6, 23, 0.45);
+    }
+  }
+  #dossierMainTable tbody tr:last-child td,
+  #previewMainTable tbody tr:last-child td {
+    border-bottom: 1px solid var(--dossier-grid-line) !important;
+  }
+  .dossier-metric-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .dossier-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: var(--pc-bg-subtle);
+    border: 1px solid var(--pc-border);
+    color: var(--pc-text);
+    font-variant-numeric: tabular-nums;
+  }
+  .dossier-chip.chip-warn {
+    background: rgba(245, 158, 11, 0.14);
+    border-color: rgba(245, 158, 11, 0.35);
+    color: var(--pc-warning);
+  }
+  .dossier-chip.chip-danger {
+    background: rgba(239, 68, 68, 0.14);
+    border-color: rgba(239, 68, 68, 0.35);
+    color: var(--pc-danger);
+  }
+
+  #dossierImportDialog {
+    max-width: min(680px, calc(100vw - 24px));
+    transition: max-width 0.18s ease;
+  }
+  #dossierImportDialog.has-preview {
+    max-width: min(1140px, calc(100vw - 24px));
+  }
+  .dossier-dropzone,
+  #dossierImportModal #importOverrideTab {
+    height: 44px;
+    min-height: 44px;
+    border-radius: var(--pc-radius-md, 10px);
+  }
+  .dossier-dropzone {
+    border: 1.5px dashed var(--pc-border-strong);
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-align: center;
+    background: var(--pc-bg-subtle);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  #dossierImportModal #importOverrideTab {
+    padding: 0.5rem 2.25rem 0.5rem 0.875rem !important;
+    line-height: 1.5;
+    font-size: 0.875rem;
+  }
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  .dossier-dropzone.dragover,
+  .dossier-dropzone:hover {
+    border-color: var(--pc-primary);
+    background: var(--pc-primary-soft);
+  }
+  .dossier-preview-scroll {
+    max-height: 360px;
+    overflow: auto;
+  }
+  .dossier-preview-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--pc-bg-subtle);
+  }
+  .preview-cell-input {
+    min-width: 120px;
+    font-size: 12px;
+    padding: 3px 6px;
+  }
+
+  .dossier-bulk-bar {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    border-radius: 12px;
+    background: var(--pc-primary-soft);
+    border: 1px solid var(--pc-primary);
+  }
+  .dossier-bulk-bar.show { display: flex; }
+
+  #dossierModal .modal-content,
+  #dossierImportModal .modal-content,
+  #tichHopDetailModal .modal-content,
+  #chooseDossierAddModal .modal-content {
+    background-color: var(--pc-bg-card);
+    color: var(--pc-text);
+    border: 1px solid var(--pc-border);
+  }
+  [data-theme="dark"] #dossierModal .modal-content,
+  [data-theme="dark"] #dossierImportModal .modal-content,
+  [data-theme="dark"] #tichHopDetailModal .modal-content,
+  [data-theme="dark"] #chooseDossierAddModal .modal-content {
+    background-color: #111b2e;
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+  .dossier-chooser-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    padding: 18px;
+    border-radius: 14px;
+    border: 1.5px solid var(--pc-border);
+    background: var(--pc-bg-subtle);
+    color: var(--pc-text);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+  }
+  .dossier-chooser-card:hover {
+    border-color: var(--pc-primary);
+    background: var(--pc-primary-soft);
+    transform: translateY(-2px);
+  }
+
+  /* MOBILE CARD VIEW (<= 767.98px) — thay thế bảng cuộn ngang trên điện thoại */
+  .dossier-mobile-list-wrap {
+    display: none;
+  }
+  @media (max-width: 767.98px) {
+    .dossier-desktop-table-card,
+    #btnResetColWidths {
+      display: none !important;
+    }
+    .dossier-mobile-list-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .dossier-page-wrap .pc-page-header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .dossier-page-wrap .pc-page-title {
+      font-size: 1.32rem;
+    }
+    .dossier-page-wrap .pc-page-actions {
+      display: grid !important;
+      grid-template-columns: var(--pc-control-h-md, 38px) var(--pc-control-h-md, 38px) minmax(0, 1fr);
+      gap: 8px !important;
+      width: 100%;
+    }
+    .dossier-page-wrap .pc-page-actions .pc-btn {
+      justify-content: center;
+      height: var(--pc-control-h-md, 38px);
+      min-height: var(--pc-control-h-md, 38px);
+      font-size: 13px;
+      padding: 0 10px;
+    }
+    .dossier-page-wrap .pc-page-actions .dossier-btn-icon-only {
+      width: var(--pc-control-h-md, 38px);
+      padding: 0 !important;
+    }
+    .dossier-page-wrap .pc-page-actions .dossier-btn-icon-only .dossier-btn-label {
+      display: none;
+    }
+    .dossier-page-wrap .pc-page-actions .dossier-btn-icon-only i {
+      margin: 0 !important;
+      font-size: 15px;
+    }
+    .dossier-tabs-wrap {
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      gap: 6px;
+    }
+    .dossier-tab-btn {
+      height: var(--pc-control-h-sm, 34px);
+      padding: 0 11px;
+      font-size: 12.5px;
+      gap: 5px;
+    }
+    .dossier-stat-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .dossier-stat-card {
+      padding: 10px 12px;
+      border-radius: 12px;
+    }
+    .dossier-stat-card .stat-num {
+      font-size: 20px;
+    }
+    .dossier-stat-card .stat-label {
+      font-size: 12px;
+      margin-top: 2px;
+    }
+    .dossier-filter-card {
+      padding: 10px !important;
+      margin-bottom: 10px !important;
+    }
+    .dossier-mobile-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 12px;
+      background: var(--pc-bg-card);
+      border: 1px solid var(--pc-border);
+      border-radius: 12px;
+      font-size: 13px;
+    }
+    .dossier-mcard {
+      background: var(--pc-bg-card);
+      border: 1px solid var(--pc-border);
+      border-radius: 14px;
+      padding: 13px 14px;
+      box-shadow: var(--pc-shadow-xs);
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+    .dossier-mcard.is-overdue {
+      border-left: 4px solid var(--pc-danger);
+    }
+    .dossier-mcard.is-soon {
+      border-left: 4px solid var(--pc-warning);
+    }
+    .dossier-mcard-head {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+    }
+    .dossier-mcard-title-wrap {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      min-width: 0;
+      width: 100%;
+    }
+    .dossier-mcard-title-wrap .form-check-input {
+      width: 19px;
+      height: 19px;
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+    .dossier-mcard-code {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--pc-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+    }
+    .dossier-mcard-unit-title {
+      font-size: 14.5px;
+      font-weight: 800;
+      color: var(--pc-text);
+      line-height: 1.3;
+    }
+    .dossier-mcard-badges {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 6px;
+      margin-top: 5px;
+    }
+    .dossier-mcard-thutuc {
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--pc-text);
+      word-break: break-word;
+    }
+    .dossier-mcard-meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px 10px;
+      padding: 9px 10px;
+      border-radius: 10px;
+      background: var(--pc-bg-subtle);
+      font-size: 12px;
+    }
+    .dossier-mcard-kv {
+      min-width: 0;
+    }
+    .dossier-mcard-kv.span-2 {
+      grid-column: span 2;
+    }
+    .dossier-mcard-k {
+      color: var(--pc-text-muted);
+      font-size: 11px;
+      display: block;
+    }
+    .dossier-mcard-v {
+      font-weight: 600;
+      color: var(--pc-text);
+      word-break: break-word;
+    }
+    .dossier-mcard-ct10-group {
+      border: 1px solid var(--pc-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: var(--pc-bg-subtle);
+    }
+    .dossier-mcard-ct10-title {
+      font-size: 11.5px;
+      font-weight: 800;
+      color: var(--pc-text-muted);
+      margin-bottom: 6px;
+    }
+    .dossier-mcard-ct10-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .dossier-mcard-ct10-stat {
+      background: var(--pc-bg-card);
+      border: 1px solid var(--pc-border);
+      border-radius: 8px;
+      padding: 5px 6px;
+      text-align: center;
+    }
+    .dossier-mcard-ct10-stat span {
+      display: block;
+      font-size: 10.5px;
+      color: var(--pc-text-muted);
+      line-height: 1.2;
+    }
+    .dossier-mcard-ct10-stat strong {
+      display: block;
+      font-size: 13px;
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+    .dossier-mcard-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-top: 4px;
+    }
+    .dossier-mcard-actions .btn-mobile-complete {
+      flex: 1 1 auto;
+      min-height: 38px;
+      justify-content: center;
+      font-size: 13px;
+    }
+    .dossier-mcard-actions .btn-mobile-icon {
+      width: 38px;
+      height: 38px;
+      min-height: 38px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    #dossierImportDialog {
+      margin: 8px auto;
+      max-height: calc(100dvh - 16px);
+    }
+    #dossierImportDialog .modal-content {
+      max-height: calc(100dvh - 16px);
+    }
+    #dossierImportDialog .modal-body {
+      overflow-y: auto;
+    }
+    #dossierImportDialog .modal-footer {
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 10px 14px;
+    }
+    #dossierImportDialog .modal-footer .pc-btn {
+      font-size: 13px;
+      padding: 0 12px;
+      height: var(--pc-control-h-md, 38px);
+      min-height: var(--pc-control-h-md, 38px);
+    }
+    #dossierImportDialog .modal-footer #btnConfirmImport {
+      flex: 1 1 190px;
+      min-width: 0;
+      white-space: normal;
+      line-height: 1.25;
+      justify-content: center;
+      text-align: center;
+    }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid px-3 px-lg-4 py-3">
+<div class="container-fluid px-0 py-2 dossier-page-wrap">
 
   <!-- HEADER -->
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <header class="pc-page-header">
     <div>
-      <h2 class="fw-bold mb-0" style="color: var(--text-main, #1A365D);">
-        <i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i>Sổ Theo Dõi Thời Hạn Hồ Sơ
-      </h2>
+      <h1 class="pc-page-title mb-0">Sổ theo dõi thời hạn hồ sơ</h1>
+      {% if not is_admin and user_unit_name %}
+      <div class="small text-muted mt-1">Đơn vị theo dõi: <strong class="text-body">{{ user_unit_name }}</strong></div>
+      {% endif %}
     </div>
-    <div>
-      <button type="button" class="pc-btn pc-btn-primary btn-lg px-4 shadow-sm" onclick="openCreateDossierModal()">
-        <i class="fa-solid fa-plus me-2"></i>Nhập hồ sơ mới
+    <div class="pc-page-actions d-flex flex-wrap gap-2">
+      <a href="/tong-quan-lanh-dao" class="pc-btn pc-btn-secondary dossier-btn-icon-only" title="Xem tổng hợp số liệu" aria-label="Xem tổng hợp số liệu">
+        <i class="fa-solid fa-chart-pie me-1"></i><span class="dossier-btn-label">Tổng hợp</span>
+      </a>
+      <button type="button" class="pc-btn pc-btn-secondary dossier-btn-icon-only" onclick="exportDossiers()" title="Xuất Excel" aria-label="Xuất Excel">
+        <i class="fa-solid fa-download me-1"></i><span class="dossier-btn-label">Xuất Excel</span>
+      </button>
+      <button type="button" class="pc-btn pc-btn-primary" onclick="openChooseDossierAddModal()">
+        <i class="fa-solid fa-plus me-1"></i>Thêm hồ sơ
       </button>
     </div>
+  </header>
+
+  <!-- TAB PHÂN HỆ THEO QUẢN TRỊ DANH MỤC -->
+  <div class="dossier-tabs-wrap" id="dossierTabBar" role="tablist" aria-label="Phân loại sổ theo dõi">
+    <button type="button" class="dossier-tab-btn active" data-tab="all" onclick="switchTab('all')">
+      <span>Tất cả</span>
+      <span class="dossier-tab-count" id="tabBadge_all">0</span>
+    </button>
+    {% for tab in dossier_tabs %}
+    <button type="button" class="dossier-tab-btn" data-tab="{{ tab.key }}" onclick="switchTab(this.dataset.tab)">
+      <span>{{ tab.label }}</span>
+      <span class="dossier-tab-count" id="tabBadge_{{ tab.key }}">0</span>
+    </button>
+    {% endfor %}
   </div>
 
-  <!-- 4 THẺ THỐNG KÊ TRỰC QUAN -->
   <div class="dossier-stat-grid">
-    <div class="dossier-stat-card stat-danger">
-      <div>
-        <div class="stat-num text-danger" id="countOverdue">0</div>
-        <div class="stat-label">Hồ sơ quá hạn</div>
-      </div>
-      <div class="fs-1 text-danger opacity-50"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    <div class="dossier-stat-card stat-danger" data-state-card="overdue" onclick="toggleStateCardFilter('overdue')" role="button" tabindex="0">
+      <div class="stat-num text-danger" id="countOverdue">0</div>
+      <div class="stat-label">Quá hạn</div>
     </div>
-    <div class="dossier-stat-card stat-warning">
-      <div>
-        <div class="stat-num text-warning" id="countSoon">0</div>
-        <div class="stat-label">Sắp đến hạn (&le; 2 ngày)</div>
-      </div>
-      <div class="fs-1 text-warning opacity-50"><i class="fa-solid fa-bell"></i></div>
+    <div class="dossier-stat-card stat-warning" data-state-card="soon" onclick="toggleStateCardFilter('soon')" role="button" tabindex="0">
+      <div class="stat-num text-warning" id="countSoon">0</div>
+      <div class="stat-label">Sắp đến hạn</div>
     </div>
-    <div class="dossier-stat-card stat-info">
-      <div>
-        <div class="stat-num text-primary" id="countPending">0</div>
-        <div class="stat-label">Còn trong hạn</div>
-      </div>
-      <div class="fs-1 text-primary opacity-50"><i class="fa-solid fa-hourglass-half"></i></div>
+    <div class="dossier-stat-card stat-info" data-state-card="pending" onclick="toggleStateCardFilter('pending')" role="button" tabindex="0">
+      <div class="stat-num text-primary" id="countPending">0</div>
+      <div class="stat-label">Đang xử lý</div>
     </div>
-    <div class="dossier-stat-card stat-success">
-      <div>
-        <div class="stat-num text-success" id="countDone">0</div>
-        <div class="stat-label">Đã trả kết quả</div>
-      </div>
-      <div class="fs-1 text-success opacity-50"><i class="fa-solid fa-circle-check"></i></div>
+    <div class="dossier-stat-card stat-success" data-state-card="done" onclick="toggleStateCardFilter('done')" role="button" tabindex="0">
+      <div class="stat-num text-success" id="countDone">0</div>
+      <div class="stat-label">Đã hoàn thành</div>
     </div>
   </div>
 
-  <!-- BỘ LỌC TÌM KIẾM NHANH -->
-  <div class="pc-card p-3 shadow-sm mb-3">
+  <div class="pc-card p-3 mb-3 dossier-filter-card">
     <div class="row g-2 align-items-center">
-      <div class="col-md-5">
-        <input type="text" id="searchInput" class="form-control" placeholder="Tìm kiếm theo mã hồ sơ, ghi chú...">
+      <div class="col-12 col-md" id="searchFilterCol">
+        <input type="text" id="searchInput" class="form-control" placeholder="Tìm số hồ sơ, đơn vị, cán bộ, thủ tục...">
       </div>
-      <div class="col-md-3">
+      <div class="col col-md-3" id="unitFilterCol" style="min-width:0;{% if not (is_admin or can_view_all_dossiers) %}display:none;{% endif %}">
+        <select id="unitFilterSelect" class="form-select text-truncate">
+          <option value="">Tất cả đơn vị</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-2" id="loaiFilterCol" style="display:none;">
         <select id="loaiSelect" class="form-select">
-          <option value="">Tất cả loại hồ sơ</option>
-          <option value="can-cuoc">Căn cước</option>
-          <option value="cu-tru">Cư trú</option>
-          <option value="dinh-danh">Định danh VNeID</option>
-          <option value="xac-thuc">Xác thực ĐA06</option>
-          <option value="khac">Khác</option>
+          <option value="">Tất cả loại</option>
+          {% for loai in dossier_loais %}
+          <option value="{{ loai.key }}">{{ loai.label }}</option>
+          {% endfor %}
         </select>
       </div>
-      <div class="col-md-3">
-        <select id="statusSelect" class="form-select">
-          <option value="">Tất cả trạng thái</option>
-          <option value="dang_xu_ly" selected>Đang xử lý (Chưa trả)</option>
-          <option value="da_tra">Đã trả kết quả</option>
-        </select>
-      </div>
-      <div class="col-md-1 text-end">
-        <button type="button" class="pc-btn pc-btn-secondary w-100" id="btnRefresh" title="Làm mới">
+      <div class="col-auto d-flex align-items-center gap-2">
+        <button type="button" class="pc-btn pc-btn-secondary" id="btnRefresh" title="Làm mới" aria-label="Làm mới">
           <i class="fa-solid fa-arrows-rotate"></i>
+        </button>
+        <button type="button" class="pc-btn pc-btn-secondary" id="btnResetColWidths" style="display:none;" title="Khôi phục độ rộng cột mặc định" onclick="resetCurrentColumnWidths()">
+          <i class="fa-solid fa-arrows-left-right-to-line me-1"></i>Mặc định cột
         </button>
       </div>
     </div>
   </div>
 
-  <!-- BẢNG DANH SÁCH HỒ SƠ -->
-  <div class="pc-card p-0 shadow-sm border overflow-hidden mb-4" style="border-radius: 12px;">
-    <div class="table-responsive">
-      <table class="table pc-table align-middle mb-0">
-        <thead class="table-light">
+  <div class="dossier-bulk-bar" id="bulkActionBar">
+    <div class="small fw-bold"><span id="bulkSelectedCount">0</span> dòng đang chọn</div>
+    <div class="d-flex flex-wrap gap-2">
+      <button type="button" class="pc-btn pc-btn-primary btn-sm" onclick="bulkSetStatus('da_tra')">Hoàn thành đã chọn</button>
+      {% if is_admin %}
+      <button type="button" class="pc-btn pc-btn-danger btn-sm" onclick="bulkSetStatus('delete')">Xóa đã chọn</button>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="pc-card p-0 mb-4 dossier-desktop-table-card">
+    <div class="dossier-table-scroll">
+      <table class="table pc-table pc-table-hover align-middle mb-0" id="dossierMainTable">
+        <colgroup id="dossierMainColgroup"></colgroup>
+        <thead id="dossierTableHead">
           <tr>
-            <th style="width: 50px;" class="text-center">#</th>
-            <th style="min-width: 280px;">Mã / Tên hồ sơ</th>
-            <th style="width: 150px;">Loại hồ sơ</th>
-            <th style="width: 180px;">Hạn trả kết quả</th>
-            <th style="width: 150px;" class="text-center">Tình trạng</th>
-            <th style="width: 200px;" class="text-center">Thao tác</th>
+            <th class="text-center"><input type="checkbox" class="form-check-input" id="selectAllRows" onchange="toggleAllVisibleRows(this.checked)"></th>
+            <th class="text-center">#</th>
+            <th>Số hồ sơ</th>
+            <th>Thủ tục</th>
+            <th>Phân loại</th>
+            <th>Đơn vị</th>
+            <th>Ngày tiếp nhận</th>
+            <th>Trạng thái</th>
+            <th class="text-center dossier-col-actions">Thao tác</th>
           </tr>
         </thead>
         <tbody id="dossierTableBody">
           <tr>
-            <td colspan="7" class="text-center py-4 text-muted">Đang tải danh sách hồ sơ...</td>
+            <td colspan="8" class="text-center py-4 text-muted">Đang tải danh sách hồ sơ...</td>
           </tr>
         </tbody>
       </table>
     </div>
   </div>
 
+  <div class="dossier-mobile-list-wrap mb-4" id="dossierMobileWrap">
+    <div class="dossier-mobile-toolbar">
+      <label class="d-inline-flex align-items-center gap-2 fw-semibold mb-0">
+        <input type="checkbox" class="form-check-input mt-0" id="mobileSelectAllRows" onchange="toggleAllVisibleRows(this.checked)">
+        <span>Chọn tất cả</span>
+      </label>
+      <span class="text-muted small fw-semibold" id="mobileVisibleCount">0 mục</span>
+    </div>
+    <div class="d-flex flex-column gap-2" id="dossierMobileList">
+      <div class="pc-card p-4 text-center text-muted small">Đang tải danh sách hồ sơ...</div>
+    </div>
+  </div>
+
 </div>
 
-<!-- MODAL NHẬP / SỬA HỒ SƠ -->
+<div class="modal fade" id="chooseDossierAddModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Thêm hồ sơ</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="row g-3">
+          <div class="col-6">
+            <button type="button" class="dossier-chooser-card w-100 align-items-center text-center py-4" onclick="chooseDossierAction('import')">
+              <i class="fa-solid fa-file-arrow-up text-primary fs-3 mb-2"></i>
+              <div class="fw-bold fs-6">Tải file / Ảnh bảng</div>
+            </button>
+          </div>
+          <div class="col-6">
+            <button type="button" class="dossier-chooser-card w-100 align-items-center text-center py-4" onclick="chooseDossierAction('manual')">
+              <i class="fa-solid fa-pen-to-square text-success fs-3 mb-2"></i>
+              <div class="fw-bold fs-6">Nhập hồ sơ lẻ</div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="dossierModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow-lg" style="border-radius: 14px;">
-      <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
-        <h5 class="modal-title fw-bold text-primary fs-5" id="dossierModalTitle">Nhập Hồ Sơ Mới</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="dossierModalTitle">Nhập Hồ Sơ Mới</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
       </div>
       <div class="modal-body p-4">
         <form id="dossierForm">
           <input type="hidden" id="dossierId">
           <div class="mb-3">
-            <label class="form-label small fw-bold">Mã hoặc tên hồ sơ <span class="text-danger">*</span></label>
-            <input type="text" id="inputMaHoSo" class="form-control" placeholder="Ví dụ: HS-2026-00125 hoặc Nguyễn Văn A..." required>
+            <label class="form-label small fw-bold">Số hồ sơ <span class="text-danger">*</span></label>
+            <input type="text" id="inputMaHoSo" class="form-control" required>
           </div>
 
-          <div class="mb-3">
-            <label class="form-label small fw-bold">Loại hồ sơ</label>
-            <select id="inputLoai" class="form-select">
-              <option value="can-cuoc">Căn cước</option>
-              <option value="cu-tru">Cư trú</option>
-              <option value="dinh-danh">Định danh VNeID</option>
-              <option value="xac-thuc">Xác thực ĐA06</option>
-              <option value="khac">Khác</option>
-            </select>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold">Phân hệ</label>
+              <select id="inputCategoryTab" class="form-select">
+                {% for tab in dossier_tabs %}
+                <option value="{{ tab.key }}">{{ tab.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold">Loại hồ sơ</label>
+              <select id="inputLoai" class="form-select">
+                {% for loai in dossier_loais %}
+                <option value="{{ loai.key }}">{{ loai.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
           </div>
 
-          <div class="mb-3">
-            <label class="form-label small fw-bold">Hạn trả kết quả <span class="text-danger">*</span></label>
-            <input type="date" id="inputHanTra" class="form-control" required>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold">Hạn trả kết quả <span class="text-danger">*</span></label>
+              <input type="date" id="inputHanTra" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold">Đơn vị</label>
+              <input type="text" id="inputUnitArea" class="form-control">
+            </div>
           </div>
 
           <div class="mb-4">
             <label class="form-label small fw-bold">Ghi chú</label>
-            <textarea id="inputGhiChu" class="form-control" rows="2" placeholder="Ghi chú thêm nếu cần..."></textarea>
+            <textarea id="inputGhiChu" class="form-control" rows="2"></textarea>
           </div>
 
           <div class="d-flex justify-content-end gap-2">
@@ -273,31 +972,813 @@
     </div>
   </div>
 </div>
+
+<div class="modal fade" id="dossierImportModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" id="dossierImportDialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Tải file Excel / Ảnh</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label small fw-bold mb-1" for="importFileInput">File dữ liệu</label>
+            <div class="dossier-dropzone" id="importDropzone" onclick="document.getElementById('importFileInput').click()">
+              <input type="file" id="importFileInput" class="d-none" accept=".xlsx,.xlsm,.csv,.tsv,.txt,.png,.jpg,.jpeg,.webp">
+              <i class="bi bi-upload text-primary"></i>
+              <span class="small fw-semibold">Chọn file Excel / Ảnh</span>
+              <span class="small text-primary fw-semibold text-truncate" id="importSelectedFileLabel" style="max-width: 150px;"></span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-bold mb-1" for="importOverrideTab">Loại hồ sơ</label>
+            <select id="importOverrideTab" class="form-select">
+              <option value="">Tự động nhận diện</option>
+              {% for tab in dossier_tabs %}
+              <option value="{{ tab.key }}">{{ tab.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div id="importSheetRow" class="mt-3" style="display:none;">
+          <label class="form-label small fw-bold mb-1" for="importSheetSelect">Sheet</label>
+          <select id="importSheetSelect" class="form-select form-select-sm"></select>
+        </div>
+
+        <div id="importLoadingBox" class="alert alert-info py-2 small mt-3 mb-0 d-none">
+          Đang đọc dữ liệu...
+        </div>
+        <div id="importErrorBox" class="alert alert-danger py-2 small mt-3 mb-0 d-none"></div>
+
+        <div id="importPreviewSection" class="mt-3 d-none">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2 p-2 rounded border" style="background: var(--pc-bg-subtle);">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              <span class="pc-badge pc-badge-primary" id="previewTabBadge">Tạm trú</span>
+              <span class="small text-muted" id="previewStatsText">0 dòng</span>
+              <span class="pc-badge pc-badge-neutral d-none" id="previewEngineBadge">openpyxl</span>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              <label class="small mb-0">Ngày:</label>
+              <input type="date" id="previewReportDate" class="form-control form-control-sm" style="width:138px;">
+              <select id="previewImportMode" class="form-select form-select-sm" style="width:210px;">
+                <option value="upsert">Cập nhật / Không trùng</option>
+                <option value="replace_pending">Thay thế DS cũ</option>
+              </select>
+              <div class="form-check form-check-inline mb-0 ms-1">
+                <input class="form-check-input" type="checkbox" id="filterOnlyPendingPreview" onchange="renderPreviewRows()">
+                <label class="form-check-label small" for="filterOnlyPendingPreview">Chỉ dòng còn tồn</label>
+              </div>
+            </div>
+          </div>
+
+          <div id="importStructureBox" class="px-2 py-1 mb-2 rounded border small d-none" style="background: var(--pc-bg-subtle);">
+            <strong id="previewTableTitle">--</strong>
+            <div class="d-none" id="previewColumnMappingChips"></div>
+          </div>
+
+          <div class="dossier-preview-scroll">
+            <table class="table table-sm align-middle mb-0" id="previewMainTable">
+              <colgroup id="previewTableColgroup"></colgroup>
+              <thead id="previewTableHead">
+                <tr>
+                  <th class="text-center"><input type="checkbox" class="form-check-input" id="previewCheckAll" checked onchange="togglePreviewSelectAll(this.checked)"></th>
+                  <th class="text-center">#</th>
+                  <th>Số hồ sơ</th>
+                  <th>Đơn vị</th>
+                  <th>Thủ tục</th>
+                  <th>Ngày tiếp nhận</th>
+                  <th>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody id="previewTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="pc-btn pc-btn-secondary" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="pc-btn pc-btn-primary" id="btnConfirmImport" disabled onclick="confirmBulkImport()">
+          Đưa vào danh sách theo dõi (<span id="confirmImportCount">0</span>)
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CHI TIẾT 16 NHÓM TÍCH HỢP GIẤY TỜ CHO ĐƠN VỊ -->
+<div class="modal fade" id="tichHopDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="tichHopDetailTitle">Chi tiết chỉ tiêu tích hợp giấy tờ</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body p-3" id="tichHopDetailBody"></div>
+    </div>
+  </div>
+</div>
+<div id="dossierColWidthToast" class="dossier-col-width-toast" aria-live="polite"></div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 (function() {
   const CSRF = "{{ csrf_token_value }}";
+  const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+  const LOCAL_COL_WIDTHS_KEY = 'pc06_dossier_col_widths_v1';
+  let serverColumnWidthsMap = {{ (column_widths_map or {})|tojson }};
+  let activeLayoutKey = '';
+  let activeTab = 'all';
+  let activeStateFilter = '';
+  let loadRequestSeq = 0;
   let cachedDossiers = [];
+  let selectedIds = new Set();
+  let lastImportFile = null;
+  let previewData = null;
+
+  const PRESET_TAB_COL_RATIOS = {
+    thuong_tru: [5.2, 13.1, 32.6, 9.5, 12.8, 10.7, 16.0],
+    tam_tru: [3.7, 12.0, 23.6, 7.7, 7.7, 6.8, 7.5, 10.9, 7.1, 12.9],
+  };
+
+  const CT10_FALLBACK_HEADER_ROWS = [
+    ['STT', 'Đơn vị', 'Lập phiếu xác minh', 'Lập phiếu xác minh', 'Lập phiếu xác minh', 'Lập phiếu xác minh', 'Lập phiếu xác minh', 'Lập phiếu xác minh', 'Trả lời xác minh', 'Trả lời xác minh', 'Trả lời xác minh', 'Trả lời xác minh', 'Trả lời xác minh', 'Trả lời xác minh', 'Quá hạn chưa trả lời'],
+    ['STT', 'Đơn vị', 'Tổng', 'Hoàn thành lập phiếu', 'Chờ phê duyệt', 'T.CA trả lại', 'Chờ trả lời', 'Đơn vị nhận đã trả lời xác minh', 'Tổng', 'Chờ trả lời', 'Đang trả lời', 'Chờ phê duyệt', 'T.CA trả kết quả', 'Đã trả kết quả', 'Quá hạn chưa trả lời'],
+  ];
+  const CT10_FALLBACK_RATIOS = [3.0, 9.8, 4.9, 6.2, 7.2, 7.8, 7.3, 7.8, 4.9, 7.3, 7.6, 8.8, 9.5, 8.5, 9.4];
+
+  const TAB_DATA_HEADERS = {
+    thuong_tru: ['STT', 'Số hồ sơ', 'Thủ tục', 'Ngày tiếp nhận', 'Cán bộ tiếp nhận', 'Địa bàn tiếp nhận', 'Trạng thái'],
+    tam_tru: ['STT', 'Số hồ sơ', 'Thủ tục', 'Ngày nộp hồ sơ', 'Ngày tiếp nhận', 'Ngày hẹn trả', 'Tính đúng hạn', 'Cán bộ tiếp nhận', 'Đơn vị xử lý', 'Trạng thái'],
+    ct10: CT10_FALLBACK_HEADER_ROWS[1],
+  };
+
+  const TAB_STATIC_COLGROUPS = {
+    all: [
+      { px: 32, maxPx: 32, grow: 0 }, { px: 44, maxPx: 44, grow: 0 },
+      { px: 200, maxPx: 228, grow: 0.7 }, { px: 240, maxPx: 340, grow: 1.3 },
+      { px: 118, maxPx: 145, grow: 0.7 }, { px: 140, maxPx: 215, grow: 1.5 },
+      { px: 110, maxPx: 140, grow: 0.6 }, { px: 154, maxPx: 240, grow: 1.8 },
+      { px: 160, maxPx: 160, grow: 0 }
+    ],
+    ct10: [
+      { px: 32, maxPx: 32, grow: 0 }, { px: 44, maxPx: 44, grow: 0 },
+      { px: 164, maxPx: 215, grow: 1.5 },
+      { px: 58, maxPx: 76, grow: 0.4 }, { px: 82, maxPx: 102, grow: 0.5 },
+      { px: 76, maxPx: 96, grow: 0.5 }, { px: 76, maxPx: 96, grow: 0.5 },
+      { px: 76, maxPx: 96, grow: 0.5 }, { px: 100, maxPx: 122, grow: 0.6 },
+      { px: 58, maxPx: 76, grow: 0.4 }, { px: 76, maxPx: 96, grow: 0.5 },
+      { px: 76, maxPx: 96, grow: 0.5 }, { px: 76, maxPx: 96, grow: 0.5 },
+      { px: 78, maxPx: 98, grow: 0.5 }, { px: 78, maxPx: 98, grow: 0.5 },
+      { px: 84, maxPx: 106, grow: 0.5 }, { px: 160, maxPx: 160, grow: 0 }
+    ],
+    tich_hop: [
+      { px: 32, maxPx: 32, grow: 0 }, { px: 44, maxPx: 44, grow: 0 },
+      { px: 180, maxPx: 235, grow: 1.0 }, { px: 205, maxPx: 300, grow: 1.3 },
+      { px: 96, maxPx: 128, grow: 0.5 }, { px: 110, maxPx: 140, grow: 0.6 },
+      { px: 116, maxPx: 150, grow: 0.7 }, { px: 132, maxPx: 175, grow: 1.0 },
+      { px: 184, maxPx: 184, grow: 0 }
+    ],
+    lam_sach: [
+      { px: 32, maxPx: 32, grow: 0 }, { px: 44, maxPx: 44, grow: 0 },
+      { px: 185, maxPx: 240, grow: 1.0 }, { px: 205, maxPx: 295, grow: 1.2 },
+      { px: 260, maxPx: 380, grow: 1.6 }, { px: 132, maxPx: 175, grow: 1.0 },
+      { px: 160, maxPx: 160, grow: 0 }
+    ],
+    khac: [
+      { px: 32, maxPx: 32, grow: 0 }, { px: 44, maxPx: 44, grow: 0 },
+      { px: 200, maxPx: 235, grow: 0.8 }, { px: 250, maxPx: 350, grow: 1.4 },
+      { px: 146, maxPx: 220, grow: 1.5 }, { px: 112, maxPx: 145, grow: 0.6 },
+      { px: 146, maxPx: 235, grow: 1.7 }, { px: 160, maxPx: 160, grow: 0 }
+    ],
+    preview_fallback: [
+      { px: 32, maxPx: 32, grow: 0 }, { px: 44, maxPx: 44, grow: 0 },
+      { px: 196, maxPx: 230, grow: 0.8 }, { px: 200, maxPx: 260, grow: 1.2 },
+      { px: 235, maxPx: 330, grow: 1.4 }, { px: 120, maxPx: 155, grow: 0.8 },
+      { px: 150, maxPx: 220, grow: 1.5 }
+    ],
+  };
+
+  function normHeaderText(str) {
+    return String(str || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function classifyDossierHeaderRole(headerText, sampleValues = null) {
+    const n = normHeaderText(headerText);
+    if (!n) return 'other';
+    if (n === 'stt' || n === 'tt' || n === '#' || n === 'so tt') return 'stt';
+    if (/(^|\b)(so ho so|ma ho so|so\/ma ho so|ma tiep nhan|so bien nhan|so hs|ma hs)(\b|$)/.test(n)) return 'code';
+    if (n.includes('thu tuc') || n.includes('noi dung')) return 'thutuc';
+    if (n.includes('ngay ') || n.includes('hen tra') || n.includes('han tra') || n.includes('dung han') || n === 'han') return 'date';
+    if (n === 'trang thai' || n === 'tinh trang' || n.includes('trang thai ho so') || n === 'ket qua') return 'status';
+    if (/^(tong|hoan thanh lap|cho phe duyet|cho tra loi|dang tra loi|t\.?ca tra|tra lai|tra ket qua|da tra loi|da tra ket qua|don vi nhan da tra|qua han|ty le|da tich hop|chua kich hoat|cho xac nhan|tu choi|nhan khau)/.test(n) || n.includes(' - tong')) {
+      return 'metric';
+    }
+    if (n.includes('can bo') || n.includes('dia ban') || n === 'don vi' || n.startsWith('don vi xu ly') || n.startsWith('don vi tiep nhan') || n.includes('ho va ten') || n.includes('ho ten')) return 'unit_person';
+    if (Array.isArray(sampleValues) && sampleValues.length) {
+      const nonEmpty = sampleValues.map(v => String(v ?? '').trim()).filter(Boolean);
+      if (nonEmpty.length && nonEmpty.every(v => /^-?\d+([.,]\d+)?%?$/.test(v))) {
+        return 'metric';
+      }
+    }
+    return 'other';
+  }
+
+  function distributeSpecsWidth(specs, containerWidth = 0) {
+    const items = (specs || []).map(sp => {
+      const base = sp.px || 120;
+      const grow = (sp.grow !== undefined) ? sp.grow : (sp.flex ? 1.4 : 0.8);
+      const maxPx = sp.maxPx || (grow === 0 ? base : Math.max(Math.round(base * 1.45), 220));
+      return { px: base, maxPx: Math.max(base, maxPx), grow };
+    });
+    const minTotal = items.reduce((s, it) => s + it.px, 0);
+    const widths = items.map(it => it.px);
+    let extra = Math.max(0, Math.round((containerWidth || 0) - minTotal));
+
+    // Vòng 1: phân bổ phần dư theo trọng số tới trần maxPx để không cột nào (như Thủ tục) chèn hẹp cột khác
+    const active = items.map((it, i) => it.grow > 0 && it.maxPx > widths[i]);
+    for (let iter = 0; iter < 6 && extra > 0; iter++) {
+      const weightSum = items.reduce((s, it, i) => s + (active[i] ? it.grow : 0), 0);
+      if (!weightSum) break;
+      let spent = 0;
+      items.forEach((it, i) => {
+        if (!active[i]) return;
+        const share = Math.min(it.maxPx - widths[i], Math.floor((extra * it.grow) / weightSum));
+        if (share > 0) {
+          widths[i] += share;
+          spent += share;
+        }
+        if (widths[i] >= it.maxPx) active[i] = false;
+      });
+      if (spent <= 0) {
+        // Phân bổ các pixel lẻ (< weightSum) còn lại tới trần
+        for (let i = 0; i < items.length && extra > 0; i++) {
+          if (active[i] && widths[i] < items[i].maxPx) {
+            widths[i] += 1;
+            extra -= 1;
+            if (widths[i] >= items[i].maxPx) active[i] = false;
+          }
+        }
+        break;
+      }
+      extra -= spent;
+    }
+
+    // Vòng 2: màn hình siêu rộng còn dư sau khi chạm trần -> chia đều tỉ lệ cho các cột dữ liệu
+    if (extra > 0) {
+      const growIdx = items.map((it, i) => (it.grow > 0 ? i : -1)).filter(i => i >= 0);
+      if (growIdx.length) {
+        const wSum = growIdx.reduce((s, i) => s + items[i].grow, 0);
+        let rem = extra;
+        growIdx.forEach((idx, pos) => {
+          const add = (pos === growIdx.length - 1) ? rem : Math.floor((extra * items[idx].grow) / wSum);
+          widths[idx] += add;
+          rem -= add;
+        });
+      }
+    }
+
+    return {
+      widths,
+      totalWidth: widths.reduce((s, w) => s + w, 0),
+      minTotal,
+    };
+  }
+
+  function buildColgroupFromSpecs(specs, containerWidth = 0) {
+    const dist = distributeSpecsWidth(specs, containerWidth);
+    const colsHtml = dist.widths.map(w => `<col style="width: ${w}px;">`).join('');
+    return {
+      widths: dist.widths,
+      colgroupHtml: colsHtml,
+      tableMinWidthPx: dist.minTotal,
+      tableWidthPx: dist.totalWidth,
+      specs,
+    };
+  }
+
+  function computeDossierColumnLayout(headers, rawRatios, rawWidths, opts = {}) {
+    const includeCheckbox = opts.includeCheckbox !== false;
+    const includeAction = opts.includeAction !== false;
+    const actionWidthPx = opts.actionWidthPx || 160;
+    const sampleRows = Array.isArray(opts.sampleRows) ? opts.sampleRows : null;
+    const cols = Array.isArray(headers) ? headers : [];
+    const roles = cols.map((h, ci) => {
+      const colSamples = sampleRows ? sampleRows.map(r => (Array.isArray(r) ? r[ci] : '')) : null;
+      return classifyDossierHeaderRole(h, colSamples);
+    });
+
+    const validRatios = (Array.isArray(rawRatios) && rawRatios.length === cols.length && rawRatios.some(v => Number(v) > 0))
+      ? rawRatios.map(v => Math.max(Number(v) || 0, 1))
+      : null;
+
+    let autoIdx = roles.indexOf('thutuc');
+    if (autoIdx < 0 && cols.length > 0) {
+      let bestScore = -1;
+      cols.forEach((h, i) => {
+        if (roles[i] === 'stt' || roles[i] === 'date' || roles[i] === 'metric') return;
+        const baseWeight = roles[i] === 'unit_person' ? 30 : (roles[i] === 'other' ? 20 : 10);
+        const r = validRatios ? (roles[i] === 'unit_person' ? validRatios[i] + 5 : validRatios[i]) : baseWeight;
+        if (r > bestScore) {
+          bestScore = r;
+          autoIdx = i;
+        }
+      });
+      if (autoIdx < 0) autoIdx = Math.min(1, cols.length - 1);
+    }
+
+    const totalRatioSum = validRatios
+      ? validRatios.reduce((acc, v, i) => acc + (roles[i] === 'stt' ? 0 : v), 0) || 100
+      : 100;
+    const budgetPx = Math.max(920, cols.length * 124);
+
+    const specs = [];
+    if (includeCheckbox) specs.push({ px: 32, maxPx: 32, grow: 0 });
+
+    cols.forEach((h, i) => {
+      const role = roles[i];
+      const hdrLen = String(h || '').trim().length;
+      const ratio = validRatios ? validRatios[i] : 0;
+      const ratioPx = validRatios && role !== 'stt' ? Math.round((ratio / totalRatioSum) * budgetPx) : 0;
+
+      if (i === autoIdx) {
+        if (role === 'thutuc') {
+          const minPx = Math.max(230, Math.min(275, ratioPx ? Math.round(ratioPx * 0.78) : 240));
+          specs.push({ px: minPx, maxPx: Math.max(minPx + 40, 345), grow: 1.3 });
+        } else if (role === 'unit_person') {
+          const minPx = Math.max(162, Math.min(190, ratioPx || 168));
+          specs.push({ px: minPx, maxPx: Math.max(minPx + 45, 225), grow: 1.5 });
+        } else {
+          const minPx = Math.max(200, Math.min(270, ratioPx || 215));
+          specs.push({ px: minPx, maxPx: Math.max(minPx + 45, 340), grow: 1.3 });
+        }
+        return;
+      }
+
+      if (role === 'stt') {
+        specs.push({ px: 44, maxPx: 44, grow: 0 });
+      } else if (role === 'code') {
+        const px = Math.max(200, Math.min(220, ratioPx || 202));
+        specs.push({ px, maxPx: 235, grow: 0.7 });
+      } else if (role === 'date') {
+        const hdrMin = Math.max(106, Math.min(130, Math.ceil(hdrLen * 6.8) + 22));
+        const px = ratioPx ? Math.max(hdrMin, Math.min(132, ratioPx)) : hdrMin;
+        specs.push({ px, maxPx: Math.max(px + 22, 145), grow: 0.7 });
+      } else if (role === 'unit_person') {
+        const hdrMin = Math.max(138, Math.min(168, Math.ceil(hdrLen * 6.8) + 22));
+        const px = ratioPx ? Math.max(hdrMin, Math.min(172, Math.round(ratioPx * 1.12))) : hdrMin;
+        specs.push({ px, maxPx: Math.max(px + 48, 225), grow: 1.6 });
+      } else if (role === 'status') {
+        const px = ratioPx ? Math.max(148, Math.min(178, Math.round(ratioPx * 0.96))) : 150;
+        specs.push({ px, maxPx: Math.max(px + 65, 245), grow: 2.0 });
+      } else if (role === 'metric') {
+        const isShort = hdrLen <= 8 || normHeaderText(h).endsWith('tong');
+        const minPx = isShort ? 58 : (hdrLen >= 20 ? Math.min(104, Math.max(84, Math.round(hdrLen * 3.1))) : 76);
+        const maxPx = isShort ? 78 : (hdrLen >= 20 ? 122 : 98);
+        specs.push({ px: minPx, maxPx, grow: isShort ? 0.4 : 0.5 });
+      } else {
+        const hdrMin = Math.max(114, Math.min(195, Math.ceil(hdrLen * 6.8) + 22));
+        const px = ratioPx ? Math.max(hdrMin, Math.min(215, ratioPx)) : hdrMin;
+        specs.push({ px, maxPx: Math.max(px + 50, 235), grow: 1.1 });
+      }
+    });
+
+    if (includeAction) specs.push({ px: actionWidthPx, maxPx: actionWidthPx, grow: 0 });
+    const built = buildColgroupFromSpecs(specs);
+    return {
+      ...built,
+      roles,
+      autoIdx,
+    };
+  }
+
+  let dossierColToastTimer = null;
+  function showColWidthToast(msg) {
+    const el = document.getElementById('dossierColWidthToast');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.classList.add('show');
+    clearTimeout(dossierColToastTimer);
+    dossierColToastTimer = setTimeout(() => el.classList.remove('show'), 2100);
+  }
+
+  function loadLocalColWidthsMap() {
+    try {
+      const raw = localStorage.getItem(LOCAL_COL_WIDTHS_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return (parsed && typeof parsed === 'object') ? parsed : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function saveLocalColWidthsMap(map) {
+    try {
+      localStorage.setItem(LOCAL_COL_WIDTHS_KEY, JSON.stringify(map || {}));
+    } catch (_) {}
+  }
+
+  function computeDossierLayoutKey(tabKey, leafHeaders, totalCols) {
+    const normList = (Array.isArray(leafHeaders) ? leafHeaders : []).map(h => normHeaderText(h));
+    const sigText = `${String(tabKey || 'all')}|${Number(totalCols) || 0}|${normList.join('|')}`;
+    let h = 2166136261;
+    for (let i = 0; i < sigText.length; i++) {
+      h ^= sigText.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    const hex = (h >>> 0).toString(16).padStart(8, '0');
+    return `dcol_${String(tabKey || 'all').slice(0, 20)}_${Number(totalCols) || 0}_${hex}`;
+  }
+
+  function sanitizeColWidthList(rawList, expectedCount) {
+    if (!Array.isArray(rawList) || rawList.length !== expectedCount) return null;
+    const out = [];
+    for (let i = 0; i < rawList.length; i++) {
+      const n = Math.round(Number(rawList[i]));
+      if (!Number.isFinite(n) || n < 32 || n > 1200) return null;
+      out.push(n);
+    }
+    return out;
+  }
+
+  function getManualColumnWidths(layoutKey, colCount) {
+    if (!layoutKey || !colCount) return null;
+    if (!IS_ADMIN) {
+      const localMap = loadLocalColWidthsMap();
+      const localValid = sanitizeColWidthList(localMap[layoutKey], colCount);
+      if (localValid) return localValid;
+    }
+    return sanitizeColWidthList(serverColumnWidthsMap && serverColumnWidthsMap[layoutKey], colCount);
+  }
+
+  function updateResetColWidthsBtn() {
+    const btn = document.getElementById('btnResetColWidths');
+    const mainTable = document.getElementById('dossierMainTable');
+    if (!btn || !mainTable || !mainTable._lastDossierLayout) return;
+    const layout = mainTable._lastDossierLayout;
+    const specsLen = Array.isArray(layout.specs) ? layout.specs.length : 0;
+    const hasCustom = Boolean(layout.layoutKey && getManualColumnWidths(layout.layoutKey, specsLen));
+    btn.style.display = hasCustom ? '' : 'none';
+  }
+
+  function persistManualColumnWidths(layoutKey, widths) {
+    if (!layoutKey || !Array.isArray(widths) || !widths.length) return;
+    const clean = widths.map(w => Math.max(36, Math.min(950, Math.round(Number(w) || 100))));
+    if (IS_ADMIN) {
+      serverColumnWidthsMap[layoutKey] = clean;
+      updateResetColWidthsBtn();
+      fetch('/api/dossiers/column-widths', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({ action: 'save', layout_key: layoutKey, widths: clean })
+      })
+      .then(r => r.json())
+      .then(res => {
+        if (res && res.column_widths_map) {
+          serverColumnWidthsMap = res.column_widths_map;
+          updateResetColWidthsBtn();
+        }
+        showColWidthToast('Đã lưu độ rộng cột cho toàn hệ thống');
+      })
+      .catch(err => console.error('Lưu độ rộng cột thất bại:', err));
+    } else {
+      const localMap = loadLocalColWidthsMap();
+      localMap[layoutKey] = clean;
+      saveLocalColWidthsMap(localMap);
+      updateResetColWidthsBtn();
+      showColWidthToast('Đã điều chỉnh độ rộng cột');
+    }
+  }
+
+  window.resetCurrentColumnWidths = function() {
+    const mainTable = document.getElementById('dossierMainTable');
+    const colgroup = document.getElementById('dossierMainColgroup');
+    const layout = mainTable && mainTable._lastDossierLayout;
+    const layoutKey = (layout && layout.layoutKey) || activeLayoutKey;
+    if (!layoutKey) return;
+    if (IS_ADMIN) {
+      delete serverColumnWidthsMap[layoutKey];
+      if (layout) applyTableColumnLayout(mainTable, colgroup, layout);
+      fetch('/api/dossiers/column-widths', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({ action: 'reset', layout_key: layoutKey })
+      })
+      .then(r => r.json())
+      .then(res => {
+        if (res && res.column_widths_map) {
+          serverColumnWidthsMap = res.column_widths_map;
+          if (layout) applyTableColumnLayout(mainTable, colgroup, layout);
+        }
+        showColWidthToast('Đã khôi phục độ rộng cột mặc định');
+      })
+      .catch(err => console.error('Khôi phục độ rộng cột thất bại:', err));
+    } else {
+      const localMap = loadLocalColWidthsMap();
+      delete localMap[layoutKey];
+      saveLocalColWidthsMap(localMap);
+      if (layout) applyTableColumnLayout(mainTable, colgroup, layout);
+      showColWidthToast('Đã khôi phục độ rộng cột mặc định');
+    }
+  };
+
+  function attachDossierColumnResizers(tableEl, colgroupEl, layoutKey) {
+    if (!tableEl || !colgroupEl || !layoutKey) return;
+    const ths = tableEl.querySelectorAll('thead th[data-resize-col]');
+    ths.forEach(th => {
+      if (th.classList.contains('dossier-col-actions')) return;
+      const colIdx = parseInt(th.getAttribute('data-resize-col'), 10);
+      if (!Number.isFinite(colIdx) || colIdx < 1) return;
+      const oldResizer = th.querySelector('.dossier-col-resizer');
+      if (oldResizer) oldResizer.remove();
+
+      const resizer = document.createElement('span');
+      resizer.className = 'dossier-col-resizer';
+      resizer.title = 'Kéo để điều chỉnh độ rộng cột (nhấp đúp để đặt lại cột)';
+
+      resizer.addEventListener('mousedown', function(e) {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const colEls = Array.from(colgroupEl.querySelectorAll('col'));
+        if (colIdx >= colEls.length - 1) return;
+
+        const startX = e.clientX;
+        const startWidths = colEls.map((col, idx) => {
+          const parsed = parseFloat(col.style.width);
+          if (Number.isFinite(parsed) && parsed >= 32) return Math.round(parsed);
+          return Math.max(36, Math.round(col.getBoundingClientRect().width || (idx === 0 ? 32 : 120)));
+        });
+        const currentWidths = startWidths.slice();
+
+        resizer.classList.add('active');
+        document.body.classList.add('dossier-resizing');
+
+        function onMouseMove(moveEvt) {
+          const dx = moveEvt.clientX - startX;
+          const nextW = Math.max(38, Math.min(950, Math.round(startWidths[colIdx] + dx)));
+          if (nextW === currentWidths[colIdx]) return;
+          currentWidths[colIdx] = nextW;
+          colEls[colIdx].style.width = `${nextW}px`;
+          const totalW = currentWidths.reduce((s, w) => s + w, 0);
+          tableEl.style.width = `${totalW}px`;
+        }
+
+        function onMouseUp() {
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup', onMouseUp);
+          resizer.classList.remove('active');
+          document.body.classList.remove('dossier-resizing');
+          if (currentWidths[colIdx] !== startWidths[colIdx]) {
+            persistManualColumnWidths(layoutKey, currentWidths);
+          }
+        }
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+      });
+
+      resizer.addEventListener('dblclick', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const colEls = Array.from(colgroupEl.querySelectorAll('col'));
+        const autoWidths = Array.isArray(tableEl._lastAutoWidths) ? tableEl._lastAutoWidths : null;
+        if (!autoWidths || colIdx >= colEls.length || colIdx >= autoWidths.length) return;
+        const currentWidths = colEls.map((col, idx) => Math.max(36, Math.round(parseFloat(col.style.width) || autoWidths[idx] || 100)));
+        currentWidths[colIdx] = autoWidths[colIdx];
+        colEls[colIdx].style.width = `${autoWidths[colIdx]}px`;
+        tableEl.style.width = `${currentWidths.reduce((s, w) => s + w, 0)}px`;
+        const matchesAuto = currentWidths.every((w, idx) => Math.abs(w - autoWidths[idx]) <= 1);
+        if (matchesAuto) {
+          resetCurrentColumnWidths();
+        } else {
+          persistManualColumnWidths(layoutKey, currentWidths);
+        }
+      });
+
+      th.appendChild(resizer);
+    });
+  }
+
+  function applyTableColumnLayout(tableEl, colgroupEl, layout) {
+    if (!tableEl || !layout) return;
+    tableEl._lastDossierLayout = layout;
+    tableEl._lastDossierColgroup = colgroupEl;
+    const scrollBox = tableEl.parentElement;
+    const containerWidth = scrollBox ? Math.max(0, scrollBox.clientWidth - 2) : 0;
+    const specs = layout.specs;
+    if (Array.isArray(specs) && specs.length) {
+      const built = buildColgroupFromSpecs(specs, containerWidth);
+      tableEl._lastAutoWidths = Array.isArray(built.widths) ? built.widths.slice() : null;
+      const manual = (tableEl.id === 'dossierMainTable' && layout.layoutKey)
+        ? getManualColumnWidths(layout.layoutKey, specs.length)
+        : null;
+      if (manual) {
+        if (colgroupEl) {
+          colgroupEl.innerHTML = manual.map(w => `<col style="width: ${w}px;">`).join('');
+        }
+        tableEl.style.width = `${manual.reduce((s, w) => s + w, 0)}px`;
+      } else {
+        if (colgroupEl) colgroupEl.innerHTML = built.colgroupHtml || '';
+        tableEl.style.width = `${built.tableWidthPx}px`;
+      }
+    } else {
+      if (colgroupEl) colgroupEl.innerHTML = layout.colgroupHtml || '';
+      tableEl.style.width = layout.tableMinWidthPx ? `max(100%, ${layout.tableMinWidthPx}px)` : '100%';
+    }
+    tableEl.style.minWidth = '';
+    if (tableEl.id === 'dossierMainTable') {
+      updateResetColWidthsBtn();
+    }
+  }
+
+  let dossierResizeTimer = null;
+  window.addEventListener('resize', function() {
+    clearTimeout(dossierResizeTimer);
+    dossierResizeTimer = setTimeout(function() {
+      ['dossierMainTable', 'previewMainTable'].forEach(tid => {
+        const t = document.getElementById(tid);
+        if (t && t._lastDossierLayout) {
+          applyTableColumnLayout(t, t._lastDossierColgroup, t._lastDossierLayout);
+        }
+      });
+    }, 90);
+  });
+
+  const TAB_HEADERS = {
+    all: `
+      <tr>
+        <th class="text-center"><input type="checkbox" class="form-check-input" id="selectAllRows" onchange="toggleAllVisibleRows(this.checked)"></th>
+        <th class="text-center">#</th>
+        <th>Số hồ sơ</th>
+        <th>Thủ tục</th>
+        <th>Phân loại</th>
+        <th>Đơn vị</th>
+        <th>Ngày tiếp nhận</th>
+        <th>Trạng thái</th>
+        <th class="text-center dossier-col-actions">Thao tác</th>
+      </tr>`,
+    tam_tru: `
+      <tr>
+        <th class="text-center"><input type="checkbox" class="form-check-input" id="selectAllRows" onchange="toggleAllVisibleRows(this.checked)"></th>
+        <th class="text-center">STT</th>
+        <th>Số hồ sơ</th>
+        <th>Thủ tục</th>
+        <th>Ngày nộp hồ sơ</th>
+        <th>Ngày tiếp nhận</th>
+        <th>Ngày hẹn trả</th>
+        <th>Tính đúng hạn</th>
+        <th>Cán bộ tiếp nhận</th>
+        <th>Đơn vị xử lý</th>
+        <th>Trạng thái</th>
+        <th class="text-center dossier-col-actions">Thao tác</th>
+      </tr>`,
+    thuong_tru: `
+      <tr>
+        <th class="text-center"><input type="checkbox" class="form-check-input" id="selectAllRows" onchange="toggleAllVisibleRows(this.checked)"></th>
+        <th class="text-center">STT</th>
+        <th>Số hồ sơ</th>
+        <th>Thủ tục</th>
+        <th>Ngày tiếp nhận</th>
+        <th>Cán bộ tiếp nhận</th>
+        <th>Địa bàn tiếp nhận</th>
+        <th>Trạng thái</th>
+        <th class="text-center dossier-col-actions">Thao tác</th>
+      </tr>`,
+    ct10: `
+      <tr>
+        <th rowspan="2" class="text-center align-middle"><input type="checkbox" class="form-check-input" id="selectAllRows" onchange="toggleAllVisibleRows(this.checked)"></th>
+        <th rowspan="2" class="text-center align-middle">STT</th>
+        <th rowspan="2" class="align-middle">Đơn vị</th>
+        <th colspan="6" class="text-center">Lập phiếu xác minh</th>
+        <th colspan="6" class="text-center">Trả lời xác minh</th>
+        <th rowspan="2" class="text-center align-middle">Quá hạn chưa trả lời</th>
+        <th rowspan="2" class="text-center align-middle dossier-col-actions">Thao tác</th>
+      </tr>
+      <tr>
+        <th class="text-center">Tổng</th>
+        <th class="text-center">Hoàn thành lập phiếu</th>
+        <th class="text-center">Chờ phê duyệt</th>
+        <th class="text-center">T.CA trả lại</th>
+        <th class="text-center">Chờ trả lời</th>
+        <th class="text-center">Đơn vị nhận đã trả lời xác minh</th>
+        <th class="text-center">Tổng</th>
+        <th class="text-center">Chờ trả lời</th>
+        <th class="text-center">Đang trả lời</th>
+        <th class="text-center">Chờ phê duyệt</th>
+        <th class="text-center">T.CA trả kết quả</th>
+        <th class="text-center">Đã trả kết quả</th>
+      </tr>`,
+    tich_hop: `
+      <tr>
+        <th class="text-center"><input type="checkbox" class="form-check-input" id="selectAllRows" onchange="toggleAllVisibleRows(this.checked)"></th>
+        <th class="text-center">#</th>
+        <th>Đơn vị</th>
+        <th>Nhóm chỉ tiêu</th>
+        <th class="text-end">Chờ XN</th>
+        <th class="text-end">Đã tích hợp</th>
+        <th class="text-center">Tỷ lệ</th>
+        <th class="text-center">Trạng thái</th>
+        <th class="text-center dossier-col-actions">Thao tác</th>
+      </tr>`,
+    lam_sach: `
+      <tr>
+        <th class="text-center"><input type="checkbox" class="form-check-input" id="selectAllRows" onchange="toggleAllVisibleRows(this.checked)"></th>
+        <th class="text-center">#</th>
+        <th>Đơn vị</th>
+        <th>Chỉ tiêu làm sạch</th>
+        <th>Số liệu chi tiết</th>
+        <th class="text-center">Trạng thái</th>
+        <th class="text-center dossier-col-actions">Thao tác</th>
+      </tr>`,
+    khac: `
+      <tr>
+        <th class="text-center"><input type="checkbox" class="form-check-input" id="selectAllRows" onchange="toggleAllVisibleRows(this.checked)"></th>
+        <th class="text-center">#</th>
+        <th>Số hồ sơ</th>
+        <th>Thủ tục</th>
+        <th>Đơn vị</th>
+        <th>Hạn trả</th>
+        <th>Trạng thái</th>
+        <th class="text-center dossier-col-actions">Thao tác</th>
+      </tr>`
+  };
+
+  window.toggleStateCardFilter = function(stateKey) {
+    activeStateFilter = (activeStateFilter === stateKey) ? '' : (stateKey || '');
+    selectedIds.clear();
+    updateBulkBar();
+    renderStatCardActiveState();
+    loadDossiers();
+  };
+
+  function renderStatCardActiveState() {
+    document.querySelectorAll('.dossier-stat-card[data-state-card]').forEach(card => {
+      card.classList.toggle('is-active-filter', Boolean(activeStateFilter && card.dataset.stateCard === activeStateFilter));
+    });
+  }
+
+  window.switchTab = function(tabKey) {
+    activeTab = tabKey || 'all';
+    activeStateFilter = '';
+    selectedIds.clear();
+    updateBulkBar();
+    renderStatCardActiveState();
+    const unitSel = document.getElementById('unitFilterSelect');
+    if (unitSel) unitSel.value = '';
+    document.querySelectorAll('.dossier-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === activeTab);
+    });
+    const loaiCol = document.getElementById('loaiFilterCol');
+    const showLoai = (activeTab === 'khac');
+    if (loaiCol) {
+      loaiCol.style.display = showLoai ? '' : 'none';
+      if (!showLoai) {
+        document.getElementById('loaiSelect').value = '';
+      }
+    }
+    loadDossiers();
+  };
+
+  let pendingInitialUnit = '';
 
   function loadDossiers() {
+    const seq = ++loadRequestSeq;
     const q = document.getElementById('searchInput').value.trim();
     const loai = document.getElementById('loaiSelect').value;
-    const tt = document.getElementById('statusSelect').value;
+    const unitSelVal = document.getElementById('unitFilterSelect').value;
+    const unitF = unitSelVal || pendingInitialUnit;
 
     const params = new URLSearchParams();
+    params.set('trang_thai', activeStateFilter === 'done' ? 'da_tra' : 'dang_xu_ly');
+    if (activeStateFilter) params.set('state_filter', activeStateFilter);
+    if (activeTab && activeTab !== 'all') params.set('category_tab', activeTab);
     if (q) params.set('q', q);
     if (loai) params.set('loai', loai);
-    if (tt) params.set('trang_thai', tt);
+    if (unitF) params.set('unit_filter', unitF);
 
     fetch('/api/dossiers?' + params.toString(), {
       headers: { 'X-CSRF-Token': CSRF }
     })
     .then(r => r.json())
     .then(data => {
+      if (seq !== loadRequestSeq) return;
+      if (data.column_widths_map && typeof data.column_widths_map === 'object') {
+        serverColumnWidthsMap = data.column_widths_map;
+      }
       cachedDossiers = data.dossiers || [];
       renderStats(data.counts || {});
+      renderTabBadges(data.tab_counts || {});
+      renderUnitOptions(data.units || []);
       renderTable(cachedDossiers);
     })
     .catch(err => {
@@ -310,70 +1791,718 @@
     document.getElementById('countSoon').textContent = counts.soon || 0;
     document.getElementById('countPending').textContent = counts.pending || 0;
     document.getElementById('countDone').textContent = counts.done || 0;
+    renderStatCardActiveState();
+  }
+
+  function renderTabBadges(tabCounts) {
+    Object.keys(tabCounts || {}).concat(['all']).forEach(k => {
+      const el = document.getElementById('tabBadge_' + k);
+      if (!el) return;
+      const info = tabCounts[k] || {};
+      el.textContent = info.pending || 0;
+    });
+  }
+
+  function renderUnitOptions(units) {
+    const sel = document.getElementById('unitFilterSelect');
+    if (!sel) return;
+    const current = sel.value || pendingInitialUnit;
+    sel.innerHTML = '<option value="">Tất cả đơn vị</option>' +
+      units.map(u => `<option value="${escapeHtml(u.value)}">${escapeHtml(u.label)}</option>`).join('');
+    if (current) {
+      const exact = units.find(u => u.value === current || u.label === current);
+      if (exact) {
+        sel.value = exact.value;
+      }
+      pendingInitialUnit = '';
+    }
+  }
+
+  function stateBadgeHtml(d) {
+    if (d.trang_thai === 'da_tra') {
+      return `<span class="pc-badge pc-badge-success">Hoàn thành</span>`;
+    }
+    if (d.state === 'overdue') {
+      if (d.category_tab === 'ct10' && d.extra && d.extra.qua_han > 0) {
+        return `<span class="pc-badge pc-badge-danger">Quá hạn ${d.extra.qua_han}</span>`;
+      }
+      const late = Math.abs(d.days_left || 0);
+      return `<span class="pc-badge pc-badge-danger">${late > 0 ? 'Quá hạn ' + late + ' ngày' : 'Quá hạn'}</span>`;
+    }
+    if (d.state === 'soon') {
+      const txt = d.days_left === 0 ? 'Hôm nay đến hạn' : `Còn ${d.days_left} ngày`;
+      return `<span class="pc-badge pc-badge-warning">${txt}</span>`;
+    }
+    return `<span class="pc-badge pc-badge-info">Đang xử lý</span>`;
+  }
+
+  function actionCellHtml(d, extraButtons = '') {
+    const doneBtn = d.can_complete
+      ? (d.trang_thai === 'da_tra'
+          ? `<button type="button" class="pc-btn pc-btn-secondary btn-sm text-nowrap" onclick="setStatus(${d.id}, 'dang_xu_ly')" title="Mở lại chưa hoàn thành">Mở lại</button>`
+          : `<button type="button" class="pc-btn pc-btn-primary btn-sm text-nowrap" onclick="setStatus(${d.id}, 'da_tra')" title="Đơn vị xác nhận đã xử lý xong">Hoàn thành</button>`)
+      : '';
+    const editBtn = d.can_edit
+      ? `<button type="button" class="pc-btn pc-btn-secondary btn-sm" onclick="openEditDossierModal(${d.id})" title="Sửa" aria-label="Sửa hồ sơ"><i class="fa-solid fa-pen"></i></button>
+         <button type="button" class="pc-btn pc-btn-secondary btn-sm text-danger" onclick="deleteDossier(${d.id})" title="Xóa" aria-label="Xóa hồ sơ"><i class="fa-solid fa-trash"></i></button>`
+      : '';
+    return `<div class="d-inline-flex align-items-center justify-content-center gap-1 flex-nowrap">${extraButtons}${doneBtn}${editBtn}</div>`;
+  }
+
+  function completionMetaHtml(d) {
+    if (d.trang_thai !== 'da_tra') return '';
+    const who = d.hoan_thanh_by_name ? ` bởi ${escapeHtml(d.hoan_thanh_by_name)}` : '';
+    const when = d.da_tra_at ? ` (${d.da_tra_at})` : '';
+    return `<div class="small text-success mt-1">Đã xong${who}${when}</div>`;
+  }
+
+  function renderExactTableCell(val, role, completionHtml = '', headerText = '') {
+    const rawStr = (val !== undefined && val !== null) ? String(val) : '';
+    const text = escapeHtml(rawStr);
+    if (role === 'stt') {
+      return `<td class="text-center text-muted fw-semibold dossier-col-stt">${text}</td>`;
+    }
+    if (role === 'code') {
+      const codeCls = (rawStr.length <= 30 && !/\s/.test(rawStr.trim()))
+        ? 'dossier-code-line'
+        : 'fw-bold text-primary';
+      return `<td><div class="${codeCls}">${text}</div>${completionHtml}</td>`;
+    }
+    if (role === 'thutuc') {
+      return `<td class="small dossier-col-thutuc">${text}</td>`;
+    }
+    if (role === 'date') {
+      return `<td class="small dossier-col-date">${text}</td>`;
+    }
+    if (role === 'unit_person') {
+      return `<td class="small fw-semibold">${text}${completionHtml}</td>`;
+    }
+    if (role === 'metric') {
+      const trimmed = rawStr.trim();
+      const num = Number(trimmed.replace(/[,\s]/g, ''));
+      const nh = normHeaderText(headerText);
+      const isOverdueCol = nh.includes('qua han');
+      const isPendingCol = nh.includes('cho ') || nh.includes('dang ') || nh.includes('tra lai') || nh.includes('hoan thanh lap');
+      if (isOverdueCol && Number.isFinite(num) && num > 0) {
+        return `<td class="small text-center tabular-nums"><span class="pc-badge pc-badge-danger">${text}</span></td>`;
+      }
+      if (!trimmed || trimmed === '0') {
+        return `<td class="small text-center text-muted tabular-nums">${text || '0'}</td>`;
+      }
+      const cls = isPendingCol ? 'fw-bold text-primary' : 'fw-semibold';
+      return `<td class="small text-center tabular-nums ${cls}">${text}</td>`;
+    }
+    return `<td class="small">${text}</td>`;
+  }
+
+  function getRowExactSchema(d, index) {
+    const ex = (d && d.extra) || {};
+    if (Array.isArray(ex.source_headers) && ex.source_headers.length && Array.isArray(ex.row_cells)) {
+      return {
+        headers: ex.source_headers,
+        headerRows: ex.source_header_rows || null,
+        cells: ex.row_cells,
+        ratios: ex.source_col_ratios || null,
+        widths: ex.source_col_widths || null,
+      };
+    }
+    if (d && d.category_tab === 'ct10') {
+      return {
+        headers: CT10_FALLBACK_HEADER_ROWS[1],
+        headerRows: CT10_FALLBACK_HEADER_ROWS,
+        cells: [
+          ex.stt || String(index + 1),
+          d.unit_area || d.ma_ho_so || '',
+          ex.lap_tong ?? 0,
+          ex.lap_hoan_thanh ?? 0,
+          ex.lap_cho_pd ?? 0,
+          ex.lap_tra_lai ?? 0,
+          ex.lap_cho_tl ?? 0,
+          ex.lap_da_tl ?? 0,
+          ex.tl_tong ?? 0,
+          ex.tl_cho_tl ?? 0,
+          ex.tl_dang_tl ?? 0,
+          ex.tl_cho_pd ?? 0,
+          ex.tl_tra_kq ?? 0,
+          ex.tl_da_kq ?? 0,
+          ex.qua_han ?? 0,
+        ],
+        ratios: CT10_FALLBACK_RATIOS,
+        widths: null,
+      };
+    }
+    return null;
+  }
+
+  function buildExactHeaderTheadHtml(rawHeaderRows, flatHeaders, prefixThHtml, suffixThHtml, applyRowspan = true) {
+    const startColIdx = prefixThHtml ? 1 : 0;
+    if (Array.isArray(rawHeaderRows) && rawHeaderRows.length >= 2 && applyRowspan) {
+      const r1 = rawHeaderRows[0] || [];
+      const r2 = rawHeaderRows[1] || [];
+      const ncols = Math.max(r1.length, r2.length, (flatHeaders || []).length);
+      const wrapRowspan = (html) => html.replace(/<th\b/g, '<th rowspan="2"');
+      let row1Html = prefixThHtml ? wrapRowspan(prefixThHtml) : '';
+      let row2Html = '';
+      let c = 0;
+      while (c < ncols) {
+        const h1 = r1[c] || '';
+        const h2 = r2[c] || '';
+        if (!h2 || h1 === h2) {
+          const lbl = h1 || (flatHeaders && flatHeaders[c]) || '';
+          const role = classifyDossierHeaderRole(lbl);
+          const nowrapCls = lbl.length <= 10 ? 'text-nowrap' : '';
+          const alignCls = (role === 'stt' || role === 'metric' || lbl.length > 14) ? 'text-center' : '';
+          const thCls = `${nowrapCls} ${alignCls} align-middle`.trim();
+          row1Html += `<th rowspan="2" class="${thCls}" data-resize-col="${startColIdx + c}">${escapeHtml(lbl)}</th>`;
+          c += 1;
+        } else {
+          let span = 1;
+          while (c + span < ncols && h1 && r1[c + span] === h1 && (r2[c + span] || '') && r2[c + span] !== h1) {
+            span += 1;
+          }
+          row1Html += `<th colspan="${span}" class="text-center text-nowrap">${escapeHtml(h1)}</th>`;
+          for (let k = 0; k < span; k += 1) {
+            const lbl2 = r2[c + k] || '';
+            const th2Cls = `${lbl2.length <= 8 ? 'text-nowrap' : ''} text-center align-middle`.trim();
+            row2Html += `<th class="${th2Cls}" data-resize-col="${startColIdx + c + k}">${escapeHtml(lbl2)}</th>`;
+          }
+          c += span;
+        }
+      }
+      row1Html += suffixThHtml ? wrapRowspan(suffixThHtml) : '';
+      return `<tr>${row1Html}</tr><tr>${row2Html}</tr>`;
+    }
+    const headers = (Array.isArray(flatHeaders) && flatHeaders.length)
+      ? flatHeaders
+      : ((Array.isArray(rawHeaderRows) && rawHeaderRows[0]) || []);
+    return `<tr>${prefixThHtml || ''}${headers.map((h, i) => {
+      const lbl = h || '';
+      const role = classifyDossierHeaderRole(lbl);
+      const thCls = `${lbl.length > 22 ? '' : 'text-nowrap'} ${(role === 'stt' || role === 'metric') ? 'text-center' : ''}`.trim();
+      return `<th class="${thCls}" data-resize-col="${startColIdx + i}">${escapeHtml(lbl)}</th>`;
+    }).join('')}${suffixThHtml || ''}</tr>`;
   }
 
   function renderTable(list) {
+    const mainTable = document.getElementById('dossierMainTable');
+    const colgroup = document.getElementById('dossierMainColgroup');
+    const thead = document.getElementById('dossierTableHead');
     const tbody = document.getElementById('dossierTableBody');
+
+    const supportsDynamicCols = activeTab === 'all' || activeTab === 'tam_tru' || activeTab === 'thuong_tru' || activeTab === 'ct10' || activeTab === 'khac';
+    const normalizedRows = (supportsDynamicCols && Array.isArray(list) && list.length)
+      ? list.map((d, idx) => getRowExactSchema(d, idx))
+      : null;
+    const firstSchema = (normalizedRows && normalizedRows[0]) || null;
+    const firstSourceHeaders = firstSchema ? firstSchema.headers : null;
+    const firstHeaderSig = Array.isArray(firstSourceHeaders) && firstSourceHeaders.length ? firstSourceHeaders.join('||') : '';
+    const useDynamicSourceTable = Boolean(
+      supportsDynamicCols &&
+      firstHeaderSig &&
+      normalizedRows.every(s => s && s.headers.join('||') === firstHeaderSig)
+    );
+
+    let activeLayout = null;
+    let layoutHeadersForKey = [];
+    if (useDynamicSourceTable) {
+      const ratioTabKey = (activeTab && activeTab !== 'all') ? activeTab : (list[0].category_tab || 'khac');
+      const ratios = (Array.isArray(firstSchema.ratios) && firstSchema.ratios.length === firstSourceHeaders.length)
+        ? firstSchema.ratios
+        : (PRESET_TAB_COL_RATIOS[ratioTabKey] && PRESET_TAB_COL_RATIOS[ratioTabKey].length === firstSourceHeaders.length ? PRESET_TAB_COL_RATIOS[ratioTabKey] : null);
+      const widths = Array.isArray(firstSchema.widths) ? firstSchema.widths : null;
+      activeLayout = computeDossierColumnLayout(firstSourceHeaders, ratios, widths, {
+        includeCheckbox: true,
+        includeAction: true,
+        actionWidthPx: 160,
+        sampleRows: normalizedRows.slice(0, 12).map(s => s.cells),
+      });
+      layoutHeadersForKey = firstSourceHeaders;
+
+      const checkTh = `<th class="text-center align-middle"><input type="checkbox" class="form-check-input" id="selectAllRows" onchange="toggleAllVisibleRows(this.checked)"></th>`;
+      const tailTh = `<th class="text-center align-middle dossier-col-actions">Thao tác</th>`;
+      thead.innerHTML = buildExactHeaderTheadHtml(firstSchema.headerRows, firstSourceHeaders, checkTh, tailTh, true);
+    } else {
+      thead.innerHTML = TAB_HEADERS[activeTab] || TAB_HEADERS.all;
+      const staticThs = Array.from(thead.querySelectorAll('tr:last-child th'));
+      staticThs.forEach((th, idx) => {
+        if (idx >= 1 && idx < staticThs.length - 1 && !th.classList.contains('dossier-col-actions')) {
+          th.setAttribute('data-resize-col', String(idx));
+        }
+      });
+      if (TAB_DATA_HEADERS[activeTab]) {
+        activeLayout = computeDossierColumnLayout(
+          TAB_DATA_HEADERS[activeTab],
+          PRESET_TAB_COL_RATIOS[activeTab] || null,
+          null,
+          { includeCheckbox: true, includeAction: true, actionWidthPx: 160 }
+        );
+        layoutHeadersForKey = TAB_DATA_HEADERS[activeTab];
+      } else {
+        const specs = TAB_STATIC_COLGROUPS[activeTab] || TAB_STATIC_COLGROUPS.all;
+        activeLayout = { ...buildColgroupFromSpecs(specs), roles: [] };
+        layoutHeadersForKey = staticThs.slice(1, -1).map(th => (th.textContent || '').trim());
+      }
+    }
+    const specCount = (activeLayout && Array.isArray(activeLayout.specs)) ? activeLayout.specs.length : 0;
+    activeLayoutKey = computeDossierLayoutKey(activeTab, layoutHeadersForKey, specCount);
+    if (activeLayout) activeLayout.layoutKey = activeLayoutKey;
+    applyTableColumnLayout(mainTable, colgroup, activeLayout);
+    attachDossierColumnResizers(mainTable, colgroup, activeLayoutKey);
+    const colCount = thead.querySelectorAll('tr:last-child th').length || thead.querySelectorAll('th').length || 8;
+
     if (!list || list.length === 0) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="7" class="text-center py-5 text-muted">
-            <i class="fa-solid fa-folder-open fs-2 mb-2 d-block opacity-50"></i>
-            Chưa có hồ sơ nào theo tiêu chí tìm kiếm.
-          </td>
-        </tr>`;
+      tbody.innerHTML = `<tr><td colspan="${colCount}" class="text-center py-5 text-muted">Chưa có dữ liệu theo dõi phù hợp bộ lọc.</td></tr>`;
+      renderMobileCards([], null);
       return;
     }
 
+    renderMobileCards(list, normalizedRows);
+
     tbody.innerHTML = list.map((d, index) => {
-      let stateBadge = '';
-      let dateBadge = '';
-      if (d.trang_thai === 'da_tra') {
-        stateBadge = '<span class="badge-state-done"><i class="fa-solid fa-check me-1"></i>Đã trả</span>';
-        dateBadge = `<span class="text-muted">${formatDateVN(d.han_tra)}</span>`;
-      } else if (d.state === 'overdue') {
-        const lateDays = Math.abs(d.days_left);
-        stateBadge = `<span class="badge-state-overdue"><i class="fa-solid fa-circle-exclamation me-1"></i>Quá hạn ${lateDays} ngày</span>`;
-        dateBadge = `<span class="text-danger fw-bold">${formatDateVN(d.han_tra)}</span>`;
-      } else if (d.state === 'soon') {
-        const soonDays = d.days_left;
-        const text = soonDays === 0 ? 'Hôm nay đến hạn' : `Còn ${soonDays} ngày`;
-        stateBadge = `<span class="badge-state-soon"><i class="fa-solid fa-bell me-1"></i>${text}</span>`;
-        dateBadge = `<span class="text-warning fw-bold">${formatDateVN(d.han_tra)}</span>`;
-      } else {
-        stateBadge = '<span class="badge-state-pending">Trong hạn</span>';
-        dateBadge = `<span class="text-dark">${formatDateVN(d.han_tra)}</span>`;
+      const checked = selectedIds.has(d.id) ? 'checked' : '';
+      const chkCell = `<td class="text-center"><input type="checkbox" class="form-check-input row-chk" value="${d.id}" ${checked} onchange="toggleRowSelect(${d.id}, this.checked)"></td>`;
+      const idxCell = `<td class="text-center text-muted fw-semibold">${index + 1}</td>`;
+
+      if (useDynamicSourceTable) {
+        const rowCells = (normalizedRows[index] && normalizedRows[index].cells) || [];
+        const roles = (activeLayout && activeLayout.roles) || [];
+        const codeColIdx = roles.indexOf('code');
+        const unitColIdx = roles.indexOf('unit_person');
+        const compTargetIdx = codeColIdx >= 0 ? codeColIdx : (unitColIdx >= 0 ? unitColIdx : 0);
+        const cellsHtml = firstSourceHeaders.map((hdrTxt, ci) => {
+          const role = roles[ci] || 'other';
+          const compHtml = (ci === compTargetIdx) ? completionMetaHtml(d) : '';
+          const cellVal = (rowCells[ci] !== undefined && rowCells[ci] !== null) ? rowCells[ci] : '';
+          return renderExactTableCell(cellVal, role, compHtml, hdrTxt);
+        }).join('');
+        return `<tr>
+          ${chkCell}
+          ${cellsHtml}
+          <td class="text-center text-nowrap dossier-col-actions">${actionCellHtml(d)}</td>
+        </tr>`;
       }
 
-      return `
-        <tr>
-          <td class="text-center text-muted fw-bold">${index + 1}</td>
+      if (activeTab === 'tam_tru') {
+        const dlText = d.has_deadline ? formatDateVN(d.han_tra) : '';
+        const dlCls = d.state === 'overdue' ? 'text-danger fw-bold' : (d.state === 'soon' ? 'text-warning fw-bold' : '');
+        const ex = d.extra || {};
+        const nopText = ('ngay_nop_raw' in ex) ? ex.ngay_nop_raw : (d.ngay_nop ? formatDateVN(d.ngay_nop) : '');
+        const tnText = ('ngay_tiep_nhan_raw' in ex) ? ex.ngay_tiep_nhan_raw : (d.ngay_tiep_nhan ? formatDateVN(d.ngay_tiep_nhan) : '');
+        return `<tr>
+          ${chkCell}
+          <td class="text-center text-muted fw-semibold dossier-col-stt">${escapeHtml(ex.stt || String(index + 1))}</td>
           <td>
-            <div class="fw-bold text-primary fs-6">${escapeHtml(d.ma_ho_so)}</div>
-            ${d.ghi_chu ? `<small class="text-muted d-block">${escapeHtml(d.ghi_chu)}</small>` : ''}
-            ${d.da_tra_at ? `<small class="text-success d-block"><i class="fa-solid fa-circle-check me-1"></i>Đã trả lúc ${d.da_tra_at}</small>` : ''}
+            <div class="dossier-code-line">${escapeHtml(d.so_ho_so)}</div>
+            ${completionMetaHtml(d)}
           </td>
-          <td>
-            <span class="badge bg-secondary-subtle text-secondary border">${escapeHtml(d.loai_label)}</span>
-          </td>
-          <td>
-            ${dateBadge}
-          </td>
-          <td class="text-center">
-            ${stateBadge}
-          </td>
-          <td class="text-center">
-            <div class="d-inline-flex gap-1">
-              ${d.trang_thai === 'da_tra' 
-                ? `<button type="button" class="pc-btn pc-btn-secondary btn-sm" onclick="setStatus(${d.id}, 'dang_xu_ly')" title="Đưa về đang xử lý"><i class="fa-solid fa-rotate-left me-1"></i>Mở lại</button>`
-                : `<button type="button" class="btn btn-sm btn-success fw-bold" onclick="setStatus(${d.id}, 'da_tra')" title="Đánh dấu đã trả kết quả"><i class="fa-solid fa-check me-1"></i>Đã trả</button>`}
-              <button type="button" class="pc-btn pc-btn-secondary btn-sm" onclick="openEditDossierModal(${d.id})" title="Sửa"><i class="fa-solid fa-pen"></i></button>
-              <button type="button" class="pc-btn pc-btn-secondary btn-sm text-danger" onclick="deleteDossier(${d.id})" title="Xóa"><i class="fa-solid fa-trash"></i></button>
-            </div>
-          </td>
+          <td class="small dossier-col-thutuc">${escapeHtml(d.thu_tuc || '')}</td>
+          <td class="small dossier-col-date">${escapeHtml(nopText)}</td>
+          <td class="small dossier-col-date">${escapeHtml(tnText)}</td>
+          <td class="small dossier-col-date ${dlCls}">${escapeHtml(ex.han_tra_raw || dlText)}</td>
+          <td class="small dossier-col-date">${escapeHtml(d.tinh_dung_han || '')}</td>
+          <td class="small">${escapeHtml(d.can_bo || '')}</td>
+          <td class="small fw-semibold">${escapeHtml(d.unit_area || '')}</td>
+          <td class="small">${escapeHtml(d.trang_thai_nguon || '')}</td>
+          <td class="text-center text-nowrap dossier-col-actions">${actionCellHtml(d)}</td>
         </tr>`;
+      }
+
+      if (activeTab === 'thuong_tru') {
+        const ex = d.extra || {};
+        const tnRaw = ('ngay_tiep_nhan_raw' in ex) ? ex.ngay_tiep_nhan_raw : (d.ngay_tiep_nhan ? formatDateVN(d.ngay_tiep_nhan) : '');
+        return `<tr>
+          ${chkCell}
+          <td class="text-center text-muted fw-semibold dossier-col-stt">${escapeHtml(ex.stt || String(index + 1))}</td>
+          <td>
+            <div class="dossier-code-line">${escapeHtml(d.so_ho_so)}</div>
+            ${completionMetaHtml(d)}
+          </td>
+          <td class="small dossier-col-thutuc">${escapeHtml(d.thu_tuc || '')}</td>
+          <td class="small dossier-col-date">${escapeHtml(tnRaw || '')}</td>
+          <td class="small">${escapeHtml(d.can_bo || '')}</td>
+          <td class="small fw-semibold">${escapeHtml(d.unit_area || '')}</td>
+          <td class="small">${escapeHtml(d.trang_thai_nguon || '')}</td>
+          <td class="text-center text-nowrap dossier-col-actions">${actionCellHtml(d)}</td>
+        </tr>`;
+      }
+
+      if (activeTab === 'ct10') {
+        const ex = d.extra || {};
+        const lapChips = `
+          <div class="dossier-metric-chips">
+            <span class="dossier-chip">Tổng: ${ex.lap_tong || 0}</span>
+            ${ex.lap_hoan_thanh ? `<span class="dossier-chip chip-warn">HT lập: ${ex.lap_hoan_thanh}</span>` : ''}
+            ${ex.lap_cho_pd ? `<span class="dossier-chip chip-warn">Chờ PD: ${ex.lap_cho_pd}</span>` : ''}
+            ${ex.lap_tra_lai ? `<span class="dossier-chip chip-danger">Trả lại: ${ex.lap_tra_lai}</span>` : ''}
+            ${ex.lap_cho_tl ? `<span class="dossier-chip chip-warn">Chờ TL: ${ex.lap_cho_tl}</span>` : ''}
+            <span class="dossier-chip">Đã TL: ${ex.lap_da_tl || 0}</span>
+          </div>`;
+        const tlChips = `
+          <div class="dossier-metric-chips">
+            <span class="dossier-chip">Tổng: ${ex.tl_tong || 0}</span>
+            ${ex.tl_cho_tl ? `<span class="dossier-chip chip-warn">Chờ TL: ${ex.tl_cho_tl}</span>` : ''}
+            ${ex.tl_dang_tl ? `<span class="dossier-chip chip-warn">Đang TL: ${ex.tl_dang_tl}</span>` : ''}
+            ${ex.tl_cho_pd ? `<span class="dossier-chip chip-warn">Chờ PD: ${ex.tl_cho_pd}</span>` : ''}
+            <span class="dossier-chip">Đã KQ: ${ex.tl_da_kq || 0}</span>
+          </div>`;
+        const qhVal = Number(ex.qua_han || 0);
+        return `<tr>
+          ${chkCell}${idxCell}
+          <td>
+            <div class="fw-bold">${escapeHtml(d.unit_area || d.ma_ho_so)}</div>
+            <small class="text-muted">${escapeHtml(d.thu_tuc || '')}</small>
+            ${completionMetaHtml(d)}
+          </td>
+          <td>${lapChips}</td>
+          <td>${tlChips}</td>
+          <td class="text-center">${qhVal > 0 ? `<span class="pc-badge pc-badge-danger">${qhVal}</span>` : '<span class="text-muted">0</span>'}</td>
+          <td class="text-center text-nowrap">${stateBadgeHtml(d)}</td>
+          <td class="text-center dossier-col-actions">${actionCellHtml(d)}</td>
+        </tr>`;
+      }
+
+      if (activeTab === 'tich_hop') {
+        const ex = d.extra || {};
+        const groups = ex.groups || {};
+        const hasMulti = Object.keys(groups).length > 1;
+        const detailBtn = hasMulti
+          ? `<button type="button" class="pc-btn pc-btn-secondary btn-sm px-2" onclick="openTichHopDetail(${d.id})" title="Xem 16 nhóm chỉ tiêu"><i class="fa-solid fa-table-list"></i></button>`
+          : '';
+        return `<tr>
+          ${chkCell}${idxCell}
+          <td>
+            <div class="fw-bold">${escapeHtml(d.unit_area || d.ma_ho_so)}</div>
+            ${d.report_date ? `<small class="text-muted">Số liệu ${formatDateVN(d.report_date)}</small>` : ''}
+            ${completionMetaHtml(d)}
+          </td>
+          <td class="small fw-semibold">${escapeHtml(ex.group_name || d.thu_tuc || 'Chỉ tiêu ĐDĐT')}</td>
+          <td class="text-end fw-bold text-warning">${Number(ex.cho_xac_nhan || 0).toLocaleString('vi-VN')}</td>
+          <td class="text-end fw-semibold text-success">${Number(ex.da_tich_hop || 0).toLocaleString('vi-VN')}</td>
+          <td class="text-center small">
+            ${ex.tu_choi ? `<span class="text-danger me-1">${Number(ex.tu_choi).toLocaleString('vi-VN')}</span>` : ''}
+            ${ex.ty_le ? `<span class="pc-badge pc-badge-neutral">${escapeHtml(ex.ty_le)}</span>` : '--'}
+          </td>
+          <td class="text-center text-nowrap">${stateBadgeHtml(d)}</td>
+          <td class="text-center dossier-col-actions">${actionCellHtml(d, detailBtn)}</td>
+        </tr>`;
+      }
+
+      if (activeTab === 'lam_sach') {
+        const ex = d.extra || {};
+        const metrics = Array.isArray(ex.metrics) ? ex.metrics : [];
+        const chipsHtml = metrics.length
+          ? `<div class="dossier-metric-chips">${metrics.map(m => `<span class="dossier-chip">${escapeHtml(m.label)}: <strong>${escapeHtml(String(m.value))}</strong></span>`).join('')}</div>`
+          : `<span class="small text-muted">${escapeHtml(d.trang_thai_nguon || d.ghi_chu || '--')}</span>`;
+        return `<tr>
+          ${chkCell}${idxCell}
+          <td>
+            <div class="fw-bold">${escapeHtml(d.unit_area || d.ma_ho_so)}</div>
+            ${d.report_date ? `<small class="text-muted">${formatDateVN(d.report_date)}</small>` : ''}
+            ${completionMetaHtml(d)}
+          </td>
+          <td class="small">${escapeHtml(ex.chi_tieu || d.thu_tuc || 'Chỉ tiêu làm sạch dữ liệu')}</td>
+          <td>${chipsHtml}</td>
+          <td class="text-center text-nowrap">${stateBadgeHtml(d)}</td>
+          <td class="text-center dossier-col-actions">${actionCellHtml(d)}</td>
+        </tr>`;
+      }
+
+      // Tab 'all' hoặc 'khac' khi trộn nhiều cấu trúc bảng
+      const exAll = d.extra || {};
+      const tnRaw = ('ngay_tiep_nhan_raw' in exAll) ? exAll.ngay_tiep_nhan_raw : (d.ngay_tiep_nhan ? formatDateVN(d.ngay_tiep_nhan) : '');
+      const dlText = d.has_deadline ? formatDateVN(d.han_tra) : '';
+      const dlCls = d.state === 'overdue' ? 'text-danger fw-bold' : (d.state === 'soon' ? 'text-warning fw-bold' : '');
+
+      if (activeTab === 'khac') {
+        return `<tr>
+          ${chkCell}${idxCell}
+          <td>
+            <div class="dossier-code-line">${escapeHtml(d.so_ho_so || d.ma_ho_so)}</div>
+            ${exAll.cong_dan ? `<small class="text-muted d-block">${escapeHtml(exAll.cong_dan)}</small>` : ''}
+            ${completionMetaHtml(d)}
+          </td>
+          <td class="small dossier-col-thutuc">${escapeHtml(d.thu_tuc || d.ghi_chu || '')}</td>
+          <td class="small fw-semibold">${escapeHtml(d.unit_area || '')}</td>
+          <td class="small dossier-col-date ${dlCls}">${escapeHtml(dlText)}</td>
+          <td class="small">${escapeHtml(d.trang_thai_nguon || '') || stateBadgeHtml(d)}</td>
+          <td class="text-center dossier-col-actions">${actionCellHtml(d)}</td>
+        </tr>`;
+      }
+
+      const dateVal = tnRaw || (d.has_deadline ? `Hạn: ${dlText}` : '');
+      return `<tr>
+        ${chkCell}${idxCell}
+        <td>
+          <div class="dossier-code-line">${escapeHtml(d.so_ho_so || d.ma_ho_so)}</div>
+          ${completionMetaHtml(d)}
+        </td>
+        <td class="small dossier-col-thutuc">${escapeHtml(d.thu_tuc || d.ghi_chu || '')}</td>
+        <td class="text-center text-nowrap"><span class="pc-badge pc-badge-neutral text-nowrap">${escapeHtml(d.category_tab_label)}</span></td>
+        <td class="small fw-semibold">${escapeHtml(d.unit_area || '')}</td>
+        <td class="small dossier-col-date ${!tnRaw && d.has_deadline ? dlCls : ''}">${escapeHtml(dateVal)}</td>
+        <td class="small">${escapeHtml(d.trang_thai_nguon || '') || stateBadgeHtml(d)}</td>
+        <td class="text-center dossier-col-actions">${actionCellHtml(d)}</td>
+      </tr>`;
     }).join('');
   }
+
+  function renderMobileActionBar(d) {
+    const doneBtn = d.trang_thai === 'da_tra'
+      ? ''
+      : `<button type="button" class="pc-btn pc-btn-primary btn-mobile-complete" onclick="setStatus(${d.id}, 'da_tra')"><i class="fa-solid fa-check me-1"></i>Hoàn thành</button>`;
+    const manageBtns = d.can_manage
+      ? `<button type="button" class="pc-btn pc-btn-secondary btn-mobile-icon" onclick="openEditDossierModal(${d.id})" title="Sửa" aria-label="Sửa"><i class="fa-solid fa-pen"></i></button>
+         <button type="button" class="pc-btn pc-btn-secondary btn-mobile-icon text-danger" onclick="deleteDossier(${d.id})" title="Xóa" aria-label="Xóa"><i class="fa-solid fa-trash"></i></button>`
+      : '';
+    if (!doneBtn && !manageBtns) return '';
+    return `<div class="dossier-mcard-actions">${doneBtn}${manageBtns}</div>`;
+  }
+
+  function renderMobileCards(list, normalizedRows) {
+    const mobileList = document.getElementById('dossierMobileList');
+    const countLabel = document.getElementById('mobileVisibleCount');
+    const selectAllMobile = document.getElementById('mobileSelectAllRows');
+    if (countLabel) countLabel.textContent = `${(list || []).length} mục`;
+    if (selectAllMobile) {
+      selectAllMobile.checked = Boolean(list && list.length && list.every(d => selectedIds.has(d.id)));
+    }
+    if (!mobileList) return;
+    if (!list || !list.length) {
+      mobileList.innerHTML = `<div class="pc-card p-4 text-center text-muted small">Chưa có dữ liệu theo dõi phù hợp bộ lọc.</div>`;
+      return;
+    }
+
+    mobileList.innerHTML = list.map((d, index) => {
+      const checked = selectedIds.has(d.id) ? 'checked' : '';
+      const chkHtml = `<input type="checkbox" class="form-check-input row-chk" value="${d.id}" ${checked} onchange="toggleRowSelect(${d.id}, this.checked)">`;
+      const stateCls = d.state === 'overdue' ? 'is-overdue' : (d.state === 'soon' ? 'is-soon' : '');
+      const ex = d.extra || {};
+      const tabPill = activeTab === 'all'
+        ? `<span class="pc-badge pc-badge-neutral">${escapeHtml(d.category_tab_label || '')}</span>`
+        : '';
+
+      if (d.category_tab === 'ct10') {
+        const schema = (normalizedRows && normalizedRows[index]) || getRowExactSchema(d, index);
+        const cells = (schema && Array.isArray(schema.cells)) ? schema.cells : [];
+        const unitLabel = d.unit_area || cells[1] || d.ma_ho_so || '--';
+        const val = (idx, key) => {
+          const v = (cells.length > idx && cells[idx] !== undefined && cells[idx] !== null && cells[idx] !== '') ? cells[idx] : (ex[key] ?? 0);
+          return v;
+        };
+        const overdueVal = Number(val(14, 'qua_han')) || 0;
+        const overdueBadge = overdueVal > 0
+          ? `<span class="pc-badge pc-badge-danger">Quá hạn: ${overdueVal}</span>`
+          : stateBadgeHtml(d);
+        const lapStats = [
+          ['Tổng', val(2, 'lap_tong')],
+          ['Hoàn thành', val(3, 'lap_hoan_thanh')],
+          ['Chờ duyệt', val(4, 'lap_cho_pd')],
+          ['Trả lại', val(5, 'lap_tra_lai')],
+          ['Chờ TL', val(6, 'lap_cho_tl')],
+          ['Đã TL', val(7, 'lap_da_tl')],
+        ];
+        const tlStats = [
+          ['Tổng', val(8, 'tl_tong')],
+          ['Chờ TL', val(9, 'tl_cho_tl')],
+          ['Đang TL', val(10, 'tl_dang_tl')],
+          ['Chờ duyệt', val(11, 'tl_cho_pd')],
+          ['Trả KQ', val(12, 'tl_tra_kq')],
+          ['Đã KQ', val(13, 'tl_da_kq')],
+        ];
+        const statTile = (lbl, num, warnIfPositive) => {
+          const n = Number(num) || 0;
+          const colorCls = warnIfPositive && n > 0 ? 'text-danger' : (n > 0 ? 'text-primary' : 'text-muted');
+          return `<div class="dossier-mcard-ct10-stat"><span>${escapeHtml(lbl)}</span><strong class="${colorCls}">${escapeHtml(String(num))}</strong></div>`;
+        };
+        return `<article class="dossier-mcard ${stateCls}">
+          <div class="dossier-mcard-head">
+            <div class="dossier-mcard-title-wrap">
+              ${chkHtml}
+              <div style="min-width:0;flex:1;">
+                <div class="dossier-mcard-unit-title">${escapeHtml(unitLabel)}</div>
+                <div class="dossier-mcard-badges">${tabPill}${overdueBadge}</div>
+                ${completionMetaHtml(d)}
+              </div>
+            </div>
+          </div>
+          <div class="dossier-mcard-ct10-group">
+            <div class="dossier-mcard-ct10-title">Lập phiếu xác minh</div>
+            <div class="dossier-mcard-ct10-grid">${lapStats.map(([l, v]) => statTile(l, v, false)).join('')}</div>
+          </div>
+          <div class="dossier-mcard-ct10-group">
+            <div class="dossier-mcard-ct10-title">Trả lời xác minh</div>
+            <div class="dossier-mcard-ct10-grid">${tlStats.map(([l, v]) => statTile(l, v, l === 'Chờ TL')).join('')}</div>
+          </div>
+          ${renderMobileActionBar(d)}
+        </article>`;
+      }
+
+      if (d.category_tab === 'tich_hop') {
+        return `<article class="dossier-mcard ${stateCls}">
+          <div class="dossier-mcard-head">
+            <div class="dossier-mcard-title-wrap">
+              ${chkHtml}
+              <div style="min-width:0;flex:1;">
+                <div class="dossier-mcard-unit-title">${escapeHtml(d.unit_area || d.ma_ho_so)}</div>
+                <div class="dossier-mcard-badges">${tabPill}${stateBadgeHtml(d)}</div>
+                ${d.report_date ? `<small class="text-muted d-block mt-1">${formatDateVN(d.report_date)}</small>` : ''}
+                ${completionMetaHtml(d)}
+              </div>
+            </div>
+          </div>
+          <div class="dossier-mcard-meta">
+            <div class="dossier-mcard-kv"><span class="dossier-mcard-k">Tổng chỉ tiêu</span><span class="dossier-mcard-v">${escapeHtml(String(ex.total ?? '--'))}</span></div>
+            <div class="dossier-mcard-kv"><span class="dossier-mcard-k">Đã tích hợp</span><span class="dossier-mcard-v text-success">${escapeHtml(String(ex.da_tich_hop ?? '--'))}</span></div>
+            <div class="dossier-mcard-kv"><span class="dossier-mcard-k">Tỷ lệ</span><span class="dossier-mcard-v">${escapeHtml(String(ex.ty_le ?? '--'))}</span></div>
+            <div class="dossier-mcard-kv d-flex align-items-end">
+              ${ex.groups ? `<button type="button" class="pc-btn pc-btn-secondary btn-sm w-100" onclick="openTichHopDetail(${d.id})">Chi tiết 16 nhóm</button>` : ''}
+            </div>
+          </div>
+          ${renderMobileActionBar(d)}
+        </article>`;
+      }
+
+      if (d.category_tab === 'lam_sach') {
+        const metrics = Array.isArray(ex.metrics) ? ex.metrics : [];
+        const chipsHtml = metrics.length
+          ? `<div class="dossier-metric-chips">${metrics.map(m => `<span class="dossier-chip">${escapeHtml(m.label)}: <strong>${escapeHtml(String(m.value))}</strong></span>`).join('')}</div>`
+          : `<div class="small text-muted">${escapeHtml(d.trang_thai_nguon || d.ghi_chu || '--')}</div>`;
+        return `<article class="dossier-mcard ${stateCls}">
+          <div class="dossier-mcard-head">
+            <div class="dossier-mcard-title-wrap">
+              ${chkHtml}
+              <div style="min-width:0;flex:1;">
+                <div class="dossier-mcard-unit-title">${escapeHtml(d.unit_area || d.ma_ho_so)}</div>
+                <div class="dossier-mcard-badges">${tabPill}${stateBadgeHtml(d)}</div>
+                ${d.report_date ? `<small class="text-muted d-block mt-1">${formatDateVN(d.report_date)}</small>` : ''}
+                ${completionMetaHtml(d)}
+              </div>
+            </div>
+          </div>
+          <div class="dossier-mcard-meta">
+            <div class="dossier-mcard-kv span-2">
+              <span class="dossier-mcard-k">Chỉ tiêu</span>
+              <span class="dossier-mcard-v">${escapeHtml(ex.chi_tieu || d.thu_tuc || 'Chỉ tiêu làm sạch dữ liệu')}</span>
+            </div>
+          </div>
+          ${chipsHtml}
+          ${renderMobileActionBar(d)}
+        </article>`;
+      }
+
+      // Hồ sơ đơn lẻ (Tạm trú, Thường trú, Khác, hoặc tab Tất cả / Excel tùy chỉnh)
+      const nopText = ('ngay_nop_raw' in ex) ? ex.ngay_nop_raw : (d.ngay_nop ? formatDateVN(d.ngay_nop) : '');
+      const tnText = ('ngay_tiep_nhan_raw' in ex) ? ex.ngay_tiep_nhan_raw : (d.ngay_tiep_nhan ? formatDateVN(d.ngay_tiep_nhan) : '');
+      const dlText = d.has_deadline ? formatDateVN(d.han_tra) : '';
+      const metaItems = [];
+      const thuTucText = (d.thu_tuc || d.ghi_chu || '').trim();
+      if (thuTucText) metaItems.push(['Thủ tục', thuTucText, true]);
+      if (d.unit_area) metaItems.push(['Đơn vị', d.unit_area, false]);
+      if (d.can_bo) metaItems.push(['Cán bộ', d.can_bo, false]);
+      if (nopText) metaItems.push(['Ngày nộp', nopText, false]);
+      if (tnText) metaItems.push(['Tiếp nhận', tnText, false]);
+      if (dlText) metaItems.push(['Hạn trả', dlText, false]);
+      if (d.tinh_dung_han) metaItems.push(['Tính đúng hạn', d.tinh_dung_han, false]);
+      if (ex.cong_dan) metaItems.push(['Công dân', ex.cong_dan, false]);
+      if (d.trang_thai_nguon) metaItems.push(['Trạng thái hồ sơ', d.trang_thai_nguon, false]);
+      if (Array.isArray(ex.custom_fields)) {
+        ex.custom_fields.slice(0, 4).forEach(cf => {
+          if (cf && cf.value) metaItems.push([cf.label || 'Thông tin', cf.value, false]);
+        });
+      }
+      const metaHtml = metaItems.length
+        ? `<div class="dossier-mcard-meta">${metaItems.map(([k, v, span2]) =>
+            `<div class="dossier-mcard-kv ${span2 ? 'span-2' : ''}"><span class="dossier-mcard-k">${escapeHtml(k)}</span><span class="dossier-mcard-v">${escapeHtml(v)}</span></div>`
+          ).join('')}</div>`
+        : '';
+
+      return `<article class="dossier-mcard ${stateCls}">
+        <div class="dossier-mcard-head">
+          <div class="dossier-mcard-title-wrap">
+            ${chkHtml}
+            <div style="min-width:0;flex:1;">
+              <div class="dossier-mcard-code">${escapeHtml(d.so_ho_so || d.ma_ho_so)}</div>
+              <div class="dossier-mcard-badges">${tabPill}${stateBadgeHtml(d)}</div>
+              ${completionMetaHtml(d)}
+            </div>
+          </div>
+        </div>
+        ${metaHtml}
+        ${renderMobileActionBar(d)}
+      </article>`;
+    }).join('');
+  }
+
+  window.openTichHopDetail = function(id) {
+    const d = cachedDossiers.find(x => x.id === id);
+    if (!d || !d.extra || !d.extra.groups) return;
+    document.getElementById('tichHopDetailTitle').textContent = `Chỉ tiêu tích hợp — ${d.unit_area || d.ma_ho_so}`;
+    const groups = d.extra.groups;
+    const rowsHtml = Object.keys(groups).map(gName => {
+      const vals = groups[gName] || {};
+      const metricsHtml = Object.keys(vals).map(k => `<span class="dossier-chip">${escapeHtml(k)}: <strong>${escapeHtml(String(vals[k]))}</strong></span>`).join(' ');
+      return `<tr><td class="fw-semibold small">${escapeHtml(gName)}</td><td><div class="dossier-metric-chips">${metricsHtml}</div></td></tr>`;
+    }).join('');
+    document.getElementById('tichHopDetailBody').innerHTML = `
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th style="width:220px;">Nhóm giấy tờ / Chỉ tiêu</th><th>Số liệu chi tiết</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>`;
+    new bootstrap.Modal(document.getElementById('tichHopDetailModal')).show();
+  };
+
+  window.toggleRowSelect = function(id, checked) {
+    if (checked) selectedIds.add(id);
+    else selectedIds.delete(id);
+    document.querySelectorAll(`.row-chk[value="${id}"]`).forEach(cb => { cb.checked = checked; });
+    const allChecked = Boolean(cachedDossiers.length && cachedDossiers.every(d => selectedIds.has(d.id)));
+    const selDesktop = document.getElementById('selectAllRows');
+    const selMobile = document.getElementById('mobileSelectAllRows');
+    if (selDesktop) selDesktop.checked = allChecked;
+    if (selMobile) selMobile.checked = allChecked;
+    updateBulkBar();
+  };
+
+  window.toggleAllVisibleRows = function(checked) {
+    selectedIds.clear();
+    if (checked) {
+      cachedDossiers.forEach(d => selectedIds.add(d.id));
+    }
+    document.querySelectorAll('.row-chk').forEach(cb => { cb.checked = checked; });
+    const selDesktop = document.getElementById('selectAllRows');
+    const selMobile = document.getElementById('mobileSelectAllRows');
+    if (selDesktop) selDesktop.checked = checked;
+    if (selMobile) selMobile.checked = checked;
+    updateBulkBar();
+  };
+
+  function updateBulkBar() {
+    const bar = document.getElementById('bulkActionBar');
+    document.getElementById('bulkSelectedCount').textContent = selectedIds.size;
+    bar.classList.toggle('show', selectedIds.size > 0);
+  }
+
+  window.bulkSetStatus = async function(action) {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    if (action === 'delete') {
+      const ok = await pcConfirm(`Xóa ${ids.length} dòng đã chọn khỏi sổ theo dõi?`);
+      if (!ok) return;
+    }
+    fetch('/api/dossiers/bulk-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ ids, action })
+    })
+    .then(r => r.json())
+    .then(res => {
+      if (res.error) throw new Error(res.error);
+      selectedIds.clear();
+      updateBulkBar();
+      loadDossiers();
+    })
+    .catch(err => pcAlert(err.message || 'Lỗi xử lý hàng loạt', 'danger'));
+  };
 
   function formatDateVN(isoStr) {
     if (!isoStr) return '--';
@@ -383,35 +2512,45 @@
   }
 
   function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
+
+  window.openChooseDossierAddModal = function() {
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('chooseDossierAddModal')).show();
+  };
+
+  window.chooseDossierAction = function(mode) {
+    const chooser = bootstrap.Modal.getInstance(document.getElementById('chooseDossierAddModal'));
+    if (chooser) chooser.hide();
+    if (mode === 'import') openImportDossierModal();
+    else openCreateDossierModal();
+  };
 
   window.openCreateDossierModal = function() {
     document.getElementById('dossierModalTitle').textContent = 'Nhập Hồ Sơ Mới';
     document.getElementById('dossierId').value = '';
     document.getElementById('inputMaHoSo').value = '';
+    document.getElementById('inputCategoryTab').value = (activeTab && activeTab !== 'all') ? activeTab : 'khac';
     document.getElementById('inputLoai').value = 'can-cuoc';
     document.getElementById('inputHanTra').value = '';
+    document.getElementById('inputUnitArea').value = '';
     document.getElementById('inputGhiChu').value = '';
-
-    const modal = new bootstrap.Modal(document.getElementById('dossierModal'));
-    modal.show();
+    new bootstrap.Modal(document.getElementById('dossierModal')).show();
   };
 
   window.openEditDossierModal = function(id) {
     const d = cachedDossiers.find(x => x.id === id);
     if (!d) return;
-
     document.getElementById('dossierModalTitle').textContent = 'Chỉnh Sửa Hồ Sơ';
     document.getElementById('dossierId').value = d.id;
     document.getElementById('inputMaHoSo').value = d.ma_ho_so;
+    document.getElementById('inputCategoryTab').value = d.category_tab || 'khac';
     document.getElementById('inputLoai').value = d.loai;
     document.getElementById('inputHanTra').value = d.han_tra || '';
+    document.getElementById('inputUnitArea').value = d.unit_area || '';
     document.getElementById('inputGhiChu').value = d.ghi_chu || '';
-
-    const modal = new bootstrap.Modal(document.getElementById('dossierModal'));
-    modal.show();
+    new bootstrap.Modal(document.getElementById('dossierModal')).show();
   };
 
   document.getElementById('dossierForm').addEventListener('submit', function(e) {
@@ -419,8 +2558,10 @@
     const id = document.getElementById('dossierId').value;
     const payload = {
       ma_ho_so: document.getElementById('inputMaHoSo').value.trim(),
+      category_tab: document.getElementById('inputCategoryTab').value,
       loai: document.getElementById('inputLoai').value,
       han_tra: document.getElementById('inputHanTra').value,
+      unit_area: document.getElementById('inputUnitArea').value.trim(),
       ghi_chu: document.getElementById('inputGhiChu').value.trim()
     };
 
@@ -429,32 +2570,23 @@
 
     fetch(url, {
       method: method,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': CSRF
-      },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
       body: JSON.stringify(payload)
     })
     .then(r => r.json())
     .then(res => {
       if (res.error) throw new Error(res.error);
-      const modalEl = document.getElementById('dossierModal');
-      const modal = bootstrap.Modal.getInstance(modalEl);
+      const modal = bootstrap.Modal.getInstance(document.getElementById('dossierModal'));
       if (modal) modal.hide();
       loadDossiers();
     })
-    .catch(err => {
-      alert(err.message || 'Lỗi khi lưu hồ sơ');
-    });
+    .catch(err => pcAlert(err.message || 'Lỗi khi lưu hồ sơ', 'danger'));
   });
 
   window.setStatus = function(id, trang_thai) {
     fetch(`/api/dossiers/${id}/status`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': CSRF
-      },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
       body: JSON.stringify({ trang_thai: trang_thai })
     })
     .then(r => r.json())
@@ -462,13 +2594,12 @@
       if (res.error) throw new Error(res.error);
       loadDossiers();
     })
-    .catch(err => {
-      alert(err.message || 'Lỗi khi cập nhật trạng thái');
-    });
+    .catch(err => pcAlert(err.message || 'Lỗi khi cập nhật trạng thái', 'danger'));
   };
 
-  window.deleteDossier = function(id) {
-    if (!confirm('Bạn có chắc chắn muốn xóa hồ sơ này khỏi sổ theo dõi?')) return;
+  window.deleteDossier = async function(id) {
+    const ok = await pcConfirm('Bạn có chắc chắn muốn xóa hồ sơ này khỏi sổ theo dõi?');
+    if (!ok) return;
     fetch(`/api/dossiers/${id}`, {
       method: 'DELETE',
       headers: { 'X-CSRF-Token': CSRF }
@@ -478,8 +2609,311 @@
       if (res.error) throw new Error(res.error);
       loadDossiers();
     })
+    .catch(err => pcAlert(err.message || 'Lỗi khi xóa hồ sơ', 'danger'));
+  };
+
+  window.exportDossiers = function() {
+    const unitF = document.getElementById('unitFilterSelect').value;
+    const params = new URLSearchParams();
+    params.set('trang_thai', 'dang_xu_ly');
+    if (activeTab && activeTab !== 'all') params.set('category_tab', activeTab);
+    if (unitF) params.set('unit_filter', unitF);
+    window.location.href = '/api/dossiers/export?' + params.toString();
+  };
+
+  // ======================== IMPORT EXCEL / ẢNH CHỤP ========================
+  window.openImportDossierModal = function() {
+    previewData = null;
+    lastImportFile = null;
+    const dlg = document.getElementById('dossierImportDialog');
+    if (dlg) dlg.classList.remove('has-preview');
+    document.getElementById('importFileInput').value = '';
+    document.getElementById('importSelectedFileLabel').textContent = '';
+    document.getElementById('importOverrideTab').value = '';
+    document.getElementById('importSheetRow').style.display = 'none';
+    document.getElementById('importErrorBox').classList.add('d-none');
+    document.getElementById('importPreviewSection').classList.add('d-none');
+    document.getElementById('btnConfirmImport').disabled = true;
+    document.getElementById('confirmImportCount').textContent = '0';
+    new bootstrap.Modal(document.getElementById('dossierImportModal')).show();
+  };
+
+  const dropzone = document.getElementById('importDropzone');
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleUploadFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  document.getElementById('importFileInput').addEventListener('change', function() {
+    if (this.files && this.files[0]) {
+      handleUploadFile(this.files[0]);
+    }
+  });
+
+  document.getElementById('importOverrideTab').addEventListener('change', function() {
+    if (lastImportFile) {
+      handleUploadFile(lastImportFile, document.getElementById('importSheetSelect').value);
+    }
+  });
+
+  document.getElementById('importSheetSelect').addEventListener('change', function() {
+    if (lastImportFile) {
+      handleUploadFile(lastImportFile, this.value);
+    }
+  });
+
+  function handleUploadFile(file, sheetName = '') {
+    lastImportFile = file;
+    document.getElementById('importSelectedFileLabel').textContent = `${file.name} (${Math.round(file.size / 1024)} KB)`;
+    const fd = new FormData();
+    fd.append('file', file);
+    if (sheetName) fd.append('sheet_name', sheetName);
+    const ov = document.getElementById('importOverrideTab').value;
+    if (ov) fd.append('override_tab', ov);
+    sendParseRequest({ body: fd, isForm: true });
+  }
+
+  function sendParseRequest({ body, isForm }) {
+    const dlg = document.getElementById('dossierImportDialog');
+    const loadBox = document.getElementById('importLoadingBox');
+    const errBox = document.getElementById('importErrorBox');
+    const prevSec = document.getElementById('importPreviewSection');
+    if (dlg) dlg.classList.remove('has-preview');
+    loadBox.classList.remove('d-none');
+    errBox.classList.add('d-none');
+    prevSec.classList.add('d-none');
+
+    const headers = { 'X-CSRF-Token': CSRF };
+    if (!isForm) headers['Content-Type'] = 'application/json';
+
+    fetch('/api/dossiers/parse-upload', { method: 'POST', headers, body })
+      .then(r => r.json())
+      .then(data => {
+        loadBox.classList.add('d-none');
+        if (!data.ok) {
+          if (dlg) dlg.classList.remove('has-preview');
+          errBox.textContent = data.error || 'Không nhận diện được dữ liệu từ file tải lên.';
+          errBox.classList.remove('d-none');
+          document.getElementById('btnConfirmImport').disabled = true;
+          return;
+        }
+        previewData = data;
+        document.getElementById('previewTabBadge').textContent = data.detected_tab_label || data.detected_tab;
+        document.getElementById('previewEngineBadge').textContent = data.engine || data.source_type;
+        document.getElementById('previewReportDate').value = data.report_date || '';
+        document.getElementById('previewStatsText').textContent =
+          `${data.total_rows || 0} dòng (${data.pending_rows || 0} còn tồn, ${data.matched_units || 0} khớp ĐV)`;
+
+        const structBox = document.getElementById('importStructureBox');
+        const titleEl = document.getElementById('previewTableTitle');
+        const tableTitle = (data.table_title || data.title || '').trim();
+        if (structBox && tableTitle) {
+          if (titleEl) titleEl.textContent = tableTitle;
+          structBox.classList.remove('d-none');
+        } else if (structBox) {
+          structBox.classList.add('d-none');
+        }
+
+        // Sheet dropdown cho Excel nhiều sheet
+        const sheetRow = document.getElementById('importSheetRow');
+        const sheetSel = document.getElementById('importSheetSelect');
+        if (data.sheets && data.sheets.length > 1) {
+          sheetRow.style.display = '';
+          sheetSel.innerHTML = data.sheets.map(s => `<option value="${escapeHtml(s)}" ${s === data.selected_sheet ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('');
+        } else {
+          sheetRow.style.display = 'none';
+        }
+
+        // Mặc định lọc còn tồn cho biểu mẫu số liệu CT10 nếu có đơn vị tồn
+        const filterChk = document.getElementById('filterOnlyPendingPreview');
+        filterChk.checked = (data.detected_tab === 'ct10' && data.pending_rows > 0 && data.pending_rows < data.total_rows);
+
+        if (dlg) dlg.classList.add('has-preview');
+        prevSec.classList.remove('d-none');
+        renderPreviewRows();
+      })
+      .catch(err => {
+        loadBox.classList.add('d-none');
+        if (dlg) dlg.classList.remove('has-preview');
+        errBox.textContent = err.message || 'Lỗi kết nối khi phân tích file';
+        errBox.classList.remove('d-none');
+      });
+  }
+
+  window.renderPreviewRows = function() {
+    if (!previewData || !Array.isArray(previewData.records)) return;
+    const onlyPending = document.getElementById('filterOnlyPendingPreview').checked;
+    const previewTable = document.getElementById('previewMainTable');
+    const previewColgroup = document.getElementById('previewTableColgroup');
+    const thead = document.getElementById('previewTableHead');
+    const tbody = document.getElementById('previewTableBody');
+    const records = previewData.records;
+    const hasExactTable = Boolean(
+      ((Array.isArray(previewData.raw_headers) && previewData.raw_headers.length) ||
+       (Array.isArray(previewData.exact_headers) && previewData.exact_headers.length)) &&
+      records.some(r => Array.isArray(r.raw_row) && r.raw_row.length)
+    );
+    const exactCols = (Array.isArray(previewData.exact_headers) && previewData.exact_headers.length)
+      ? previewData.exact_headers
+      : ((previewData.raw_headers && previewData.raw_headers[previewData.raw_headers.length - 1]) || []);
+
+    let previewLayout = null;
+    if (hasExactTable) {
+      previewLayout = computeDossierColumnLayout(
+        exactCols,
+        Array.isArray(previewData.col_ratios) ? previewData.col_ratios : null,
+        Array.isArray(previewData.col_widths) ? previewData.col_widths : null,
+        {
+          includeCheckbox: true,
+          includeAction: false,
+          sampleRows: records.slice(0, 12).map(r => (Array.isArray(r.raw_row) ? r.raw_row : [])),
+        }
+      );
+      applyTableColumnLayout(previewTable, previewColgroup, previewLayout);
+    } else {
+      previewLayout = { ...buildColgroupFromSpecs(TAB_STATIC_COLGROUPS.preview_fallback), roles: [] };
+      applyTableColumnLayout(previewTable, previewColgroup, previewLayout);
+    }
+
+    if (thead) {
+      if (hasExactTable) {
+        const chkTh = `<th class="text-center align-middle"><input type="checkbox" class="form-check-input" id="previewCheckAll" checked onchange="togglePreviewSelectAll(this.checked)"></th>`;
+        thead.innerHTML = buildExactHeaderTheadHtml(previewData.raw_headers, exactCols, chkTh, '', true);
+      } else {
+        thead.innerHTML = `
+          <tr>
+            <th class="text-center"><input type="checkbox" class="form-check-input" id="previewCheckAll" checked onchange="togglePreviewSelectAll(this.checked)"></th>
+            <th class="text-center">#</th>
+            <th>Số hồ sơ</th>
+            <th>Đơn vị</th>
+            <th>Thủ tục</th>
+            <th>Ngày tiếp nhận</th>
+            <th>Trạng thái</th>
+          </tr>`;
+      }
+    }
+
+    let visibleIdx = 0;
+
+    tbody.innerHTML = records.map((rec, rawIdx) => {
+      if (onlyPending && !rec.is_pending) {
+        rec.include = false;
+        return '';
+      }
+      if (onlyPending && rec.is_pending) rec.include = true;
+      visibleIdx += 1;
+
+      if (hasExactTable && Array.isArray(rec.raw_row)) {
+        const ncols = Math.max(exactCols.length, rec.raw_row.length);
+        const roles = (previewLayout && previewLayout.roles) || [];
+        const cells = [];
+        for (let ci = 0; ci < ncols; ci += 1) {
+          const val = (rec.raw_row[ci] !== undefined && rec.raw_row[ci] !== null) ? rec.raw_row[ci] : '';
+          cells.push(renderExactTableCell(val, roles[ci] || 'other', '', exactCols[ci] || ''));
+        }
+        return `
+          <tr>
+            <td class="text-center">
+              <input type="checkbox" class="form-check-input preview-row-chk" data-idx="${rawIdx}" ${rec.include !== false ? 'checked' : ''} onchange="updatePreviewField(${rawIdx}, 'include', this.checked)">
+            </td>
+            ${cells.join('')}
+          </tr>`;
+      }
+
+      const unitBadge = rec.unit_matched
+        ? `<span class="pc-badge pc-badge-success ms-1" title="Khớp đơn vị DB">Khớp ĐV</span>`
+        : `<span class="pc-badge pc-badge-warning ms-1" title="Chưa khớp danh mục DB">Chưa khớp</span>`;
+      const ex = rec.extra || {};
+      const tnStr = ('ngay_tiep_nhan_raw' in ex) ? ex.ngay_tiep_nhan_raw : (rec.ngay_tiep_nhan ? formatDateVN(rec.ngay_tiep_nhan) : '');
+      const dateStr = rec.has_deadline ? formatDateVN(rec.han_tra) : (tnStr || formatDateVN(rec.report_date));
+      return `
+        <tr>
+          <td class="text-center">
+            <input type="checkbox" class="form-check-input preview-row-chk" data-idx="${rawIdx}" ${rec.include !== false ? 'checked' : ''} onchange="updatePreviewField(${rawIdx}, 'include', this.checked)">
+          </td>
+          <td class="text-muted small">${visibleIdx}</td>
+          <td>
+            <input type="text" class="form-control form-control-sm preview-cell-input" value="${escapeHtml(rec.ma_ho_so)}" onchange="updatePreviewField(${rawIdx}, 'ma_ho_so', this.value)">
+          </td>
+          <td>
+            <div class="d-flex align-items-center">
+              <input type="text" class="form-control form-control-sm preview-cell-input" value="${escapeHtml(rec.unit_area || '')}" onchange="updatePreviewField(${rawIdx}, 'unit_area', this.value)">
+              ${unitBadge}
+            </div>
+          </td>
+          <td class="small">${escapeHtml(rec.thu_tuc || '--')}</td>
+          <td class="small text-nowrap">${escapeHtml(dateStr || '--')}</td>
+          <td class="small">${escapeHtml(rec.trang_thai_nguon || '--')}</td>
+        </tr>`;
+    }).join('');
+
+    updateConfirmImportCount();
+  };
+
+  window.updatePreviewField = function(idx, field, val) {
+    if (!previewData || !previewData.records[idx]) return;
+    previewData.records[idx][field] = val;
+    if (field === 'unit_area') {
+      previewData.records[idx].unit_code = '';
+      previewData.records[idx].unit_key = '';
+    }
+    updateConfirmImportCount();
+  };
+
+  window.togglePreviewSelectAll = function(checked) {
+    if (!previewData || !previewData.records) return;
+    const onlyPending = document.getElementById('filterOnlyPendingPreview').checked;
+    previewData.records.forEach(r => {
+      if (!onlyPending || r.is_pending) r.include = checked;
+    });
+    document.querySelectorAll('.preview-row-chk').forEach(cb => { cb.checked = checked; });
+    updateConfirmImportCount();
+  };
+
+  function updateConfirmImportCount() {
+    if (!previewData || !previewData.records) return;
+    const n = previewData.records.filter(r => r.include !== false).length;
+    document.getElementById('confirmImportCount').textContent = n;
+    document.getElementById('btnConfirmImport').disabled = (n === 0);
+  }
+
+  window.confirmBulkImport = function() {
+    if (!previewData) return;
+    const selected = (previewData.records || []).filter(r => r.include !== false);
+    if (!selected.length) return;
+    const targetTab = document.getElementById('importOverrideTab').value || previewData.detected_tab || 'khac';
+    const btn = document.getElementById('btnConfirmImport');
+    btn.disabled = true;
+
+    fetch('/api/dossiers/bulk-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({
+        category_tab: targetTab,
+        report_date: document.getElementById('previewReportDate').value || previewData.report_date,
+        source_type: previewData.source_type,
+        source_name: previewData.filename,
+        import_mode: document.getElementById('previewImportMode').value,
+        records: selected
+      })
+    })
+    .then(r => r.json())
+    .then(res => {
+      btn.disabled = false;
+      if (res.error) throw new Error(res.error);
+      const modal = bootstrap.Modal.getInstance(document.getElementById('dossierImportModal'));
+      if (modal) modal.hide();
+      pcAlert(`Đã nhập thành công: ${res.created || 0} mới, cập nhật ${res.updated || 0} dòng.`, 'success');
+      switchTab(res.category_tab || targetTab);
+    })
     .catch(err => {
-      alert(err.message || 'Lỗi khi xóa hồ sơ');
+      btn.disabled = false;
+      pcAlert(err.message || 'Lỗi khi nhập danh sách', 'danger');
     });
   };
 
@@ -489,8 +2923,30 @@
     searchTimeout = setTimeout(loadDossiers, 300);
   });
   document.getElementById('loaiSelect').addEventListener('change', loadDossiers);
-  document.getElementById('statusSelect').addEventListener('change', loadDossiers);
+  document.getElementById('unitFilterSelect').addEventListener('change', loadDossiers);
   document.getElementById('btnRefresh').addEventListener('click', loadDossiers);
+
+  // Khởi tạo từ tham số URL (?tab=...&unit=...&state=...) khi chuyển từ Tổng hợp Lãnh đạo
+  (function applyInitialUrlFilters() {
+    try {
+      const sp = new URLSearchParams(window.location.search || '');
+      const urlTab = (sp.get('tab') || '').trim();
+      const urlUnit = (sp.get('unit') || '').trim();
+      const urlState = (sp.get('state') || '').trim();
+      if (urlTab && document.querySelector(`.dossier-tab-btn[data-tab="${CSS.escape(urlTab)}"]`)) {
+        activeTab = urlTab;
+        document.querySelectorAll('.dossier-tab-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.tab === activeTab);
+        });
+      }
+      if (['overdue', 'soon', 'pending', 'done'].includes(urlState)) {
+        activeStateFilter = urlState;
+      }
+      if (urlUnit) {
+        pendingInitialUnit = urlUnit;
+      }
+    } catch (_) {}
+  })();
 
   loadDossiers();
 })();

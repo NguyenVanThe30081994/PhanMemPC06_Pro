@@ -12,10 +12,12 @@ from report_cycles import (
     KIND_PERIODIC,
     KIND_MILESTONE,
     KIND_ONGOING,
+    PERIOD_DAY,
     current_cycle,
     cycles_between,
     deadline_for,
     kind_from_task_type,
+    next_cycle,
     normalize_config,
     parse_config,
     task_config,
@@ -90,6 +92,42 @@ class ReportCycleUnitTests(unittest.TestCase):
         self.assertEqual(cycle["due"], "2026-08-14")
         self.assertIn("Tuần", cycle["label"])
         self.assertFalse(cycle["overdue"])
+
+    def test_daily_periodic_cycle_flow(self):
+        from services.task_deadline import _task_report_kind_label
+
+        cfg = parse_config(
+            {
+                "report_period_kind": "periodic",
+                "report_period": "day",
+            }
+        )
+        self.assertEqual(cfg["kind"], KIND_PERIODIC)
+        self.assertEqual(cfg["period"], PERIOD_DAY)
+
+        day = date(2026, 11, 19)
+        curr = current_cycle(cfg, today=day)
+        self.assertEqual(curr["key"], "2026-11-19")
+        self.assertEqual(curr["label"], "Ngày 19/11/2026")
+        self.assertEqual(curr["start"], "2026-11-19")
+        self.assertEqual(curr["end"], "2026-11-19")
+        self.assertEqual(curr["due"], "2026-11-19")
+        self.assertFalse(curr["overdue"])
+
+        nxt = next_cycle(cfg, today=day)
+        self.assertEqual(nxt["key"], "2026-11-20")
+        self.assertEqual(nxt["due"], "2026-11-20")
+        self.assertFalse(nxt["overdue"])
+
+        self.assertEqual(deadline_for(cfg, today=day), day)
+        between = cycles_between(cfg, date(2026, 11, 17), date(2026, 11, 19))
+        self.assertEqual([c["key"] for c in between], ["2026-11-17", "2026-11-18", "2026-11-19"])
+
+        dummy_task = SimpleNamespace(
+            task_type="Báo cáo định kỳ",
+            report_period_json=json.dumps(cfg),
+        )
+        self.assertIn("Hàng ngày", _task_report_kind_label(dummy_task))
 
     def test_current_cycle_weekly_overdue(self):
         cfg = normalize_config({"kind": "periodic", "period": "week", "weekday": 4})

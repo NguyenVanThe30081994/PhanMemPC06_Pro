@@ -4,105 +4,89 @@
 <div class="launchpad-clean-shell">
 
     <!-- ── 1. DẢI KPI CHỈ SỐ NHANH (MỎNG GỌN, TRỰC QUAN) ── -->
-    <section class="kpi-strip mb-4">
+    <section class="kpi-strip mb-3">
         {% for metric in overview_metrics %}
         <a href="{{ metric.href }}" class="kpi-item kpi-accent-{{ metric.accent_class }}">
             <div class="kpi-info">
                 <span class="kpi-label">{{ metric.title }}</span>
                 <strong class="kpi-value">{{ metric.value }}</strong>
             </div>
-            {% if metric.icon %}
-            <div class="kpi-icon-bubble">
-                <i class="{{ metric.icon }}"></i>
-            </div>
-            {% endif %}
         </a>
         {% endfor %}
     </section>
 
-    <!-- ── 2. LƯỚI ỨNG DỤNG ĐIỀU HÀNH & CÔNG VỤ (APP LAUNCHPAD GRID) ── -->
-    <div class="mb-2 d-flex align-items-center justify-content-between">
-        <h2 class="fs-6 fw-bold text-uppercase text-muted mb-0 tracking-wider">
-            <i class="fa-solid fa-grip me-2 text-primary"></i>Bàn Làm Việc Chức Năng
-        </h2>
-        <span class="badge bg-primary-subtle text-primary border px-2 py-1 small">
-            <i class="fa-regular fa-calendar-check me-1"></i>{{ now_str }}
-        </span>
-    </div>
+    <!-- ── 1B. THẺ TỔNG HỢP SỐ LIỆU ── -->
+    {% if exec_snapshot %}
+    <a href="/tong-quan-lanh-dao" class="exec-banner-strip mb-3">
+        <div class="exec-banner-top">
+            <div class="exec-banner-title">
+                <span>Tổng hợp số liệu</span>
+                <span class="exec-banner-scope">{{ exec_snapshot.scope_label }}</span>
+            </div>
+            <span class="exec-banner-cta">Xem chi tiết <i class="fa-solid fa-arrow-right ms-1"></i></span>
+        </div>
+        <div class="exec-banner-stats">
+            <div class="exec-stat-pill"><span>Tổng hồ sơ</span><strong>{{ exec_snapshot.overall.total }}</strong></div>
+            <div class="exec-stat-pill is-danger"><span>Quá hạn</span><strong>{{ exec_snapshot.overall.overdue }}</strong></div>
+            <div class="exec-stat-pill is-warning"><span>Sắp hạn</span><strong>{{ exec_snapshot.overall.soon }}</strong></div>
+            <div class="exec-stat-pill is-success"><span>Hoàn thành</span><strong>{{ exec_snapshot.overall.done }}</strong></div>
+        </div>
+    </a>
+    {% endif %}
 
+    <!-- ── 2. LƯỚI CHỨC NĂNG CHÍNH ── -->
     <div class="app-launchpad-grid mb-4">
 
         <!-- 1. GIAO VIỆC THEO ĐỀ CƯƠNG (CHỈ KHI CÓ QUYỀN GIAO/XỬ LÝ VIỆC) -->
         {% if is_admin or can_module('task', 'process') %}
         <a href="/outline-giao-viec" class="app-tile tile-primary">
-            <div class="tile-icon-box bg-blue-subtle text-primary">
-                <i class="fa-solid fa-file-contract"></i>
-            </div>
             <div class="tile-title">Giao việc theo đề cương</div>
-            <div class="tile-arrow"><i class="fa-solid fa-chevron-right"></i></div>
         </a>
         {% endif %}
 
-        <!-- 2. CÔNG VIỆC / GIAO VIỆC THEO BIỂU MẪU -->
+        <!-- 2. GIAO VIỆC THEO BIỂU MẪU EXCEL -->
+        {% if is_admin or can_module('task', 'process') %}
+        <a href="/bieu-mau-giao-viec" class="app-tile tile-emerald">
+            <div class="tile-title">Giao việc theo biểu mẫu</div>
+        </a>
+        {% endif %}
+
+        <!-- 3. QUẢN LÝ CÔNG VIỆC -->
         {% if is_admin or can_module('task', 'view') %}
-        <a href="/tasks" class="app-tile tile-emerald">
-            <div class="tile-icon-box bg-emerald-subtle text-emerald">
-                <i class="fa-solid fa-table-list"></i>
-            </div>
-            <div class="tile-title">{% if is_admin or can_module('task', 'process') %}Giao việc theo biểu mẫu{% else %}Công việc được giao{% endif %}</div>
-            <div class="tile-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+        <a href="/tasks" class="app-tile tile-sky">
+            <div class="tile-title">{% if is_admin or can_module('task', 'process') %}Quản lý công việc{% else %}Công việc được giao{% endif %}</div>
         </a>
         {% endif %}
 
-        <!-- 3. THEO DÕI THỜI HẠN HỒ SƠ -->
-        <a href="/dossiers" class="app-tile tile-rose position-relative">
-            <div class="tile-icon-box bg-rose-subtle text-rose">
-                <i class="fa-solid fa-clock-rotate-left"></i>
-            </div>
+        <!-- 4. THEO DÕI THỜI HẠN HỒ SƠ -->
+        <a href="/dossiers" class="app-tile tile-rose">
             <div class="tile-title">Theo dõi thời hạn hồ sơ</div>
             {% if dossier_urgent_count > 0 %}
-            <span class="tile-urgent-badge bg-danger text-white">
+            <span class="tile-urgent-badge pc-badge pc-badge-danger">
                 {{ dossier_urgent_count }} sát hạn
             </span>
             {% endif %}
-            <div class="tile-arrow"><i class="fa-solid fa-chevron-right"></i></div>
         </a>
 
-        <!-- 4. BẢNG TIN & THƯ VIỆN SỐ -->
+        <!-- 5. BẢNG TIN & THƯ VIỆN -->
         <a href="/thong-bao" class="app-tile tile-amber">
-            <div class="tile-icon-box bg-amber-subtle text-amber">
-                <i class="fa-solid fa-bullhorn"></i>
-            </div>
-            <div class="tile-title">Bảng tin & Thư viện</div>
-            <div class="tile-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+            <div class="tile-title">Bảng tin &amp; Thư viện</div>
         </a>
 
-        <!-- 5. TẠO MÃ QR & LINK RÚT GỌN -->
+        <!-- 6. MÃ QR & LINK RÚT GỌN -->
         <a href="/links" class="app-tile tile-teal">
-            <div class="tile-icon-box bg-teal-subtle text-teal">
-                <i class="fa-solid fa-qrcode"></i>
-            </div>
-            <div class="tile-title">Mã QR & Link rút gọn</div>
-            <div class="tile-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+            <div class="tile-title">Mã QR &amp; Link rút gọn</div>
         </a>
 
-        <!-- 6. DANH BẠ CƠ QUAN -->
+        <!-- 7. DANH BẠ CƠ QUAN -->
         <a href="/contacts" class="app-tile tile-sky">
-            <div class="tile-icon-box bg-sky-subtle text-sky">
-                <i class="fa-solid fa-address-book"></i>
-            </div>
             <div class="tile-title">Danh bạ cơ quan</div>
-            <div class="tile-arrow"><i class="fa-solid fa-chevron-right"></i></div>
         </a>
 
-        <!-- 7. QUẢN TRỊ HỆ THỐNG (NẾU ADMIN / QUẢN TRỊ) -->
+        <!-- 8. QUẢN TRỊ HỆ THỐNG -->
         {% if is_admin or can_module('user', 'view') or can_module('sys', 'view') %}
         <a href="/admin/system-center" class="app-tile tile-slate">
-            <div class="tile-icon-box bg-slate-subtle text-slate">
-                <i class="fa-solid fa-gears"></i>
-            </div>
             <div class="tile-title">Quản trị hệ thống</div>
-            <div class="tile-arrow"><i class="fa-solid fa-chevron-right"></i></div>
         </a>
         {% endif %}
 
@@ -110,9 +94,7 @@
 
     <!-- ── 3. BIỂU ĐỒ GIÁM SÁT TIẾN ĐỘ THU GỌN ── -->
     <div class="mb-2">
-        <h2 class="fs-6 fw-bold text-uppercase text-muted mb-0 tracking-wider">
-            <i class="fa-solid fa-chart-pie me-2 text-primary"></i>Tổng Hợp Số Liệu Báo Cáo
-        </h2>
+        <h2 class="fs-6 fw-bold text-uppercase text-muted mb-0 tracking-wider">Biểu đồ công việc</h2>
     </div>
 
     <section class="overview-chart-grid mb-3">
@@ -152,146 +134,175 @@
         gap: 14px;
     }
     .kpi-item {
-        background: var(--pc-card-bg, #FFFFFF);
-        border: 1px solid var(--pc-border, #E2E8F0);
+        background: var(--pc-bg-card);
+        border: 1px solid var(--pc-border);
         border-radius: 14px;
-        padding: 14px 18px;
+        padding: 15px 18px;
         text-decoration: none;
-        color: var(--pc-text, #1A202C);
+        color: var(--pc-text);
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        flex-direction: column;
+        justify-content: center;
+        box-shadow: var(--pc-shadow-xs);
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
     }
     .kpi-item:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 14px rgba(0,0,0,0.07);
-        color: var(--pc-text, #1A202C);
+        box-shadow: var(--pc-shadow-md);
+        border-color: var(--pc-border-strong);
+        color: var(--pc-text);
     }
     .kpi-label {
         font-size: 13px;
-        font-weight: 700;
-        color: var(--pc-text-muted, #64748B);
+        font-weight: 600;
+        color: var(--pc-text-muted);
         display: block;
-        margin-bottom: 2px;
+        margin-bottom: 4px;
     }
     .kpi-value {
         font-size: 26px;
         font-weight: 800;
         line-height: 1.1;
         display: block;
-    }
-    .kpi-icon-bubble {
-        width: 42px;
-        height: 42px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 19px;
-        background: #F1F5F9;
-        color: #475569;
-    }
-    [data-theme="dark"] .kpi-icon-bubble {
-        background: #1E293B;
-        color: #94A3B8;
+        font-variant-numeric: tabular-nums;
+        color: var(--pc-text);
     }
     .kpi-accent-primary { border-left: 4px solid var(--pc-primary); }
     .kpi-accent-warning { border-left: 4px solid var(--pc-warning); }
     .kpi-accent-danger  { border-left: 4px solid var(--pc-danger); }
     .kpi-accent-rose    { border-left: 4px solid #E11D48; }
 
-    /* ── 2. LƯỚI ỨNG DỤNG (APP LAUNCHPAD GRID) ── */
-    .app-launchpad-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-        gap: 14px;
-    }
-    .app-tile {
-        background: var(--pc-card-bg, #FFFFFF);
-        border: 1px solid var(--pc-border, #E2E8F0);
+    /* ── 1B. THẺ TỔNG HỢP SỐ LIỆU ── */
+    .exec-banner-strip {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 13px 16px;
         border-radius: 14px;
-        padding: 16px 18px;
+        background: var(--pc-bg-card);
+        border: 1px solid var(--pc-border);
+        border-left: 4px solid var(--pc-primary);
         text-decoration: none;
-        color: var(--pc-text, #1A202C);
+        color: var(--pc-text);
+        box-shadow: var(--pc-shadow-xs);
+        transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .exec-banner-strip:hover {
+        transform: translateY(-1px);
+        border-color: var(--pc-primary);
+        box-shadow: var(--pc-shadow-md);
+        color: var(--pc-text);
+    }
+    .exec-banner-top {
         display: flex;
         align-items: center;
-        gap: 14px;
-        box-shadow: 0 3px 6px rgba(0,0,0,0.04);
-        transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-        position: relative;
+        justify-content: space-between;
+        gap: 8px;
     }
-    .app-tile:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 20px -3px rgba(0,0,0,0.09);
-        border-color: #CBD5E1;
-        color: var(--pc-text, #1A202C);
-    }
-    [data-theme="dark"] .app-tile {
-        background: #1A202C;
-        border-color: #2D3748;
-    }
-    [data-theme="dark"] .app-tile:hover {
-        border-color: #4A5568;
-        box-shadow: 0 10px 20px -3px rgba(0,0,0,0.35);
-    }
-
-    .tile-icon-box {
-        width: 46px;
-        height: 46px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
-        flex-shrink: 0;
-    }
-    .tile-title {
+    .exec-banner-title {
         font-size: 14.5px;
-        font-weight: 700;
-        line-height: 1.3;
-        flex: 1;
+        font-weight: 800;
+        color: var(--pc-text);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        flex-wrap: wrap;
     }
-    .tile-arrow {
-        color: #94A3B8;
-        font-size: 13px;
-        transition: transform 0.15s ease;
-    }
-    .app-tile:hover .tile-arrow {
-        transform: translateX(3px);
-        color: var(--pc-primary);
-    }
-    .tile-urgent-badge {
-        position: absolute;
-        top: 8px;
-        right: 12px;
-        font-size: 10px;
+    .exec-banner-scope {
+        font-size: 11px;
         font-weight: 700;
         padding: 2px 8px;
         border-radius: 999px;
+        background: var(--pc-bg-subtle);
+        color: var(--pc-text-muted);
+    }
+    .exec-banner-stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+    }
+    .exec-stat-pill {
+        background: var(--pc-bg-subtle);
+        border: 1px solid var(--pc-border);
+        border-radius: 10px;
+        padding: 7px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--pc-text-muted);
+    }
+    .exec-stat-pill strong {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--pc-text);
+        font-variant-numeric: tabular-nums;
+    }
+    .exec-stat-pill.is-danger strong { color: #dc2626; }
+    .exec-stat-pill.is-warning strong { color: #d97706; }
+    .exec-stat-pill.is-success strong { color: #16a34a; }
+    [data-theme="dark"] .exec-stat-pill.is-danger strong { color: #fca5a5; }
+    [data-theme="dark"] .exec-stat-pill.is-warning strong { color: #fcd34d; }
+    [data-theme="dark"] .exec-stat-pill.is-success strong { color: #86efac; }
+    .exec-banner-cta {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: var(--pc-primary);
+        white-space: nowrap;
+        flex-shrink: 0;
     }
 
-    /* MÀU SẮC CHO TỪNG TILE */
-    .bg-blue-subtle    { background: #EBF8FF; color: #2B6CB0; }
-    .bg-emerald-subtle { background: #ECFDF5; color: #059669; }
-    .bg-indigo-subtle  { background: #EEF2FF; color: #4F46E5; }
-    .bg-rose-subtle    { background: #FFF1F2; color: #E11D48; }
-    .bg-amber-subtle   { background: #FFFBEB; color: #D97706; }
-    .bg-teal-subtle    { background: #F0FDFA; color: #0D9488; }
-    .bg-sky-subtle     { background: #F0F9FF; color: #0284C7; }
-    .bg-slate-subtle   { background: #F1F5F9; color: #475569; }
-    .bg-danger-subtle  { background: #FEF2F2; color: #DC2626; }
+    /* ── 2. LƯỚI CHỨC NĂNG CHÍNH (KHÔNG ICON, SẠCH GỌN) ── */
+    .app-launchpad-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+    }
+    .app-tile {
+        background: var(--pc-bg-card);
+        border: 1px solid var(--pc-border);
+        border-left: 3.5px solid var(--pc-primary);
+        border-radius: 13px;
+        padding: 15px 16px;
+        text-decoration: none;
+        color: var(--pc-text);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+        gap: 6px;
+        min-height: 62px;
+        box-shadow: var(--pc-shadow-xs);
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        min-width: 0;
+    }
+    .app-tile:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--pc-shadow-md);
+        border-color: var(--pc-primary);
+        color: var(--pc-text);
+    }
+    .app-tile.tile-primary { border-left-color: #2b5396; }
+    .app-tile.tile-emerald { border-left-color: #059669; }
+    .app-tile.tile-sky     { border-left-color: #0284c7; }
+    .app-tile.tile-rose    { border-left-color: #e11d48; }
+    .app-tile.tile-amber   { border-left-color: #d97706; }
+    .app-tile.tile-teal    { border-left-color: #0d9488; }
+    .app-tile.tile-slate   { border-left-color: #475569; }
 
-    [data-theme="dark"] .bg-blue-subtle    { background: rgba(43, 108, 176, 0.2); color: #90CDF4; }
-    [data-theme="dark"] .bg-emerald-subtle { background: rgba(5, 150, 105, 0.2); color: #6EE7B7; }
-    [data-theme="dark"] .bg-indigo-subtle  { background: rgba(79, 70, 229, 0.2); color: #A5B4FC; }
-    [data-theme="dark"] .bg-rose-subtle    { background: rgba(225, 29, 72, 0.2); color: #FDA4AF; }
-    [data-theme="dark"] .bg-amber-subtle   { background: rgba(217, 119, 6, 0.2); color: #FCD34D; }
-    [data-theme="dark"] .bg-teal-subtle    { background: rgba(13, 148, 136, 0.2); color: #5EEAD4; }
-    [data-theme="dark"] .bg-sky-subtle     { background: rgba(2, 132, 199, 0.2); color: #7DD3FC; }
-    [data-theme="dark"] .bg-slate-subtle   { background: rgba(71, 85, 105, 0.3); color: #CBD5E1; }
-    [data-theme="dark"] .bg-danger-subtle  { background: rgba(220, 38, 38, 0.2); color: #FCA5A5; }
+    .tile-title {
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.3;
+        min-width: 0;
+    }
+    .tile-urgent-badge {
+        flex-shrink: 0;
+        white-space: nowrap;
+        font-size: 11px;
+    }
 
     /* ── 3. BIỂU ĐỒ ── */
     .overview-chart-grid {
@@ -300,10 +311,10 @@
         gap: 14px;
     }
     .overview-panel {
-        background: var(--pc-card-bg, #FFFFFF);
-        border: 1px solid var(--pc-border, #E2E8F0);
+        background: var(--pc-bg-card);
+        border: 1px solid var(--pc-border);
         border-radius: 14px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        box-shadow: var(--pc-shadow-xs);
         padding: 16px 20px;
     }
     .overview-canvas-wrap {
@@ -312,15 +323,60 @@
     }
 
     @media (max-width: 1199.98px) {
-        .kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .app-launchpad-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .overview-chart-grid { grid-template-columns: 1fr; }
     }
+    @media (max-width: 991.98px) {
+        .kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .app-launchpad-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
     @media (max-width: 767.98px) {
-        .kpi-strip { grid-template-columns: 1fr; }
-        .app-launchpad-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        .app-tile { padding: 12px 14px; gap: 10px; }
-        .tile-icon-box { width: 38px; height: 38px; font-size: 16px; }
-        .tile-title { font-size: 13px; }
+        .kpi-strip {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 9px;
+        }
+        .kpi-item {
+            padding: 11px 13px;
+            border-radius: 12px;
+        }
+        .kpi-label {
+            font-size: 11.5px;
+            line-height: 1.25;
+            margin-bottom: 3px;
+        }
+        .kpi-value {
+            font-size: 22px;
+        }
+        .exec-banner-strip {
+            padding: 12px 13px;
+            gap: 8px;
+        }
+        .exec-banner-title {
+            font-size: 13.5px;
+        }
+        .exec-banner-stats {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+        }
+        .exec-stat-pill {
+            padding: 6px 9px;
+            font-size: 11.5px;
+        }
+        .app-launchpad-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 9px;
+        }
+        .app-tile {
+            padding: 12px 13px;
+            min-height: 58px;
+            border-radius: 12px;
+        }
+        .tile-title {
+            font-size: 13px;
+        }
+        .overview-panel {
+            padding: 13px 14px;
+        }
     }
 </style>
 {% endblock %}
@@ -373,36 +429,44 @@
             }
         });
 
-        new Chart(donutCanvas, {
-            type: 'doughnut',
-            data: {
-                labels: donutLabels,
-                datasets: [{
-                    data: donutValues,
-                    backgroundColor: ['#15803d', '#dc2626'],
-                    borderWidth: 0,
-                    hoverOffset: 6,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '68%',
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color: axisColor,
-                            usePointStyle: true,
-                            pointStyle: 'circle',
-                            boxWidth: 8,
-                            padding: 12,
-                            font: { weight: '700', size: 11 }
+        const donutSum = (donutValues || []).reduce((acc, v) => acc + (Number(v) || 0), 0);
+        if (donutSum <= 0) {
+            const wrap = donutCanvas.parentElement;
+            if (wrap) {
+                wrap.innerHTML = '<div class="h-100 d-flex flex-column align-items-center justify-content-center text-muted small">Chưa phát sinh dữ liệu đơn vị báo cáo</div>';
+            }
+        } else {
+            new Chart(donutCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: donutLabels,
+                    datasets: [{
+                        data: donutValues,
+                        backgroundColor: ['#15803d', '#dc2626'],
+                        borderWidth: 0,
+                        hoverOffset: 6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '68%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: axisColor,
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                boxWidth: 8,
+                                padding: 12,
+                                font: { weight: '700', size: 11 }
+                            }
                         }
                     }
                 }
-            }
-        });
+            });
+        }
     });
 </script>
 {% endblock %}

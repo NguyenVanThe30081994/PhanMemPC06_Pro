@@ -18,6 +18,14 @@ from services.task_guards import _can_edit_task, _can_manage_task, _can_watch_ta
 from services.task_modes import _task_assignment_status_label
 from services.task_permissions import _can_process_task_module, _current_perms
 from services.task_units import _task_assignee_unit_name
+from services.excel_form_template import (
+    _ascii_vn,
+    _excel_payload_rows,
+    _parse_numeric_value,
+    evaluate_summary_row_values,
+    format_excel_cell_display,
+    load_excel_form_schema,
+)
 from task_read_models import task_form_submission_payload
 from utils import render_auto_template as render_template
 
@@ -111,11 +119,16 @@ def _form_data_aggregation_view(tid):
         if not current_cycle:
             current_cycle = available_cycles[-1]
 
+    excel_schema = load_excel_form_schema(task)
+    excel_aggregation = _build_excel_aggregation_view(excel_schema, rows) if excel_schema else None
+
     return render_template(
         "task_form_aggregation.html",
         task=task,
         fields=fields,
         rows=rows,
+        excel_schema=excel_schema,
+        excel_aggregation=excel_aggregation,
         available_cycles=available_cycles,
         current_cycle=current_cycle,
         cycle_key=cycle_key,
@@ -123,6 +136,175 @@ def _form_data_aggregation_view(tid):
         _task_assignment_status_label=_task_assignment_status_label,
         _flatten_value=_flatten_form_value,
     )
+
+
+def _format_agg_num(val):
+    return str(int(val)) if float(val).is_integer() else f"{val:g}"
+
+
+def _build_excel_aggregation_view(excel_schema, rows):
+    columns = excel_schema.get("columns") or []
+    is_unit_rows = bool(excel_schema.get("assign_row_mode") == "unit_rows" and excel_schema.get("unit_col_index") is not None)
+    unit_col_idx = excel_schema.get("unit_col_index")
+    allow_add_rows = bool(excel_schema.get("allow_add_rows", True))
+    is_fixed = bool(not is_unit_rows and excel_schema.get("has_prefilled_rows") and not allow_add_rows)
+    show_unit_prefix_col = (not is_fixed) and (not is_unit_rows)
+    unit_entries = []
+    submitted_unit_count = 0
+
+    for row in rows or []:
+        assignment = row.get("assignment")
+        user = getattr(assignment, "user", None) if assignment else None
+        user_name = getattr(user, "fullname", None) or getattr(user, "username", None) or ""
+        unit_name = _task_assignee_unit_name(user) if user else user_name
+        submission = row.get("submission")
+        raw_excel_rows = _excel_payload_rows(row.get("payload"), schema=excel_schema)
+        formatted_rows = [
+            [
+                format_excel_cell_display(r_vals[c_i] if c_i < len(r_vals) else "", col)
+                for c_i, col in enumerate(columns)
+            ]
+            for r_vals in raw_excel_rows
+        ]
+        if raw_excel_rows:
+            submitted_unit_count += 1
+        unit_entries.append({
+            "unit_name": unit_name,
+            "user_name": user_name,
+            "submitted": bool(raw_excel_rows),
+            "submitted_at": submission.submitted_at.strftime("%d/%m/%Y %H:%M") if submission and submission.submitted_at else "",
+            "rows": raw_excel_rows,
+            "display_rows": formatted_rows,
+        })
+
+    col_totals = [0.0 for _ in columns]
+    col_has_num = [False for _ in columns]
+    merged_rows = []
+
+    if is_unit_rows:
+        import re as _re
+        sub_by_unit = {}
+        for entry in unit_entries:
+            norm_u = _re.sub(r"\s+", " ", _ascii_vn(entry["unit_name"]).lower()).strip()
+            if norm_u and entry["rows"]:
+                sub_by_unit.setdefault(norm_u, []).extend(entry["rows"])
+        if not allow_add_rows:
+            used = set()
+            for r_idx, tpl_row in enumerate(excel_schema.get("template_rows") or []):
+                u_label = str(tpl_row[unit_col_idx] if unit_col_idx < len(tpl_row) else "")
+                norm_u = _re.sub(r"\s+", " ", _ascii_vn(u_label).lower()).strip()
+                if norm_u and norm_u in sub_by_unit and sub_by_unit[norm_u]:
+                    used.add(norm_u)
+                    raw_row = list(sub_by_unit[norm_u][0])
+                    is_sub = True
+                else:
+                    raw_row = list(tpl_row)
+                    is_sub = False
+                disp_row = []
+                for c_idx, col in enumerate(columns):
+                    val = raw_row[c_idx] if c_idx < len(raw_row) else ""
+                    if is_sub and col.get("type") == "number" and col.get("role") != "formula" and not col.get("is_percent"):
+                        num = _parse_numeric_value(val)
+                        if num is not None:
+                            col_totals[c_idx] += num
+                            col_has_num[c_idx] = True
+                    disp_row.append(format_excel_cell_display(val, col))
+                merged_rows.append({"unit_name": u_label, "cells": disp_row, "submitted": is_sub})
+            for entry in unit_entries:
+                norm_u = _re.sub(r"\s+", " ", _ascii_vn(entry["unit_name"]).lower()).strip()
+                if entry["rows"] and norm_u not in used:
+                    used.add(norm_u)
+                    for r_vals in entry["rows"]:
+                        disp_row = []
+                        for c_idx, col in enumerate(columns):
+                            val = r_vals[c_idx] if c_idx < len(r_vals) else ""
+                            if col.get("type") == "number" and col.get("role") != "formula" and not col.get("is_percent"):
+                                num = _parse_numeric_value(val)
+                                if num is not None:
+                                    col_totals[c_idx] += num
+                                    col_has_num[c_idx] = True
+                            disp_row.append(format_excel_cell_display(val, col))
+                        merged_rows.append({"unit_name": entry["unit_name"], "cells": disp_row, "submitted": True})
+        else:
+            row_seq = 0
+            for entry in unit_entries:
+                for r_vals in entry["rows"]:
+                    row_seq += 1
+                    disp_row = []
+                    for c_idx, col in enumerate(columns):
+                        if col.get("is_stt"):
+                            disp_row.append(str(row_seq))
+                            continue
+                        val = r_vals[c_idx] if c_idx < len(r_vals) else ""
+                        if col.get("type") == "number" and col.get("role") != "formula" and not col.get("is_percent"):
+                            num = _parse_numeric_value(val)
+                            if num is not None:
+                                col_totals[c_idx] += num
+                                col_has_num[c_idx] = True
+                        disp_row.append(format_excel_cell_display(val, col))
+                    merged_rows.append({"unit_name": entry["unit_name"], "cells": disp_row, "submitted": True})
+    elif is_fixed:
+        template_rows = excel_schema.get("template_rows") or []
+        for r_idx, tpl_row in enumerate(template_rows):
+            out_row = []
+            for c_idx, col in enumerate(columns):
+                if col.get("type") == "number":
+                    total = 0.0
+                    has_val = False
+                    for entry in unit_entries:
+                        if r_idx < len(entry["rows"]) and c_idx < len(entry["rows"][r_idx]):
+                            num = _parse_numeric_value(entry["rows"][r_idx][c_idx])
+                            if num is not None:
+                                total += num
+                                has_val = True
+                    if has_val:
+                        out_row.append(_format_agg_num(total))
+                        col_totals[c_idx] += total
+                        col_has_num[c_idx] = True
+                    else:
+                        out_row.append("0")
+                else:
+                    out_row.append(tpl_row[c_idx] if c_idx < len(tpl_row) else "")
+            merged_rows.append({"unit_name": "", "cells": out_row})
+    else:
+        for entry in unit_entries:
+            for r_vals in entry["rows"]:
+                cells = [r_vals[c_i] if c_i < len(r_vals) else "" for c_i in range(len(columns))]
+                disp_cells = []
+                for c_idx, col in enumerate(columns):
+                    if col.get("type") == "number" and col.get("role") != "formula" and not col.get("is_percent"):
+                        num = _parse_numeric_value(cells[c_idx])
+                        if num is not None:
+                            col_totals[c_idx] += num
+                            col_has_num[c_idx] = True
+                    disp_cells.append(format_excel_cell_display(cells[c_idx], col))
+                merged_rows.append({
+                    "unit_name": entry["unit_name"],
+                    "cells": disp_cells,
+                })
+
+    raw_totals_vec = [col_totals[c_i] if col_has_num[c_i] else None for c_i in range(len(columns))]
+    summary_raw = evaluate_summary_row_values(excel_schema, raw_totals_vec)
+    column_totals = [
+        format_excel_cell_display(summary_raw[c_idx], columns[c_idx])
+        if summary_raw[c_idx] != ""
+        else (
+            _format_agg_num(col_totals[c_idx])
+            if (columns[c_idx].get("type") == "number" and col_has_num[c_idx] and not columns[c_idx].get("is_percent"))
+            else ""
+        )
+        for c_idx in range(len(columns))
+    ]
+    return {
+        "is_fixed_indicators": is_fixed,
+        "is_unit_rows": is_unit_rows,
+        "show_unit_prefix_col": show_unit_prefix_col,
+        "unit_col_index": unit_col_idx,
+        "merged_rows": merged_rows,
+        "column_totals": column_totals,
+        "unit_entries": unit_entries,
+        "submitted_unit_count": submitted_unit_count,
+    }
 
 
 

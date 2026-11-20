@@ -2,221 +2,348 @@
 
 {% block title %}Nhật ký hoạt động{% endblock %}
 
+{% block extra_head %}
+<style>
+.logs-summary-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+}
+.logs-summary-grid .pc06-page-summary-card strong {
+    color: var(--pc-primary-strong);
+}
+.logs-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.logs-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+.logs-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.logs-inline-filter {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    border-radius: 12px;
+    background: var(--pc-bg-subtle);
+    border: 1px solid var(--pc-border);
+}
+.logs-filter-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.logs-filter-item label {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--pc-text-muted);
+    margin: 0;
+}
+.logs-filter-date {
+    flex: 0 0 155px;
+}
+.logs-filter-user {
+    flex: 1 1 190px;
+    max-width: 260px;
+}
+.logs-filter-item .form-control,
+.logs-filter-item .form-select {
+    height: var(--pc-control-h-md, 40px);
+    min-height: var(--pc-control-h-md, 40px);
+    font-size: 0.875rem;
+}
+.logs-filter-btns {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.logs-filter-btns .pc-btn {
+    height: var(--pc-control-h-md, 40px);
+    min-height: var(--pc-control-h-md, 40px);
+    padding: 0 16px;
+    font-size: 0.875rem;
+}
+
+@media (max-width: 991.98px) {
+    .logs-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+    .logs-filter-user {
+        max-width: none;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .logs-summary-grid {
+        gap: 8px !important;
+    }
+    .logs-summary-grid .pc06-page-summary-card {
+        padding: 10px 12px !important;
+        border-radius: 14px !important;
+    }
+    .logs-summary-grid .pc06-page-summary-card span { font-size: 11.5px !important; }
+    .logs-summary-grid .pc06-page-summary-card strong { font-size: 17px !important; }
+    .logs-topbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .logs-tabs {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+        width: 100%;
+    }
+    .logs-tabs .pc06-section-menu-tab {
+        width: 100%;
+        justify-content: center;
+        padding: 0 8px !important;
+        font-size: 13px !important;
+    }
+    .logs-actions {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        width: 100%;
+    }
+    .logs-actions form {
+        width: 100%;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    .logs-actions .pc-btn {
+        width: 100%;
+        justify-content: center;
+        padding: 0 10px !important;
+        font-size: 13px !important;
+    }
+    .logs-inline-filter {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        padding: 10px;
+    }
+    .logs-filter-date {
+        flex: none;
+        width: 100%;
+    }
+    .logs-filter-user {
+        grid-column: 1 / -1;
+        max-width: none;
+    }
+    .logs-filter-btns {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+    .logs-filter-btns .pc-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    #logsMainTable {
+        table-layout: fixed;
+        width: 100%;
+    }
+    #logsMainTable td {
+        white-space: normal !important;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="pc06-page-shell">
-    <div class="pc06-page-summary">
+    <div class="pc06-page-summary logs-summary-grid">
         <div class="pc06-page-summary-card"><span>Bản ghi hiển thị</span><strong>{{ logs|length }}</strong></div>
         <div class="pc06-page-summary-card"><span>Người dùng</span><strong>{{ user_list|length }}</strong></div>
         <div class="pc06-page-summary-card"><span>Sự kiện bảo mật ({{ security_digest.days }} ngày)</span><strong>{{ security_digest.total }}</strong></div>
         <div class="pc06-page-summary-card"><span>Bộ lọc</span><strong>{{ 'Đang áp dụng' if start or end or user_search else 'Mặc định' }}</strong></div>
     </div>
 
-    <div class="pc06-section-workspace" data-section-menu-container data-default-pane="filters">
-        <div class="pc06-section-menu-shell with-actions">
-            <div class="pc06-section-menu" role="tablist" aria-label="Các khu vực chức năng của nhật ký hoạt động">
-                <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="filters" role="tab" aria-selected="true">
-                    <i class="fa-solid fa-filter"></i>
-                    Bộ lọc
-                </button>
-                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="users" role="tab" aria-selected="false">
-                    <i class="fa-solid fa-user-group"></i>
-                    Người dùng
-                </button>
-                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="results" role="tab" aria-selected="false">
-                    <i class="fa-solid fa-clock-rotate-left"></i>
-                    Nhật ký
-                </button>
-                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="security" role="tab" aria-selected="false">
-                    <i class="fa-solid fa-shield-halved"></i>
-                    Bảo mật {{ security_digest.days }} ngày
-                </button>
+    <div class="pc06-section-workspace" data-section-menu-container data-default-pane="results">
+        <div class="pc06-section-menu-shell logs-topbar">
+            <div class="pc06-section-menu logs-tabs" role="tablist" aria-label="Các khu vực nhật ký hoạt động">
+                <button type="button" class="btn pc06-section-menu-tab is-active" data-section-pane-target="results" role="tab" aria-selected="true">Nhật ký hoạt động</button>
+                <button type="button" class="btn pc06-section-menu-tab" data-section-pane-target="security" role="tab" aria-selected="false">Bảo mật {{ security_digest.days }} ngày</button>
             </div>
-            <div class="pc06-section-menu-actions">
-                <form method="POST" action="/logs">
+            <div class="logs-actions">
+                <form method="POST" action="/logs" class="m-0">
                     <input type="hidden" name="action" value="backup">
-                    <button type="submit" class="pc-btn pc-btn-secondary">
-                        <i class="fa-solid fa-file-excel"></i>
-                        Xuất Excel
-                    </button>
+                    <button type="submit" class="pc-btn pc-btn-secondary">Xuất Excel</button>
                 </form>
-                <button class="pc-btn pc-btn-primary" data-bs-toggle="modal" data-bs-target="#clearLogsModal">
-                    <i class="fa-solid fa-broom"></i>
-                    Dọn nhật ký
-                </button>
+                <button type="button" class="pc-btn pc-btn-primary" data-bs-toggle="modal" data-bs-target="#clearLogsModal">Dọn nhật ký</button>
             </div>
         </div>
 
         <div class="pc06-section-pane-shell">
-            <div class="pc06-section-pane is-active" data-section-pane="filters">
-                <section class="pc06-panel system-filter-panel">
-                <div class="system-filter-head">
-                    <h2>Bộ lọc</h2>
-                </div>
-                <form action="/logs" method="GET" class="system-filter-form">
-                    <div class="system-filter-field">
-                        <label class="form-label">Từ ngày</label>
-                        <input type="date" name="start" class="form-control" value="{{ start }}">
-                    </div>
-                    <div class="system-filter-field">
-                        <label class="form-label">Đến ngày</label>
-                        <input type="date" name="end" class="form-control" value="{{ end }}">
-                    </div>
-                    <div class="system-filter-field">
-                        <label class="form-label">Người dùng</label>
-                        <select name="user" class="form-select">
-                            <option value="">Tất cả người dùng</option>
-                            {% for u in user_list %}
-                            <option value="{{ u }}" {% if user_search == u %}selected{% endif %}>{{ u }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="system-filter-actions">
-                        <button type="submit" class="pc-btn pc-btn-primary">Lọc</button>
-                        <a href="/logs" class="pc-btn pc-btn-secondary">Đặt lại</a>
-                    </div>
-                </form>
-            </section>
-            </div>
-
-            <div class="pc06-section-pane" data-section-pane="users">
-                <section class="pc06-panel system-filter-panel">
-                <div class="system-filter-head">
-                    <h2>Người dùng</h2>
-                </div>
-                <div class="system-filter-list">
-                    <a href="{{ url_for('admin_bp.logs', start=start, end=end) }}" class="system-filter-chip {% if not user_search %}active{% endif %}">
-                        <strong>Tất cả người dùng</strong>
-                        <span>{{ user_list|length }}</span>
-                    </a>
-                    {% for u in user_list %}
-                    <a href="{{ url_for('admin_bp.logs', start=start, end=end, user=u) }}" class="system-filter-chip {% if user_search == u %}active{% endif %}">
-                        <strong>{{ u }}</strong>
-                        <span><i class="fa-solid fa-user tiny"></i></span>
-                    </a>
-                    {% endfor %}
-                </div>
-            </section>
-            </div>
-
-            <div class="pc06-section-pane" data-section-pane="results">
+            <div class="pc06-section-pane is-active" data-section-pane="results">
                 <section class="pc06-panel">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>{{ 'Kết quả tra cứu' if start or end or user_search else 'Hoạt động gần nhất' }}</h2>
-                        <p>{{ logs|length }} bản ghi đang hiển thị.</p>
+                    <div class="pc06-panel-head mb-3">
+                        <div>
+                            <h2>{{ 'Kết quả tra cứu' if start or end or user_search else 'Hoạt động gần nhất' }}</h2>
+                            <p>{{ logs|length }} bản ghi đang hiển thị (tối đa 200).</p>
+                        </div>
                     </div>
-                    <span class="pc06-status-badge neutral">200 bản ghi tối đa</span>
-                </div>
 
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="pill-thead" scope="col">
-                            <tr>
-                                <th class="ps-4" scope="col">Thời gian</th>
-                                <th scope="col">Người dùng</th>
-                                <th scope="col">Chức năng</th>
-                                <th scope="col">Hành động</th>
-                                <th scope="col">Chi tiết</th>
-                                <th class="pe-4" scope="col">Trạng thái</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% if logs %}
-                            {% for l in logs %}
-                            <tr>
-                                <td class="ps-4 fw-bold text-dark small">{{ l.created_at.strftime('%H:%M %d/%m/%Y') }}</td>
-                                <td><span class="pc06-soft-tag">{{ l.fullname }}</span></td>
-                                <td><span class="pc06-soft-tag neutral">{{ l.module or '-' }}</span></td>
-                                <td class="fw-bold text-dark small">{{ l.action }}</td>
-                                <td class="small text-muted">{{ l.details }}</td>
-                                <td class="pe-4"><span class="pc06-status-badge done">Ghi nhận</span></td>
-                            </tr>
-                            {% endfor %}
-                            {% else %}
-                            <tr>
-                                <td colspan="6" class="py-5 text-center text-muted">Không có dữ liệu nhật ký trong điều kiện lọc hiện tại.</td>
-                            </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                    <form action="/logs" method="GET" class="logs-inline-filter" aria-label="Lọc nhật ký hoạt động">
+                        <div class="logs-filter-item logs-filter-date">
+                            <label for="logFilterStart">Từ ngày</label>
+                            <input type="date" id="logFilterStart" name="start" class="form-control" value="{{ start }}">
+                        </div>
+                        <div class="logs-filter-item logs-filter-date">
+                            <label for="logFilterEnd">Đến ngày</label>
+                            <input type="date" id="logFilterEnd" name="end" class="form-control" value="{{ end }}">
+                        </div>
+                        <div class="logs-filter-item logs-filter-user">
+                            <label for="logFilterUser">Người dùng</label>
+                            <select id="logFilterUser" name="user" class="form-select">
+                                <option value="">Tất cả người dùng</option>
+                                {% for u in user_list %}
+                                <option value="{{ u }}" {% if user_search == u %}selected{% endif %}>{{ u }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="logs-filter-btns">
+                            <button type="submit" class="pc-btn pc-btn-primary">Lọc</button>
+                            <a href="/logs" class="pc-btn pc-btn-secondary">Đặt lại</a>
+                        </div>
+                    </form>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" id="logsMainTable">
+                            <thead class="pill-thead" scope="col">
+                                <tr>
+                                    <th class="ps-3 ps-md-4" scope="col">Thời gian / Hoạt động</th>
+                                    <th class="d-none d-md-table-cell" scope="col">Người dùng</th>
+                                    <th class="d-none d-md-table-cell" scope="col">Chức năng</th>
+                                    <th class="d-none d-md-table-cell" scope="col">Hành động</th>
+                                    <th class="d-none d-md-table-cell" scope="col">Chi tiết</th>
+                                    <th class="pe-3 pe-md-4 d-none d-md-table-cell" scope="col">Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if logs %}
+                                {% for l in logs %}
+                                <tr>
+                                    <td class="ps-3 ps-md-4 fw-bold text-dark small">
+                                        <div>{{ l.created_at.strftime('%H:%M %d/%m/%Y') }}</div>
+                                        <div class="d-md-none fw-normal text-muted mt-1">
+                                            <strong class="text-body">{{ l.fullname }}</strong> · {{ l.action }}
+                                            {% if l.details %}<div class="tiny mt-1">{{ l.details }}</div>{% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="d-none d-md-table-cell"><span class="pc06-soft-tag">{{ l.fullname }}</span></td>
+                                    <td class="d-none d-md-table-cell"><span class="pc06-soft-tag neutral">{{ l.module or '-' }}</span></td>
+                                    <td class="fw-bold text-dark small d-none d-md-table-cell">{{ l.action }}</td>
+                                    <td class="small text-muted d-none d-md-table-cell" style="white-space: normal; max-width: 340px;">{{ l.details }}</td>
+                                    <td class="pe-4 d-none d-md-table-cell"><span class="pc06-status-badge done">Ghi nhận</span></td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="py-5 text-center text-muted">Không có dữ liệu nhật ký trong điều kiện lọc hiện tại.</td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
             </div>
 
             <div class="pc06-section-pane" data-section-pane="security">
                 <section class="pc06-panel">
-                <div class="pc06-panel-head">
-                    <div>
-                        <h2>Tổng hợp sự kiện bảo mật ({{ security_digest.days }} ngày qua)</h2>
-                        <p>Nguồn: nhật ký hệ thống với tiền tố [SECURITY] — đăng nhập thất bại, khóa tài khoản, CSRF, OAuth bị từ chối…</p>
+                    <div class="pc06-panel-head">
+                        <div>
+                            <h2>Tổng hợp sự kiện bảo mật ({{ security_digest.days }} ngày qua)</h2>
+                            <p>Nguồn: nhật ký hệ thống với tiền tố [SECURITY] — đăng nhập thất bại, khóa tài khoản, CSRF, OAuth bị từ chối…</p>
+                        </div>
+                        <span class="pc06-status-badge neutral">{{ security_digest.total }} sự kiện</span>
                     </div>
-                    <span class="pc06-status-badge neutral">{{ security_digest.total }} sự kiện</span>
-                </div>
 
-                <div class="row g-3 mb-3">
-                    <div class="col-md-6">
-                        <div class="system-filter-panel h-100">
-                            <h2 class="fs-6 fw-bold mb-3">Theo loại sự kiện</h2>
-                            {% if security_digest.events %}
-                            <ul class="list-group list-group-flush">
-                                {% for event, count in security_digest.events %}
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <span class="small fw-bold text-dark">{{ event }}</span>
-                                    <span class="pc06-status-badge neutral">{{ count }}</span>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                            {% else %}
-                            <p class="text-muted small mb-0">Không có sự kiện bảo mật nào.</p>
-                            {% endif %}
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <div class="p-3 rounded-3 border h-100" style="background: var(--pc-bg-subtle); border-color: var(--pc-border) !important;">
+                                <h3 class="fs-6 fw-bold mb-2">Theo loại sự kiện</h3>
+                                {% if security_digest.events %}
+                                <ul class="list-group list-group-flush">
+                                    {% for event, count in security_digest.events %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0">
+                                        <span class="small fw-bold text-dark">{{ event }}</span>
+                                        <span class="pc06-status-badge neutral">{{ count }}</span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% else %}
+                                <p class="text-muted small mb-0">Không có sự kiện bảo mật nào.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 rounded-3 border h-100" style="background: var(--pc-bg-subtle); border-color: var(--pc-border) !important;">
+                                <h3 class="fs-6 fw-bold mb-2">IP hoạt động nhiều nhất</h3>
+                                {% if security_digest.ips %}
+                                <ul class="list-group list-group-flush">
+                                    {% for ip, count in security_digest.ips %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0">
+                                        <span class="small fw-bold text-dark font-monospace">{{ ip }}</span>
+                                        <span class="pc06-status-badge neutral">{{ count }}</span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% else %}
+                                <p class="text-muted small mb-0">Không có dữ liệu IP.</p>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="system-filter-panel h-100">
-                            <h2 class="fs-6 fw-bold mb-3">IP hoạt động nhiều nhất</h2>
-                            {% if security_digest.ips %}
-                            <ul class="list-group list-group-flush">
-                                {% for ip, count in security_digest.ips %}
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <span class="small fw-bold text-dark font-monospace">{{ ip }}</span>
-                                    <span class="pc06-status-badge neutral">{{ count }}</span>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                            {% else %}
-                            <p class="text-muted small mb-0">Không có dữ liệu IP.</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
 
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="pill-thead" scope="col">
-                            <tr>
-                                <th class="ps-4" scope="col">Thời gian</th>
-                                <th scope="col">Người dùng</th>
-                                <th scope="col">Sự kiện</th>
-                                <th class="pe-4" scope="col">Chi tiết</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% if security_digest.latest %}
-                            {% for l in security_digest.latest %}
-                            <tr>
-                                <td class="ps-4 fw-bold text-dark small">{{ l.created_at.strftime('%H:%M %d/%m/%Y') }}</td>
-                                <td><span class="pc06-soft-tag">{{ l.fullname or 'Ẩn danh' }}</span></td>
-                                <td class="fw-bold text-dark small">{{ l.action.replace('[SECURITY] ', '') }}</td>
-                                <td class="small text-muted pe-4">{{ l.details }}</td>
-                            </tr>
-                            {% endfor %}
-                            {% else %}
-                            <tr><td colspan="4" class="py-4 text-center text-muted">Không có sự kiện bảo mật trong 7 ngày qua.</td></tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="pill-thead" scope="col">
+                                <tr>
+                                    <th class="ps-4" scope="col">Thời gian</th>
+                                    <th scope="col">Người dùng</th>
+                                    <th scope="col">Sự kiện</th>
+                                    <th class="pe-4" scope="col">Chi tiết</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if security_digest.latest %}
+                                {% for l in security_digest.latest %}
+                                <tr>
+                                    <td class="ps-4 fw-bold text-dark small">{{ l.created_at.strftime('%H:%M %d/%m/%Y') }}</td>
+                                    <td><span class="pc06-soft-tag">{{ l.fullname or 'Ẩn danh' }}</span></td>
+                                    <td class="fw-bold text-dark small">{{ l.action.replace('[SECURITY] ', '') }}</td>
+                                    <td class="small text-muted pe-4" style="white-space: normal;">{{ l.details }}</td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr><td colspan="4" class="py-4 text-center text-muted">Không có sự kiện bảo mật trong 7 ngày qua.</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
             </div>
         </div>
     </div>
@@ -250,99 +377,4 @@
         </div>
     </div>
 </div>
-
-<style>
-    .system-module-workspace {
-        display: grid;
-        grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
-        gap: 22px;
-        align-items: start;
-    }
-    .system-module-sidebar,
-    .system-module-board {
-        display: grid;
-        gap: 18px;
-    }
-    .system-filter-panel { padding: 20px; }
-    .system-filter-head { margin-bottom: 16px; }
-    .system-filter-head h2 {
-        margin: 0;
-        font-size: 1.08rem;
-        font-weight: 800;
-        color: var(--text-main, #0f172a);
-    }
-    .system-filter-form {
-        display: grid;
-        gap: 12px;
-    }
-    .system-filter-field {
-        display: grid;
-        gap: 6px;
-    }
-    .system-filter-field .form-label {
-        margin: 0;
-        font-size: 0.82rem;
-        font-weight: 800;
-        color: var(--text-muted, #64748b);
-    }
-    .system-filter-actions {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin-top: 4px;
-    }
-    .system-filter-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
-    .system-filter-chip {
-        width: 100%;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        background: rgba(248, 250, 252, 0.92);
-        border-radius: 18px;
-        padding: 14px 16px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        text-align: left;
-        text-decoration: none;
-        color: var(--text-main, #0f172a);
-        transition: all 0.2s ease;
-    }
-    .system-filter-chip strong {
-        display: block;
-        min-width: 0;
-        flex: 1 1 auto;
-        font-size: 0.94rem;
-        font-weight: 800;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    .system-filter-chip span {
-        min-width: 38px;
-        height: 38px;
-        border-radius: 999px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--pc-primary-soft);
-        color: var(--pc-primary-strong);
-        font-weight: 900;
-        flex-shrink: 0;
-    }
-    .system-filter-chip.active {
-        border-color: var(--pc-primary);
-        background: var(--pc-primary);
-        box-shadow: var(--pc-shadow-md);
-    }
-    .system-filter-chip.active strong,
-    .system-filter-chip.active span { color: #fff; }
-    .system-filter-chip.active span { background: rgba(255, 255, 255, 0.18); }
-    [data-theme="dark"] .system-filter-chip {
-        background: rgba(15, 23, 42, 0.84);
-        border-color: rgba(148, 163, 184, 0.16);
-    }
-    @media (max-width: 1080px) {
-        .system-module-workspace { grid-template-columns: 1fr; }
-    }
-</style>
 {% endblock %}

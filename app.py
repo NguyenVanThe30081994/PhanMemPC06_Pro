@@ -438,31 +438,54 @@ def inject_security_tokens():
     }
 
 
+PUBLIC_ENDPOINTS = {
+    'auth_bp.login',
+    'auth_bp.two_factor_login',
+    'api_bp.get_custom_satellite_points',
+    # LƯU Ý BẢO MẬT (B1): save/delete custom-satellite-points từng ở đây,
+    # cho phép ghi/xóa DB không cần đăng nhập. Đã yêu cầu đăng nhập.
+    'api_bp.resolve_maps_url',
+    'shortlink_bp.redirect_short_link',
+    'shortlink_bp.get_qr',
+    'shortlink_bp.public_create_qr',
+    'shortlink_bp.public_qr_page',
+    'health_bp.health_check',
+    'health_bp.ping',
+    'google_auth_bp.google_login',
+    'google_auth_bp.google_callback',
+    'security_txt',
+    'security_txt_well_known',
+    'favicon',
+    'apple_touch_icon',
+    'apple_touch_icon_precomposed',
+}
+
+BROWSER_PROBE_PATHS = {
+    '/favicon.ico',
+    '/apple-touch-icon.png',
+    '/apple-touch-icon-precomposed.png',
+    '/robots.txt',
+    '/manifest.json',
+    '/browserconfig.xml',
+}
+
+
+def _is_public_or_static_request():
+    if request.endpoint in PUBLIC_ENDPOINTS:
+        return True
+    if request.endpoint and request.endpoint.startswith('static'):
+        return True
+    if request.path.startswith(('/static/', '/.well-known/')) or request.path in BROWSER_PROBE_PATHS:
+        return True
+    return False
+
+
 @app.before_request
 def check_auth():
     # 0. Device Detection
     g.is_mobile = is_mobile_device()
 
-    public_endpoints = {
-        'auth_bp.login',
-        'auth_bp.two_factor_login',
-        'api_bp.get_custom_satellite_points',
-        # LƯU Ý BẢO MẬT (B1): save/delete custom-satellite-points từng ở đây,
-        # cho phép ghi/xóa DB không cần đăng nhập. Đã yêu cầu đăng nhập.
-        'api_bp.resolve_maps_url',
-        'shortlink_bp.redirect_short_link',
-        'shortlink_bp.get_qr',
-        'shortlink_bp.public_create_qr',
-        'shortlink_bp.public_qr_page',
-        'health_bp.health_check',
-        'health_bp.ping',
-        'google_auth_bp.google_login',
-        'google_auth_bp.google_callback',
-        'security_txt',
-        'security_txt_well_known',
-        'favicon',
-    }
-    if request.endpoint in public_endpoints or (request.endpoint and request.endpoint.startswith('static')):
+    if _is_public_or_static_request():
         return
 
     # 1. Inactivity Check
@@ -488,6 +511,9 @@ def check_auth():
 def enforce_session_integrity():
     uid = session.get('uid')
     if not uid:
+        return
+    # Không xóa session khi trình duyệt tải tĩnh/icon/public hoặc URL 404 (ví dụ Safari fetch apple-touch-icon bằng CFNetwork)
+    if _is_public_or_static_request() or (request.endpoint is None and request.method in {'GET', 'HEAD'}):
         return
 
     user = db.session.get(User, uid)
@@ -703,6 +729,12 @@ def handle_exception(e):
 @app.route('/favicon.ico')
 def favicon(): return send_from_directory(STATIC_DIR, 'favicon.ico') if os.path.exists(os.path.join(STATIC_DIR, 'favicon.ico')) else ('', 204)
 
+@app.route('/apple-touch-icon.png')
+def apple_touch_icon(): return ('', 204)
+
+@app.route('/apple-touch-icon-precomposed.png')
+def apple_touch_icon_precomposed(): return ('', 204)
+
 @app.route('/')
 def index(): return redirect(url_for('admin_bp.index'))
 
@@ -730,12 +762,7 @@ def security_txt():
 def security_txt_well_known():
     return Response(_security_txt_content(), mimetype='text/plain')
 
-@app.route('/dl_file/<path:fn>')
-def dl_file(fn):
-    normalized_name = os.path.basename((fn or '').strip())
-    if not normalized_name or normalized_name != (fn or '').strip():
-        return render_template('404.html'), 404
-
+def _resolve_file_candidate_dirs(normalized_name):
     candidate_dirs = []
     if NewsDoc.query.filter_by(filename=normalized_name).first():
         candidate_dirs.append(UPLOAD_FOLDER)
@@ -743,6 +770,25 @@ def dl_file(fn):
         candidate_dirs.append(LIB_FOLDER)
     if NotificationDoc.query.filter_by(filename=normalized_name).first():
         candidate_dirs.append(UPLOAD_FOLDER)
+    if not candidate_dirs and session.get('uid'):
+        from models import Task
+        from services.task_guards import _can_view_task
+        from services.task_permissions import _can_process_task_module, _current_perms
+        from services.task_workspace_helpers import _task_file_root
+
+        matched_task = Task.query.filter_by(file_path=normalized_name).first()
+        if matched_task and _can_view_task(matched_task, is_lead=_can_process_task_module(_current_perms())):
+            candidate_dirs.append(_task_file_root())
+    return candidate_dirs
+
+
+@app.route('/dl_file/<path:fn>')
+def dl_file(fn):
+    normalized_name = os.path.basename((fn or '').strip())
+    if not normalized_name or normalized_name != (fn or '').strip():
+        return render_template('404.html'), 404
+
+    candidate_dirs = _resolve_file_candidate_dirs(normalized_name)
     if not candidate_dirs:
         return render_template('404.html'), 404
 
@@ -765,13 +811,7 @@ def preview_file(fn):
     if not normalized_name or normalized_name != (fn or '').strip():
         return render_template('404.html'), 404
 
-    candidate_dirs = []
-    if NewsDoc.query.filter_by(filename=normalized_name).first():
-        candidate_dirs.append(UPLOAD_FOLDER)
-    if DocumentLib.query.filter_by(filename=normalized_name).first():
-        candidate_dirs.append(LIB_FOLDER)
-    if NotificationDoc.query.filter_by(filename=normalized_name).first():
-        candidate_dirs.append(UPLOAD_FOLDER)
+    candidate_dirs = _resolve_file_candidate_dirs(normalized_name)
     if not candidate_dirs:
         return render_template('404.html'), 404
 

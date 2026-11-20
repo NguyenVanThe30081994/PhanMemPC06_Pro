@@ -78,7 +78,7 @@ def normalize_unit_name(name):
     if not name: return ""
     import unicodedata
     # 1. Lowercase and remove accents
-    n = str(name).lower().strip()
+    n = str(name).lower().strip().replace('đ', 'd')
     n = unicodedata.normalize('NFKD', n).encode('ascii', 'ignore').decode('utf-8')
     
     # 2. Clean noise and prefixes (Aggressive - handles smushed words)
@@ -115,7 +115,7 @@ def extract_unit_key(name):
 
     import unicodedata
 
-    n = str(name).lower().strip()
+    n = str(name).lower().strip().replace('đ', 'd')
     n = unicodedata.normalize('NFKD', n).encode('ascii', 'ignore').decode('utf-8')
     n = re.sub(r'[^a-z0-9\s]', ' ', n)
     n = re.sub(r'\s+', ' ', n).strip()
@@ -231,20 +231,75 @@ def _commander_title_suffix(position_name):
         return "dt"
     return ""
 
+def _classify_account_unit_family(unit_name, unit_key=None):
+    """Phân nhóm đơn vị để sinh tên tài khoản chuẩn:
+    - 'commune_police': Công an Xã / Phường / Thị trấn (cax..., cap..., catt...)
+    - 'commune_ubnd': UBND Xã / Phường / Thị trấn (ubndxa..., ubndphuong...)
+    - 'cat_dept': Công an tỉnh & các phòng trực thuộc Công an tỉnh (thammuu, congantinh...)
+    - 'province_agency': Sở, Ban, Ngành cấp tỉnh (sokhoahoccongnghe, sotuphap...)
+    """
+    norm = _ascii_unit_text(unit_name)
+    key_norm = _ascii_unit_text(unit_key)
+    if norm.startswith(("cong an xa ", "cong an phuong ", "cong an thi tran ")) or key_norm.startswith(("cax ", "cap ", "catt ", "cax_", "cap_")):
+        return "commune_police"
+    if norm.startswith(("ubnd xa ", "ubnd phuong ", "ubnd thi tran ", "uy ban nhan dan xa ", "uy ban nhan dan phuong ", "uy ban nhan dan thi tran ")) or key_norm.startswith(("ubndxa", "ubndphuong", "ubnd ")):
+        return "commune_ubnd"
+    if (
+        norm.startswith(("phong ", "cong an tinh"))
+        or "cong an tinh" in norm
+        or key_norm.startswith(("phong ", "cat ", "pc06", "cong an tinh"))
+        or norm in {"tham muu", "to chuc can bo", "hau can", "canh sat qlhc ve ttxh", "pc06"}
+    ):
+        return "cat_dept"
+    return "province_agency"
+
+
 def build_account_username(unit_name, unit_key=None):
     """
-    Tạo tên đăng nhập theo unit_key đã chuẩn hóa.
+    Tạo tên đăng nhập gốc (base prefix) của đơn vị theo quy chuẩn:
+    - Công an xã/phường: cax + tên xã (vd: caxminhquang), cap + tên phường (vd: capantuong)
+    - UBND xã/phường: ubndxa + tên xã (vd: ubndxaminhquang), ubndphuong + tên phường (vd: ubndphuongantuong)
+    - Sở ban ngành: tên sở ngành viết liền không dấu, bỏ từ nối 'và' (vd: sokhoahoccongnghe)
+    - Phòng nội bộ Công an tỉnh: tên phòng viết liền không dấu (vd: thammuu)
     """
     specialized_patterns = (
         ("cong an xa ", "cax"),
         ("cong an phuong ", "cap"),
+        ("cong an thi tran ", "catt"),
         ("ubnd xa ", "ubndxa"),
         ("ubnd phuong ", "ubndphuong"),
+        ("ubnd thi tran ", "ubndthitran"),
+        ("uy ban nhan dan xa ", "ubndxa"),
+        ("uy ban nhan dan phuong ", "ubndphuong"),
+        ("uy ban nhan dan thi tran ", "ubndthitran"),
     )
     for prefix_text, account_prefix in specialized_patterns:
         tail_slug = _unit_tail_slug(unit_name, prefix_text)
         if tail_slug:
             return f"{account_prefix}{tail_slug}"
+
+    norm = _ascii_unit_text(unit_name)
+    if norm:
+        if norm.startswith("cong an tinh"):
+            return "congantinh"
+        if norm.startswith("phong "):
+            tail = norm[len("phong "):].strip()
+            for suffix in (" cong an tinh tuyen quang", " cong an tinh", " cat"):
+                if tail.endswith(suffix):
+                    tail = tail[: -len(suffix)].strip()
+            slug = re.sub(r"[^a-z0-9]+", "", tail)
+            if slug:
+                return slug
+        if norm.startswith("so "):
+            tokens = [tok for tok in norm.split() if tok != "va"]
+            if len(tokens) > 2 and tokens[-2:] == ["tuyen", "quang"]:
+                tokens = tokens[:-2]
+            if len(tokens) > 2 and tokens[-1] == "tinh":
+                tokens = tokens[:-1]
+            return "".join(tokens)
+        tokens = [tok for tok in norm.split() if tok != "va"]
+        return "".join(tokens)
+
     key = (unit_key or extract_unit_key(unit_name) or slugify_unit(unit_name) or '').strip().lower()
     key = re.sub(r'[^a-z0-9]+', '', key)
     return key
@@ -252,7 +307,11 @@ def build_account_username(unit_name, unit_key=None):
 
 def build_role_account_username(role_name, unit_name, unit_key=None):
     """
-    Tạo tên đăng nhập theo vai trò nếu có quy tắc riêng.
+    Tạo tên đăng nhập theo đơn vị + vai trò nội bộ:
+    - Công an xã/phường: <cax|cap><ten>_{chihuy|canbo|quantri}
+    - UBND xã/phường: <ubndxa|ubndphuong><ten>_{lanhdao|chuyenvien|quantri}
+    - Sở ngành: <tensonganh>_{lanhdao|chuyenvien|quantri}
+    - Phòng nội bộ Công an tỉnh: <tenphong>_{quantri|lanhdao|canbo}
     """
     normalized_role = _ascii_unit_text(role_name)
     if normalized_role == 'to cong tac cap xa':
@@ -263,7 +322,24 @@ def build_role_account_username(role_name, unit_name, unit_key=None):
         key = re.sub(r'[^a-z0-9]+', '', key)
         if key:
             return f"tct{key}"
-    return build_account_username(unit_name, unit_key)
+
+    base = build_account_username(unit_name, unit_key)
+    if not base or not normalized_role:
+        return base
+
+    family = _classify_account_unit_family(unit_name, unit_key)
+    if normalized_role in ("lanh dao chi huy cat", "can bo cat") and family == "province_agency":
+        family = "cat_dept"
+
+    suffix = ""
+    if any(k in normalized_role for k in ("quan tri", "admin")):
+        suffix = "quantri"
+    elif any(k in normalized_role for k in ("chi huy", "lanh dao", "truong", "giam doc", "chu tich")):
+        suffix = "chihuy" if family == "commune_police" else "lanhdao"
+    elif any(k in normalized_role for k in ("can bo", "chuyen vien", "bao cao")):
+        suffix = "canbo" if family in ("commune_police", "cat_dept") else "chuyenvien"
+
+    return f"{base}_{suffix}" if suffix else base
 
 
 def build_commander_username(fullname, position_name):
@@ -490,7 +566,25 @@ def apply_migrations(app):
         ("notification_doc", "posted_by", "VARCHAR(100)"),
         ("notification_doc", "created_by", "INTEGER"),
         ("document_lib", "created_by", "INTEGER"),
-        ("login_security_state", "last_failed_secret_hash", "VARCHAR(64)")
+        ("login_security_state", "last_failed_secret_hash", "VARCHAR(64)"),
+        ("dossiers", "category_tab", "VARCHAR(32) DEFAULT 'khac'"),
+        ("dossiers", "so_ho_so", "VARCHAR(255)"),
+        ("dossiers", "thu_tuc", "VARCHAR(255)"),
+        ("dossiers", "ngay_nop", "DATE"),
+        ("dossiers", "has_deadline", "BOOLEAN DEFAULT 1"),
+        ("dossiers", "tinh_dung_han", "VARCHAR(64)"),
+        ("dossiers", "can_bo", "VARCHAR(150)"),
+        ("dossiers", "trang_thai_nguon", "VARCHAR(150)"),
+        ("dossiers", "hoan_thanh_by", "INTEGER"),
+        ("dossiers", "hoan_thanh_by_name", "VARCHAR(150)"),
+        ("dossiers", "hoan_thanh_note", "TEXT"),
+        ("dossiers", "unit_code", "VARCHAR(64)"),
+        ("dossiers", "unit_key", "VARCHAR(100)"),
+        ("dossiers", "report_date", "DATE"),
+        ("dossiers", "import_batch_id", "VARCHAR(64)"),
+        ("dossiers", "source_type", "VARCHAR(32) DEFAULT 'manual'"),
+        ("dossiers", "source_name", "VARCHAR(255)"),
+        ("dossiers", "extra_json", "TEXT"),
     ]
         inspector = inspect(engine)
         existing_tables = set(inspector.get_table_names())
@@ -534,6 +628,11 @@ def apply_migrations(app):
             ("ix_notification_user_id", "notification", "user_id"),
             ("ix_notification_is_read", "notification", "is_read"),
             ("ix_task_submission_status", "task_submission", "status"),
+            ("ix_dossiers_category_tab", "dossiers", "category_tab"),
+            ("ix_dossiers_unit_code", "dossiers", "unit_code"),
+            ("ix_dossiers_unit_key", "dossiers", "unit_key"),
+            ("ix_dossiers_import_batch_id", "dossiers", "import_batch_id"),
+            ("ix_dossiers_report_date", "dossiers", "report_date"),
         ]
         with engine.begin() as conn:
             for index_name, table, column in index_migrations:
@@ -1460,7 +1559,7 @@ def seed_units_from_users():
     Heuristic phân cấp: đơn vị có cụm 'tỉnh' hoặc cấp cao → parent; còn lại leaf.
     Chạy được nhiều lần (idempotent) — unit_key trùng thì tái sử dụng.
     """
-    from models import Unit, User as _User
+    from models import CategoryItem, Unit, User as _User
 
     # Tập hợp các cặp (unit_key, unit_area) duy nhất từ user
     rows = db.session.query(_User.unit_key, _User.unit_area).filter(_User.unit_key.isnot(None)).distinct().all()
@@ -1480,18 +1579,50 @@ def seed_units_from_users():
         name = (name or '').lower()
         return any(marker in name for marker in ('tỉnh', 'tinh', 'công an tỉnh', 'pc06'))
 
+    existing_units = Unit.query.all()
+    existing_by_key = {}
+    for candidate in existing_units:
+        norm = extract_unit_key(candidate.code or '') or extract_unit_key(candidate.name or '')
+        if norm and not str(candidate.name or '').lower().startswith('category_item:'):
+            existing_by_key.setdefault(norm, candidate)
+
     for unit_key, unit_area in rows:
-        code = unit_key or _normalize_code(unit_area) or f'unit_{abs(hash(unit_area or "")) % 100000}'
-        name = unit_area or unit_key
+        raw_area = (unit_area or '').strip()
+        resolved_area = raw_area
+        resolved_cat_code = ''
+        if raw_area.lower().startswith('category_item:'):
+            try:
+                cat_id = int(raw_area.split(':', 1)[1])
+                cat_item = db.session.get(CategoryItem, cat_id)
+                if cat_item:
+                    resolved_area = (cat_item.name or '').strip() or raw_area
+                    resolved_cat_code = (cat_item.code or '').strip()
+            except (TypeError, ValueError):
+                pass
+        if resolved_area.lower().startswith('category_item:'):
+            continue
+        code = resolved_cat_code or unit_key or _normalize_code(resolved_area) or f'unit_{abs(hash(resolved_area or "")) % 100000}'
+        name = resolved_area or unit_key
         if not code:
             continue
-        existing = Unit.query.filter_by(code=code).first()
+        norm_lookup = extract_unit_key(code) or extract_unit_key(name)
+        existing = (
+            Unit.query.filter_by(code=code).first()
+            or (Unit.query.filter_by(code=unit_key).first() if unit_key else None)
+            or (existing_by_key.get(norm_lookup) if norm_lookup else None)
+        )
+        if existing and str(existing.name or '').lower().startswith('category_item:') and name:
+            existing.name = name
         if not existing:
             existing = Unit(code=code, name=name, level='province' if _looks_high_level(name) else 'commune', is_active=True)
             db.session.add(existing)
             db.session.flush()
+            if norm_lookup:
+                existing_by_key[norm_lookup] = existing
         key_to_unit[unit_key] = existing.id
-        area_to_unit[(unit_area or '').strip()] = existing.id
+        area_to_unit[raw_area] = existing.id
+        if resolved_area:
+            area_to_unit[resolved_area] = existing.id
 
     db.session.commit()
 

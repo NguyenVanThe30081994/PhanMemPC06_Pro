@@ -2,15 +2,36 @@
 
 {% block title %}Ủy quyền{% endblock %}
 
+{% block extra_head %}
+<style>
+.deleg-head-bar {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    flex-wrap: nowrap !important;
+}
+.deleg-head-bar h1 {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+@media (max-width: 767.98px) {
+    .deleg-head-bar h1 { font-size: 1.15rem; }
+    .deleg-head-bar .pc-btn { padding: 0 12px !important; font-size: 13px !important; white-space: nowrap; }
+    .pc06-panel { padding: 14px !important; }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="pc06-page-shell">
-    <div class="pc06-page-summary-bar">
-        <div class="pc06-page-summary">
-            <h1>Ủy quyền tạm thời</h1>
-        </div>
+    <div class="deleg-head-bar">
+        <h1>Ủy quyền tạm thời</h1>
         {% if is_admin or can_module('task', 'process') %}
         <button class="pc-btn pc-btn-primary" data-bs-toggle="modal" data-bs-target="#addDelegationModal">
-            <i class="fa-solid fa-user-shield me-1"></i> Tạo ủy quyền
+            <i class="fa-solid fa-user-shield me-1"></i><span class="d-none d-sm-inline">Tạo ủy quyền</span><span class="d-sm-none">Tạo mới</span>
         </button>
         {% endif %}
     </div>
@@ -19,29 +40,36 @@
         <div class="pc06-panel-head">
             <div>
                 <h2>Danh sách ủy quyền</h2>
-                <p>Ủy quyền đã hết hạn hoặc bị thu hồi được đánh dấu rõ.</p>
             </div>
         </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="tiny text-muted text-uppercase" scope="col">
                     <tr>
-                        <th class="ps-4" scope="col">Người ủy quyền</th>
-                        <th scope="col">Người được ủy quyền</th>
-                        <th scope="col">Phạm vi</th>
-                        <th scope="col">Thời gian</th>
-                        <th class="text-center" scope="col">Trạng thái</th>
-                        <th class="pe-4 text-end" scope="col">Thao tác</th>
+                        <th class="ps-3 ps-md-4" scope="col">Người ủy quyền</th>
+                        <th class="d-none d-md-table-cell" scope="col">Người được ủy quyền</th>
+                        <th class="d-none d-md-table-cell" scope="col">Phạm vi</th>
+                        <th class="d-none d-md-table-cell" scope="col">Thời gian</th>
+                        <th class="text-center d-none d-md-table-cell" scope="col">Trạng thái</th>
+                        <th class="pe-3 pe-md-4 text-end" scope="col">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for d in delegations %}
                     <tr class="{% if not d.is_active or d.is_expired %}opacity-50{% endif %}">
-                        <td class="ps-4 py-3 fw-bold">{{ d.delegator_name }}</td>
-                        <td>{{ d.delegatee_name }}</td>
-                        <td><span class="pc06-soft-tag {% if d.module_code == 'Toàn bộ' %}primary{% else %}neutral{% endif %}">{{ d.module_code }}</span></td>
-                        <td class="small text-muted">{{ d.from_date.strftime('%d/%m/%Y') if d.from_date }} → {{ d.to_date.strftime('%d/%m/%Y') if d.to_date }}</td>
-                        <td class="text-center">
+                        <td class="ps-3 ps-md-4 py-2 py-md-3">
+                            <div class="fw-bold">{{ d.delegator_name }}</div>
+                            <div class="d-md-none small text-muted mt-1">
+                                → {{ d.delegatee_name }} · <span class="fw-semibold">{{ d.module_code }}</span>
+                            </div>
+                            <div class="d-md-none tiny text-muted">
+                                {{ d.from_date.strftime('%d/%m/%Y') if d.from_date }} → {{ d.to_date.strftime('%d/%m/%Y') if d.to_date }}
+                            </div>
+                        </td>
+                        <td class="d-none d-md-table-cell">{{ d.delegatee_name }}</td>
+                        <td class="d-none d-md-table-cell"><span class="pc06-soft-tag {% if d.module_code == 'Toàn bộ' %}primary{% else %}neutral{% endif %}">{{ d.module_code }}</span></td>
+                        <td class="small text-muted d-none d-md-table-cell">{{ d.from_date.strftime('%d/%m/%Y') if d.from_date }} → {{ d.to_date.strftime('%d/%m/%Y') if d.to_date }}</td>
+                        <td class="text-center d-none d-md-table-cell">
                             {% if not d.is_active %}
                             <span class="pc06-status-badge neutral">Đã thu hồi</span>
                             {% elif d.is_expired %}
@@ -50,7 +78,7 @@
                             <span class="pc06-status-badge done">Đang hiệu lực</span>
                             {% endif %}
                         </td>
-                        <td class="pe-4 text-end">
+                        <td class="pe-3 pe-md-4 text-end">
                             {% if d.is_active and not d.is_expired and (is_admin or d.delegator_id == my_user_id) %}
                             <form method="POST" class="d-inline m-0" onsubmit="return pc06ConfirmSubmit(event, 'Thu hồi ủy quyền này?')">
                                 <input type="hidden" name="action" value="revoke">
@@ -87,7 +115,7 @@
                 <div class="modal-body p-4">
                     <div class="row g-3">
                         {% if is_admin %}
-                        <div class="col-6">
+                        <div class="col-12 col-md-6">
                             <label class="form-label fw-bold text-dark small">NGƯỜI ỦY QUYỀN</label>
                             <select name="delegator_id" class="form-select" required>
                                 {% for u in users %}<option value="{{ u.id }}" {% if u.id == my_user_id %}selected{% endif %}>{{ u.fullname }} ({{ u.username }})</option>{% endfor %}
@@ -96,7 +124,7 @@
                         {% else %}
                         <input type="hidden" name="delegator_id" value="{{ my_user_id }}">
                         {% endif %}
-                        <div class="col-6">
+                        <div class="col-12 col-md-6">
                             <label class="form-label fw-bold text-dark small">NGƯỜI ĐƯỢC ỦY QUYỀN</label>
                             <select name="delegatee_id" class="form-select" required>
                                 <option value="" disabled selected>Chọn cán bộ</option>

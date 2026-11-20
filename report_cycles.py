@@ -24,6 +24,7 @@ KIND_PERIODIC = "periodic"
 KIND_MILESTONE = "milestone"
 KIND_ONGOING = "ongoing"
 
+PERIOD_DAY = "day"
 PERIOD_WEEK = "week"
 PERIOD_MONTH = "month"
 PERIOD_QUARTER = "quarter"
@@ -37,6 +38,7 @@ KIND_LABELS = {
 }
 
 PERIOD_LABELS = {
+    PERIOD_DAY: "Hàng ngày",
     PERIOD_WEEK: "Hàng tuần",
     PERIOD_MONTH: "Hàng tháng",
     PERIOD_QUARTER: "Hàng quý",
@@ -225,7 +227,9 @@ def _monday_of_iso_week(day):
 def _periodic_bounds(period, day, *, next_cycle=False):
     """Ngày bắt đầu / kết thúc của kỳ chứa `day` (hoặc kỳ kế tiếp)."""
     if next_cycle:
-        if period == PERIOD_WEEK:
+        if period == PERIOD_DAY:
+            day = day + timedelta(days=1)
+        elif period == PERIOD_WEEK:
             day = day + timedelta(days=7)
         elif period == PERIOD_MONTH:
             day = (day.replace(day=1) + timedelta(days=32)).replace(day=1)
@@ -234,6 +238,8 @@ def _periodic_bounds(period, day, *, next_cycle=False):
         else:  # year
             day = day.replace(month=1, day=1) + timedelta(days=366)
 
+    if period == PERIOD_DAY:
+        return day, day
     if period == PERIOD_WEEK:
         start = _monday_of_iso_week(day)
         return start, start + timedelta(days=6)
@@ -251,6 +257,8 @@ def _periodic_bounds(period, day, *, next_cycle=False):
 def _anchor_within(start, end, cfg):
     """Hạn nộp nằm trong [start, end] theo cấu hình định kỳ."""
     period = cfg.get("period", PERIOD_MONTH)
+    if period == PERIOD_DAY:
+        return start
     if period == PERIOD_WEEK:
         return start + timedelta(days=cfg.get("weekday", 4))
     dom = cfg.get("day_of_month", 5)
@@ -285,7 +293,10 @@ def _periodic_cycle(cfg, day, *, next_cycle=False):
     start, end = _periodic_bounds(period, day, next_cycle=next_cycle)
     due = _anchor_within(start, end, cfg)
 
-    if period == PERIOD_WEEK:
+    if period == PERIOD_DAY:
+        key = start.strftime("%Y-%m-%d")
+        label = "Ngày {:%d/%m/%Y}".format(start)
+    elif period == PERIOD_WEEK:
         iso_year, iso_week, _ = start.isocalendar()
         key = f"{iso_year}-W{iso_week:02d}"
         label = "Tuần {:%d/%m} – {:%d/%m}".format(start, end)
@@ -422,7 +433,7 @@ def cycles_between(cfg, start_date, end_date):
             cycle_start = _to_date(cycle["start"])
             cycle_end = _to_date(cycle["end"])
             results.append(cycle)
-            if period == PERIOD_WEEK:
+            if period in (PERIOD_DAY, PERIOD_WEEK):
                 cursor = cycle_end + timedelta(days=1)
             elif period == PERIOD_MONTH:
                 cursor = (cycle_start.replace(day=1) + timedelta(days=32)).replace(day=1)

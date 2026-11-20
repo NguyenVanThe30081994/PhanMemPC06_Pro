@@ -20,7 +20,7 @@
                 {% if report_kind_label %}
                 <span class="pc-detail-badge pc-detail-badge-neutral">{{ report_kind_label }}</span>
                 {% endif %}
-                {% if task.task_mode == 'FORM' %}
+                {% if task.task_mode == 'FORM' and task.form_provider == 'google' %}
                 <span class="pc-detail-badge pc-detail-badge-neutral">{{ task.form_provider_label }}</span>
                 {% endif %}
             </div>
@@ -33,12 +33,13 @@
                 <a class="pc-btn pc-btn-secondary btn-sm" href="{{ url_for('tasks_bp.form_data_aggregation', tid=task.id) }}">
                     <i class="fa-solid fa-table me-1"></i>Xem dữ liệu
                 </a>
-                <a class="pc-btn pc-btn-secondary btn-sm" href="{{ url_for('tasks_bp.export_form_task_v2', tid=task.id) }}">
+                <a class="pc-btn pc-btn-primary btn-sm" href="{{ url_for('tasks_bp.export_form_task_v2', tid=task.id) }}">
                     <i class="fa-solid fa-file-excel me-1"></i>Xuất Excel
                 </a>
                 {% endif %}
                 {% if can_delete_task %}
                 <form action="{{ url_for('tasks_bp.delete_task', tid=task.id) }}" method="POST" onsubmit="return pc06ConfirmSubmit(event, 'Xóa công việc này?')" class="m-0">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button class="btn btn-outline-danger btn-sm pc-linear-ghost-danger" type="submit">
                         <i class="fa-solid fa-trash me-1"></i>Xóa
                     </button>
@@ -50,15 +51,15 @@
         <h1 class="pc-detail-title">{{ task.title }}</h1>
 
         <div class="pc-detail-meta">
-            <span><i class="fa-regular fa-user me-1"></i>Người giao: <strong>{{ task.author_name }}</strong></span>
+            <span>Người giao: <strong>{{ task.author_name }}</strong></span>
             {% if current_cycle and current_cycle.label and report_period and report_period.kind != 'one_time' %}
-            <span><i class="fa-regular fa-calendar me-1"></i>Chu kỳ: <strong>{{ current_cycle.label }}</strong>{% if current_cycle.due %} — hạn nộp <strong>{{ current_cycle.due[8:10] }}/{{ current_cycle.due[5:7] }}/{{ current_cycle.due[0:4] }}</strong>{% endif %}{% if current_cycle.overdue %} <span class="text-danger fw-bold">(quá hạn)</span>{% endif %}</span>
+            <span>Chu kỳ: <strong>{{ current_cycle.label }}</strong>{% if current_cycle.due %} — hạn nộp <strong>{{ current_cycle.due[8:10] }}/{{ current_cycle.due[5:7] }}/{{ current_cycle.due[0:4] }}</strong>{% endif %}{% if current_cycle.overdue %} <span class="text-danger fw-bold">(quá hạn)</span>{% endif %}</span>
             {% elif task.deadline %}
-            <span><i class="fa-regular fa-clock me-1"></i>Hạn nộp: <strong>{{ task.deadline.strftime('%d/%m/%Y') }}</strong></span>
+            <span>Hạn nộp: <strong>{{ task.deadline.strftime('%d/%m/%Y') }}</strong></span>
             {% endif %}
-            <span><i class="fa-solid fa-layer-group me-1"></i>{{ summary.total_assignments }} lượt giao · Đã nộp <strong>{{ summary.submitted_assignments }}/{{ summary.total_assignments }}</strong> ({{ detail_context.progress_percent }}%)</span>
+            <span>{{ summary.total_assignments }} lượt giao · Đã nộp <strong>{{ summary.submitted_assignments }}/{{ summary.total_assignments }}</strong> ({{ detail_context.progress_percent }}%)</span>
             {% if summary.in_progress_assignments %}
-            <span><i class="fa-solid fa-spinner me-1"></i>Đang xử lý: <strong>{{ summary.in_progress_assignments }}</strong></span>
+            <span>Đang xử lý: <strong>{{ summary.in_progress_assignments }}</strong></span>
             {% endif %}
         </div>
 
@@ -75,7 +76,13 @@
                 <button type="button" class="pc-clamp-toggle d-none" data-clamp-toggle aria-expanded="false">Xem thêm</button>
             </div>
             {% endif %}
-            {% if task.file_path %}
+            {% if task.task_mode == 'FORM' and task.form_provider == 'excel' %}
+            <div class="{% if task.content %}mt-2{% endif %}">
+                <a class="pc-btn pc-btn-secondary btn-sm" href="{{ url_for('tasks_bp.download_task_excel_template', tid=task.id) }}">
+                    <i class="fa-solid fa-file-excel me-1 text-success"></i>Tải file Excel mẫu (.xlsx)
+                </a>
+            </div>
+            {% elif task.file_path %}
             <div class="{% if task.content %}mt-2{% endif %}">
                 <a class="pc-btn pc-btn-secondary btn-sm" href="{{ url_for('dl_file', fn=task.file_path) }}">
                     <i class="fa-solid fa-paperclip me-1"></i>Tải tài liệu đính kèm
@@ -89,7 +96,7 @@
     <!-- ── 2. THANH TAB ĐƯỜNG GẠCH CHÂN (LINEAR UNDERLINE TABS) ── -->
     {% set show_outline_tabs = (task.task_mode == 'OUTLINE') and (can_manage_task_view or can_watch_task_view) and (my_outline_rows|length > 0) %}
     {% set show_file_tabs = (task.task_mode == 'FILE') and (can_submit and my_file_assignment) and (can_manage_task_view or can_watch_task_view or (file_rows|length > 1)) %}
-    {% set show_form_tabs = (task.task_mode != 'OUTLINE' and task.task_mode != 'FILE') and (can_submit and my_form_assignment) and (can_manage_task_view or can_watch_task_view or (form_rows|length > 1)) %}
+    {% set show_form_tabs = (task.task_mode != 'OUTLINE' and task.task_mode != 'FILE') and (can_manage_task_view or can_watch_task_view) and (can_submit and my_form_assignment) %}
 
     {% if show_outline_tabs or show_file_tabs or show_form_tabs %}
     <nav class="pc-linear-tabs-wrap" aria-label="Điều hướng công việc">
@@ -111,10 +118,16 @@
                 {% endif %}
                 <button class="nav-link {% if default_tab == 'file-list' %}active{% endif %}" id="tab-file-list" data-bs-toggle="pill" data-bs-target="#pane-file-list" type="button" role="tab">Tiến độ chung</button>
             {% else %}
-                {% if can_submit and my_form_assignment %}
-                <button class="nav-link {% if default_tab == 'form-submit' %}active{% endif %}" id="tab-form-submit" data-bs-toggle="pill" data-bs-target="#pane-form-submit" type="button" role="tab">Phần việc của tôi</button>
+                {% if can_manage_task_view or can_watch_task_view %}
+                <button class="nav-link {% if default_tab == 'form-list' %}active{% endif %}" id="tab-form-list" data-bs-toggle="pill" data-bs-target="#pane-form-list" type="button" role="tab">
+                    Tiến độ chung <span class="pc-tab-count">{{ form_matrix.submitted_count if form_matrix else 0 }}/{{ form_matrix.total_count if form_matrix else 0 }}</span>
+                </button>
                 {% endif %}
-                <button class="nav-link {% if default_tab == 'form-list' %}active{% endif %}" id="tab-form-list" data-bs-toggle="pill" data-bs-target="#pane-form-list" type="button" role="tab">Tiến độ chung</button>
+                {% if can_submit and my_form_assignment %}
+                <button class="nav-link {% if default_tab == 'form-submit' %}active{% endif %}" id="tab-form-submit" data-bs-toggle="pill" data-bs-target="#pane-form-submit" type="button" role="tab">
+                    Phần việc cần nộp <span class="pc-tab-count">{% if excel_schema %}{{ excel_schema.columns|length }} cột{% else %}{{ my_form_field_views|length }}{% endif %}</span>
+                </button>
+                {% endif %}
             {% endif %}
         </div>
     </nav>
@@ -234,9 +247,7 @@
                                                                     <span class="pc-detail-badge pc-detail-badge-neutral">{{ cell.submitted_count }}/{{ cell.total_count }}</span>
                                                                     {% endif %}
                                                                     {% if unit_meta.has_submitted %}
-                                                                    <button type="button" class="pc-btn-inline-action" data-review-open data-item-id="{{ row.item.id }}" data-unit-name="{{ cell.unit_name }}" title="Đọc đầy đủ báo cáo của {{ cell.unit_name }}">
-                                                                        <i class="fa-regular fa-file-lines me-1" aria-hidden="true"></i>Xem báo cáo
-                                                                    </button>
+                                                                    <button type="button" class="pc-btn-inline-action" data-review-open data-item-id="{{ row.item.id }}" data-unit-name="{{ cell.unit_name }}" title="Đọc đầy đủ báo cáo của {{ cell.unit_name }}">Xem báo cáo</button>
                                                                     {% endif %}
                                                                     {% for cell_assignment in cell.assignments %}
                                                                     {% if cell_assignment.submitted %}
@@ -269,7 +280,7 @@
                                                                 </div>
                                                             {% elif cell_assignment.return_reason %}
                                                             <div class="pc-inline-returned-note mt-2" data-clamp-block>
-                                                                <div class="pc-clamp-text pc-clamp-2" data-clamp-target><i class="fa-solid fa-rotate-left me-1"></i>Đã yêu cầu bổ sung: {{ cell_assignment.return_reason }}</div>
+                                                                <div class="pc-clamp-text pc-clamp-2" data-clamp-target>Đã yêu cầu bổ sung: {{ cell_assignment.return_reason }}</div>
                                                                 <button type="button" class="pc-clamp-toggle d-none" data-clamp-toggle aria-expanded="false">Xem thêm</button>
                                                             </div>
                                                             {% endif %}
@@ -297,7 +308,7 @@
                                         <div class="d-flex flex-column align-items-center gap-2">
                                             {% if can_manage_task_view %}
                                             <button type="button" class="pc-btn pc-btn-secondary btn-sm" data-synthesis-open data-item-id="{{ row.item.id }}" data-item-code="{{ row.item.item_code or loop.index }}" data-item-title="{{ row_title }}">
-                                                <i class="fa-solid fa-layer-group me-1"></i>Tổng hợp{% if row.item.synthesis_content %} <i class="fa-solid fa-check ms-1 text-success" aria-hidden="true"></i>{% endif %}
+                                                Tổng hợp{% if row.item.synthesis_content %} <i class="fa-solid fa-check ms-1 text-success" aria-hidden="true"></i>{% endif %}
                                             </button>
                                             {% endif %}
                                             {% if row.item.report_kind == 'number' %}
@@ -314,9 +325,6 @@
                         </table>
                     </div>
                     <div class="d-none text-center text-muted small py-4" id="outlineMatrixEmptyFilter">Không có đầu mục phù hợp với bộ lọc hiện tại.</div>
-                    <div class="pc-linear-footnote">
-                        Bấm <strong>Xem báo cáo</strong> tại đơn vị đã nộp để đọc toàn văn nội dung và tải tệp đính kèm, hoặc bấm <strong>Trả lại</strong> khi cần yêu cầu bổ sung.
-                    </div>
                     {% for row in outline_matrix.rows %}
                     <script type="application/json" class="pc-matrix-row-json" data-item-id="{{ row.item.id }}">{{ row.review_payload|tojson }}</script>
                     {% endfor %}
@@ -361,7 +369,7 @@
                                                     <button type="button" class="pc-clamp-toggle d-none" data-clamp-toggle aria-expanded="false">Xem thêm</button>
                                                 </div>
                                             </div>
-                                            {% if row.item.deadline %}<div class="pc-matrix-item-meta mt-1"><i class="fa-regular fa-clock me-1"></i>Hạn riêng: {{ row.item.deadline.strftime('%d/%m/%Y') }}</div>{% endif %}
+                                            {% if row.item.deadline %}<div class="pc-matrix-item-meta mt-1">Hạn riêng: {{ row.item.deadline.strftime('%d/%m/%Y') }}</div>{% endif %}
                                             {% if row.secondary_text %}
                                             <div class="mt-2" data-clamp-block>
                                                 <div class="pc-matrix-item-note pc-clamp-text pc-clamp-2" data-clamp-target>{{ row.secondary_text }}</div>
@@ -375,7 +383,7 @@
                                         <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center flex-shrink-0">
                                             {% if can_manage_task_view %}
                                             <button type="button" class="pc-btn pc-btn-secondary btn-sm" data-synthesis-open data-item-id="{{ row.item.id }}" data-item-code="{{ row.item.item_code or '' }}" data-item-title="{{ row.item.title }}">
-                                                <i class="fa-solid fa-layer-group me-1"></i>Tổng hợp{% if row.item.synthesis_content %} <i class="fa-solid fa-check ms-1 text-success" aria-hidden="true"></i>{% endif %}
+                                                Tổng hợp{% if row.item.synthesis_content %} <i class="fa-solid fa-check ms-1 text-success" aria-hidden="true"></i>{% endif %}
                                             </button>
                                             {% endif %}
                                             <span class="pc-detail-badge pc-detail-badge-neutral">{{ row.submitted_count }}/{{ row.total_count }} đã nộp</span>
@@ -393,23 +401,18 @@
                                                 <span class="pc-detail-badge {% if my_st in ['submitted', 'completed'] %}pc-detail-badge-success{% elif my_st in ['in_progress', 'received'] %}pc-detail-badge-info{% else %}pc-detail-badge-warning{% endif %}">
                                                     <span class="pc-status-dot" aria-hidden="true"></span>{{ status_labels.get(my_st, 'Chưa tiếp nhận') }}
                                                 </span>
-                                                {% if my_st == 'assigned' %}
-                                                <span class="small text-muted">Bấm Tiếp nhận hoặc gửi báo cáo trực tiếp bên dưới</span>
-                                                {% endif %}
                                             </div>
                                             {% if my_st == 'assigned' %}
                                             <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="m-0">
                                                 <input type="hidden" name="task_item_id" value="{{ row.item.id }}">
-                                                <button class="pc-btn pc-btn-secondary btn-sm" type="submit">
-                                                    <i class="fa-solid fa-check me-1"></i>Tiếp nhận
-                                                </button>
+                                                <button class="pc-btn pc-btn-secondary btn-sm" type="submit">Tiếp nhận</button>
                                             </form>
                                             {% endif %}
                                         </div>
                                         {% set my_return_reason = row.my_return_reason or row.my_assignment.return_reason %}
                                         {% if my_return_reason and my_st not in ['submitted', 'completed'] %}
                                         <div class="pc-inline-returned-note mb-3">
-                                            <i class="fa-solid fa-rotate-left me-1"></i>Yêu cầu bổ sung từ người giao: {{ my_return_reason }}
+                                            Yêu cầu bổ sung từ người giao: {{ my_return_reason }}
                                         </div>
                                         {% endif %}
                                         <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data">
@@ -478,7 +481,7 @@
                                                     <div class="fw-semibold">{{ group.role_name }}</div>
                                                     <div class="small text-muted">{{ group.unit_count }} đơn vị liên quan</div>
                                                 </div>
-                                                <span class="badge bg-light text-dark">{{ group.status }}</span>
+                                                <span class="pc-badge pc-badge-neutral">{{ group.status }}</span>
                                             </div>
                                             <div class="row g-2 mt-2">
                                                 {% for unit in group.units %}
@@ -507,7 +510,7 @@
                                                         <div class="fw-semibold">{{ card.unit_name }}</div>
                                                         <div class="small text-muted">{{ card.completed_count }}/{{ card.total_count }} người đã hoàn thành</div>
                                                     </div>
-                                                    <span class="badge bg-light text-dark">{{ card.status }}</span>
+                                                    <span class="pc-badge pc-badge-neutral">{{ card.status }}</span>
                                                 </div>
                                                 <div class="small text-muted mt-2">{{ card.members|map(attribute='name')|join(', ') }}</div>
                                             </div>
@@ -527,7 +530,7 @@
                                                 <div class="fw-semibold">{{ row.assignment.user.fullname if row.assignment.user else 'Không xác định' }}</div>
                                                 <div class="small text-muted">{{ row.assignment.user.unit_area_display if row.assignment.user and row.assignment.user.unit_area_display else '' }}</div>
                                             </div>
-                                            <span class="badge bg-light text-dark">{{ status_labels.get((row.assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
+                                            <span class="pc-badge pc-badge-neutral">{{ status_labels.get((row.assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
                                             {% if can_manage_task_view and row.submission and (row.assignment.status|lower in ['submitted', 'completed']) %}
                                             <form action="{{ url_for('tasks_bp.return_task_assignment', tid=task.id, assignment_id=row.assignment.id) }}" method="POST" class="d-flex gap-1">
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -657,390 +660,506 @@
                     </div>
                     {% endif %}
                 {% else %}
+                    {% set form_rows_matrix = form_matrix.rows if form_matrix else [] %}
                     <div class="tab-pane fade {% if default_tab == 'form-list' %}show active{% endif %}" id="pane-form-list" role="tabpanel" aria-labelledby="tab-form-list">
-                        <div class="pc-linear-section">
-                            <div class="pc-linear-section-body">
-                                <div class="d-flex justify-content-between align-items-center mb-4">
-                                    <div>
-                                        <h2 class="h4 mb-0">Tiến độ chung</h2>
-                                        {% if task.form_provider == 'google' %}
-                                        <div class="small text-muted mt-1">
-                                            {% if task.google_form_sync_state.form_title %}
-                                            {{ task.google_form_sync_state.form_title }}
-                                            {% else %}
-                                            Dữ liệu được đồng bộ từ Google Form.
-                                            {% endif %}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                    <div class="d-flex gap-2">
-                                        {% if task.form_provider == 'google' and task.google_form_url %}
-                                        <a class="btn btn-outline-primary btn-sm" href="{{ task.google_form_url }}" target="_blank" rel="noopener">Mở Google Form</a>
-                                        {% endif %}
-                                        {% if task.form_provider == 'google' and (can_manage_task_view or can_submit) %}
-                                        <form action="{{ url_for('tasks_bp.sync_google_form_task', tid=task.id) }}" method="POST">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button class="btn btn-outline-secondary btn-sm" type="submit">Đồng bộ phản hồi</button>
-                                        </form>
-                                        {% endif %}
-                                        {% if can_manage_task_view %}
-                                        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('tasks_bp.form_data_aggregation', tid=task.id) }}">Xem dữ liệu</a>
-                                        <a class="btn btn-outline-success btn-sm" href="{{ url_for('tasks_bp.export_form_task_v2', tid=task.id) }}">Xuất Excel</a>
-                                        {% endif %}
+                        <section class="pc-linear-section">
+                            <div class="pc-linear-toolbar">
+                                <div>
+                                    <h2 class="pc-linear-section-title mb-0">Tiến độ chung</h2>
+                                    <div class="pc-linear-section-sub">
+                                        {{ form_matrix.total_count if form_matrix else 0 }} đơn vị tham gia · {{ form_matrix.percent if form_matrix else 0 }}% hoàn thành
                                     </div>
                                 </div>
-                                {% if task.form_provider == 'google' %}
-                                <div class="alert alert-light border mb-4">
-                                    <div class="fw-semibold mb-1">Cấu hình đối sánh</div>
+                                <div class="pc-linear-filters">
+                                    {% if task.form_provider == 'google' and task.google_form_url %}
+                                    <a class="pc-btn pc-btn-secondary btn-sm" href="{{ task.google_form_url }}" target="_blank" rel="noopener">
+                                        <i class="fa-solid fa-up-right-from-square me-1"></i>Mở Google Form
+                                    </a>
+                                    {% endif %}
+                                    {% if task.form_provider == 'google' and (can_manage_task_view or can_submit) %}
+                                    <form action="{{ url_for('tasks_bp.sync_google_form_task', tid=task.id) }}" method="POST" class="m-0">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="pc-btn pc-btn-secondary btn-sm" type="submit">
+                                            <i class="fa-solid fa-rotate me-1"></i>Đồng bộ phản hồi
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    {% if form_rows_matrix %}
+                                    <div class="pc-linear-search-wrap">
+                                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                                        <input type="search" class="form-control form-control-sm" id="formMatrixSearch" placeholder="Tìm đơn vị hoặc người nộp...">
+                                    </div>
+                                    <select class="form-select form-select-sm" id="formMatrixStatusFilter">
+                                        <option value="">Tất cả trạng thái</option>
+                                        <option value="submitted">Đã nộp</option>
+                                        <option value="pending">Chưa nộp</option>
+                                        <option value="returned">Bị trả lại</option>
+                                    </select>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            {% if form_matrix and form_matrix.numeric_aggregates %}
+                            <div class="pc-linear-callout mb-3">
+                                <div class="pc-linear-callout-label mb-2">Cộng gộp số liệu tự động</div>
+                                <div class="d-flex flex-wrap gap-2">
+                                    {% for agg in form_matrix.numeric_aggregates %}
+                                    <span class="pc-detail-badge pc-detail-badge-info">
+                                        {{ agg.field_label }}: <strong>{{ "%g" % agg.total }}</strong> ({{ agg.count }} ĐV)
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if task.form_provider == 'google' and can_manage_task_view %}
+                            {% set publish_state = task.google_form_runtime.publish_settings.publishState if task.google_form_runtime and task.google_form_runtime.publish_settings else {} %}
+                            <details class="pc-linear-callout mb-3">
+                                <summary class="d-flex flex-wrap justify-content-between align-items-center gap-2 fw-semibold small" style="cursor: pointer;">
+                                    <span><i class="fa-brands fa-google me-1 text-primary"></i>Quản trị Google Form liên kết</span>
+                                    <span class="d-flex flex-wrap gap-2 align-items-center">
+                                        <span class="pc-detail-badge pc-detail-badge-neutral">Form ID: {{ task.google_form_runtime.form_id or task.google_form_id or 'Chưa có' }}</span>
+                                        {% if task.google_form_sync_state.unmatched_total %}
+                                        <span class="pc-detail-badge pc-detail-badge-danger">{{ task.google_form_sync_state.unmatched_total }} chưa khớp</span>
+                                        {% endif %}
+                                    </span>
+                                </summary>
+                                <div class="mt-3 pt-2 border-top d-flex flex-column gap-3">
                                     <div class="small text-muted">
-                                        {{ task.google_form_match_mode_label }}
-                                        {% if task.google_form_match_mode != 'respondent_email' and task.google_form_match_field %}
-                                        : {{ task.google_form_match_field }}
+                                        Đối sánh: <strong>{{ task.google_form_match_mode_label }}</strong>{% if task.google_form_match_mode != 'respondent_email' and task.google_form_match_field %}: {{ task.google_form_match_field }}{% endif %}
+                                        {% if publish_state %}
+                                        · {% if publish_state.isPublished %}Đã phát hành{% else %}Bản nháp{% endif %}
+                                        · {% if publish_state.isAcceptingResponses %}Đang nhận phản hồi{% else %}Đang khóa phản hồi{% endif %}
                                         {% endif %}
                                     </div>
-                                    {% if task.google_form_sync_state.unmatched_total %}
-                                    <div class="small text-danger mt-2">Có {{ task.google_form_sync_state.unmatched_total }} phản hồi chưa ghép được với người nhận việc.</div>
-                                    {% endif %}
                                     {% if task.google_form_sync_state.ignored_scoped_fields_total %}
-                                    <div class="small text-warning mt-2">
-                                        Đã bỏ qua {{ task.google_form_sync_state.ignored_scoped_fields_total }} giá trị nằm ngoài phạm vi field được giao khi đồng bộ từ Google Form.
+                                    <div class="small text-warning">
+                                        Đã bỏ qua {{ task.google_form_sync_state.ignored_scoped_fields_total }} giá trị nằm ngoài phạm vi trường được giao khi đồng bộ từ Google Form.
                                     </div>
                                     {% endif %}
-                                </div>
-                                {% if can_manage_task_view %}
-                                {% set publish_state = task.google_form_runtime.publish_settings.publishState if task.google_form_runtime and task.google_form_runtime.publish_settings else {} %}
-                                <div class="border rounded-4 p-3 mb-4 bg-light-subtle">
-                                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
-                                        <div>
-                                            <div class="fw-bold">Quản trị Google Form thật</div>
-                                            <div class="small text-muted">
-                                                {% if task.google_form_builder_managed %}
-                                                Task này đang do builder PC06 quản lý.
-                                                {% else %}
-                                                Task này đang dùng Google Form cũ theo kiểu gắn link, có thể nhập cấu trúc vào builder.
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                        <div class="d-flex flex-wrap gap-2">
-                                            <span class="badge bg-light text-dark">Form ID: {{ task.google_form_runtime.form_id or task.google_form_id or 'Chưa có' }}</span>
-                                            <span class="badge {% if publish_state and publish_state.isPublished %}bg-success-subtle text-success{% else %}bg-secondary-subtle text-secondary{% endif %}">
-                                                {% if publish_state and publish_state.isPublished %}Published{% else %}Draft{% endif %}
-                                            </span>
-                                            <span class="badge {% if publish_state and publish_state.isAcceptingResponses %}bg-info-subtle text-info{% else %}bg-warning-subtle text-warning{% endif %}">
-                                                {% if publish_state and publish_state.isAcceptingResponses %}Đang nhận phản hồi{% else %}Đang khóa phản hồi{% endif %}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div class="row g-3 mb-3">
-                                        <div class="col-lg-4">
-                                            <div class="small text-muted">Link người trả lời</div>
-                                            <div class="small fw-semibold text-break">{{ task.google_form_runtime.form_url or task.google_form_url or 'Chưa có' }}</div>
-                                        </div>
-                                        <div class="col-lg-4">
-                                            <div class="small text-muted">Link chỉnh sửa</div>
-                                            <div class="small fw-semibold text-break">{{ task.google_form_runtime.edit_url or 'Chưa có' }}</div>
-                                        </div>
-                                        <div class="col-lg-4">
-                                            <div class="small text-muted">Revision</div>
-                                            <div class="small fw-semibold text-break">{{ task.google_form_runtime.revision_id or 'Chưa có' }}</div>
-                                        </div>
-                                    </div>
-                                        <div class="d-flex flex-wrap gap-2 mb-3">
+                                    <div class="d-flex flex-wrap gap-2">
                                         {% if not task.google_form_id %}
-                                        <form action="{{ url_for('tasks_bp.create_task_google_form', tid=task.id) }}" method="POST">
+                                        <form action="{{ url_for('tasks_bp.create_task_google_form', tid=task.id) }}" method="POST" class="m-0">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button class="btn btn-primary btn-sm" type="submit">Tạo form thật trên Google</button>
+                                            <button class="pc-btn pc-btn-primary btn-sm" type="submit">Tạo form thật trên Google</button>
                                         </form>
                                         {% else %}
-                                        <form action="{{ url_for('tasks_bp.update_task_google_form', tid=task.id) }}" method="POST">
+                                        <form action="{{ url_for('tasks_bp.update_task_google_form', tid=task.id) }}" method="POST" class="m-0">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <input type="hidden" name="google_form_builder_json" value='{{ task.google_form_builder|tojson }}'>
-                                            <button class="btn btn-primary btn-sm" type="submit">Cập nhật form thật</button>
+                                            <button class="pc-btn pc-btn-primary btn-sm" type="submit">Cập nhật form thật</button>
                                         </form>
-                                        <form action="{{ url_for('tasks_bp.publish_task_google_form', tid=task.id) }}" method="POST">
+                                        <form action="{{ url_for('tasks_bp.publish_task_google_form', tid=task.id) }}" method="POST" class="m-0">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <input type="hidden" name="is_published" value="true">
                                             <input type="hidden" name="accept_responses" value="true">
-                                            <button class="btn btn-outline-success btn-sm" type="submit">Phát hành</button>
+                                            <button class="pc-btn pc-btn-secondary btn-sm" type="submit">Phát hành</button>
                                         </form>
-                                        <form action="{{ url_for('tasks_bp.publish_task_google_form', tid=task.id) }}" method="POST">
+                                        <form action="{{ url_for('tasks_bp.publish_task_google_form', tid=task.id) }}" method="POST" class="m-0">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <input type="hidden" name="is_published" value="false">
                                             <input type="hidden" name="accept_responses" value="false">
-                                            <button class="btn btn-outline-secondary btn-sm" type="submit">Chuyển về nháp</button>
+                                            <button class="pc-btn pc-btn-secondary btn-sm" type="submit">Chuyển về nháp</button>
                                         </form>
                                         {% endif %}
-                                        <form action="{{ url_for('tasks_bp.import_task_google_form_structure', tid=task.id) }}" method="POST" class="d-flex flex-wrap gap-2">
+                                        <form action="{{ url_for('tasks_bp.import_task_google_form_structure', tid=task.id) }}" method="POST" class="d-flex flex-wrap gap-2 m-0">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <input class="form-control form-control-sm" style="min-width:320px;" type="url" name="google_form_url" value="{{ task.google_form_url or '' }}" placeholder="Link form cũ để nhập cấu trúc vào builder">
+                                            <input class="form-control form-control-sm" style="min-width:260px;" type="url" name="google_form_url" value="{{ task.google_form_url or '' }}" placeholder="Link form cũ để nhập cấu trúc vào builder">
                                             <input type="hidden" name="google_form_match_mode" value="{{ task.google_form_match_mode or 'unit' }}">
                                             <input type="hidden" name="google_form_match_field" value="{{ task.google_form_match_field or '' }}">
-                                            <button class="btn btn-outline-dark btn-sm" type="submit">Nhập cấu trúc từ form cũ</button>
+                                            <button class="pc-btn pc-btn-secondary btn-sm" type="submit">Nhập cấu trúc từ form cũ</button>
                                         </form>
                                     </div>
                                     {% if task.google_form_builder_managed and task.google_form_builder %}
                                     <details>
-                                        <summary class="fw-semibold" style="cursor:pointer;">Chỉnh sửa schema builder nhanh</summary>
-                                        <form action="{{ url_for('tasks_bp.update_task_google_form', tid=task.id) }}" method="POST" class="mt-3">
+                                        <summary class="small fw-semibold" style="cursor:pointer;">Chỉnh sửa cấu trúc JSON Google Form</summary>
+                                        <form action="{{ url_for('tasks_bp.update_task_google_form', tid=task.id) }}" method="POST" class="mt-2">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <textarea class="form-control font-monospace" name="google_form_builder_json" rows="18">{{ task.google_form_builder|tojson(indent=2) }}</textarea>
-                                            <div class="small text-muted mt-2">Đây là chế độ chỉnh trực tiếp schema builder. Sau khi lưu, hệ thống sẽ cập nhật lại Google Form thật theo cùng `formId`.</div>
-                                            <button class="btn btn-outline-primary btn-sm mt-3" type="submit">Lưu schema và cập nhật form</button>
+                                            <textarea class="form-control font-monospace small" name="google_form_builder_json" rows="10">{{ task.google_form_builder|tojson(indent=2) }}</textarea>
+                                            <button class="pc-btn pc-btn-secondary btn-sm mt-2" type="submit">Lưu schema và cập nhật form</button>
                                         </form>
                                     </details>
                                     {% endif %}
                                 </div>
-                                {% endif %}
-                                {% endif %}
-                                {% if form_assignment_role_groups %}
-                                <div class="border rounded-4 p-3 bg-light-subtle mb-4">
-                                    <div class="fw-semibold mb-3">Tổng quan theo vai trò</div>
-                                    <div class="d-grid gap-3">
-                                        {% for group in form_assignment_role_groups %}
-                                        <div class="border rounded-3 p-3 bg-white">
-                                            <div class="d-flex justify-content-between align-items-start gap-3">
-                                                <div>
-                                                    <div class="fw-semibold">{{ group.role_name }}</div>
-                                                    <div class="small text-muted">{{ group.unit_count }} đơn vị liên quan</div>
+                            </details>
+                            {% endif %}
+
+                            {% if form_rows_matrix %}
+                            <div class="table-responsive pc-detail-table-wrap">
+                                <table class="table pc-table pc-linear-table align-middle mb-0" id="formMatrixTable">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Đơn vị / Đối tượng</th>
+                                            <th scope="col">Người thực hiện</th>
+                                            <th class="text-center" scope="col">Trạng thái</th>
+                                            <th class="text-end" scope="col">Thao tác</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in form_rows_matrix %}
+                                        <tr data-form-row data-row-status="{{ 'submitted' if row.submitted else ('returned' if row.status == 'returned' else 'pending') }}" data-row-text="{{ (row.unit_name ~ ' ' ~ row.submitter_name ~ ' ' ~ row.user_name)|lower }}">
+                                            <td>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="pc-unit-dot {% if row.submitted %}is-done{% endif %}" aria-hidden="true"></span>
+                                                    <span class="fw-semibold">{{ row.unit_name }}</span>
                                                 </div>
-                                                <span class="badge bg-light text-dark">{{ group.status }}</span>
-                                            </div>
-                                            <div class="row g-2 mt-2">
-                                                {% for unit in group.units %}
-                                                <div class="col-lg-6">
-                                                    <div class="border rounded-3 p-2 h-100">
-                                                        <div class="fw-semibold small">{{ unit.unit_name }}</div>
-                                                        <div class="small text-muted">{{ unit.progress_text }} người hoàn thành</div>
-                                                    </div>
-                                                </div>
-                                                {% endfor %}
-                                            </div>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                                {% endif %}
-                                {% if form_assignment_unit_cards %}
-                                <div class="border rounded-4 p-3 bg-light-subtle mb-4">
-                                    <div class="fw-semibold mb-3">Tổng quan theo đơn vị</div>
-                                    <div class="row g-3">
-                                        {% for card in form_assignment_unit_cards %}
-                                        <div class="col-lg-6">
-                                            <div class="border rounded-3 p-3 bg-white h-100">
-                                                <div class="d-flex justify-content-between align-items-start gap-3">
-                                                    <div>
-                                                        <div class="fw-semibold">{{ card.unit_name }}</div>
-                                                        <div class="small text-muted">{{ card.completed_count }}/{{ card.total_count }} người đã hoàn thành</div>
-                                                    </div>
-                                                    <span class="badge bg-light text-dark">{{ card.status }}</span>
-                                                </div>
-                                                <div class="small text-muted mt-2">{{ card.members|map(attribute='name')|join(', ') }}</div>
-                                            </div>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                                {% endif %}
-                                {% if form_assignment_role_groups or form_assignment_unit_cards %}
-                                <div class="fw-semibold mb-3">Chi tiết theo cán bộ</div>
-                                {% endif %}
-                                <div class="d-grid gap-3">
-                                    {% for row in form_rows %}
-                                    <div class="border rounded p-3 {% if row.is_current_user %}border-primary bg-primary-subtle bg-opacity-10{% endif %}">
-                                        <div class="d-flex justify-content-between align-items-start gap-3">
-                                            <div>
-                                                <div class="fw-semibold">{{ row.assignment.user.fullname if row.assignment.user else 'Không xác định' }}</div>
-                                                <div class="small text-muted">{{ row.assignment.user.unit_area_display if row.assignment.user and row.assignment.user.unit_area_display else '' }}</div>
-                                            </div>
-                                            <span class="badge bg-light text-dark">{{ status_labels.get((row.assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
-                                            {% if can_manage_task_view and row.submission and (row.assignment.status|lower in ['submitted', 'completed']) %}
-                                            <form action="{{ url_for('tasks_bp.return_task_assignment', tid=task.id, assignment_id=row.assignment.id) }}" method="POST" class="d-flex gap-1">
-                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                <input type="text" name="return_reason" class="form-control form-control-sm" placeholder="Lý do trả lại" style="max-width: 200px;">
-                                                <button class="btn btn-sm btn-outline-danger" type="submit">Trả lại bổ sung</button>
-                                            </form>
-                                            {% endif %}
-                                        </div>
-                                        {% if row.submission %}
-                                        <div class="small text-muted mt-2">Nộp lúc {{ row.submission.submitted_at.strftime('%d/%m/%Y %H:%M') if row.submission.submitted_at else '' }}</div>
-                                        {% if can_manage_task_view %}
-                                        <div class="mt-3">
-                                            {% for field in form_field_views %}
-                                            {% set value = row.payload.get(field.field_key, '') %}
-                                            <div class="mb-2">
-                                                <div class="small fw-semibold">{{ field.field_label }}</div>
-                                                <div class="small text-muted" style="white-space: pre-wrap;">
-                                                    {% if value is iterable and value is not string %}
-                                                        {% if value and value[0] is iterable and value[0] is not string %}
-                                                            {% for item in value %}
-                                                                {{ item|join(' | ') }}{% if not loop.last %}<br>{% endif %}
-                                                            {% endfor %}
-                                                        {% else %}
-                                                            {{ value|join(', ') }}
-                                                        {% endif %}
+                                                {% if row.has_submission %}
+                                                <div class="small text-muted mt-1">
+                                                    {% if row.is_excel_form %}
+                                                    Đã nộp {{ row.answered_count }} dòng Excel{% if row.submitted_at %} · {{ row.submitted_at }}{% endif %}
                                                     {% else %}
-                                                        {{ value or 'Chưa nhập' }}
+                                                    Đã nhập {{ row.answered_count }}/{{ row.total_fields }} trường{% if row.submitted_at %} · {{ row.submitted_at }}{% endif %}
                                                     {% endif %}
                                                 </div>
-                                            </div>
-                                            {% endfor %}
-                                        </div>
-                                        {% endif %}
-                                        {% endif %}
-                                    </div>
-                                    {% else %}
-                                    <div class="text-muted">Chưa có dữ liệu biểu mẫu.</div>
-                                    {% endfor %}
-                                </div>
+                                                {% elif row.return_reason %}
+                                                <div class="pc-inline-returned-note mt-2" data-clamp-block>
+                                                    <div class="pc-clamp-text pc-clamp-2" data-clamp-target>Đã yêu cầu bổ sung: {{ row.return_reason }}</div>
+                                                    <button type="button" class="pc-clamp-toggle d-none" data-clamp-toggle aria-expanded="false">Xem thêm</button>
+                                                </div>
+                                                {% endif %}
+                                                {% if can_manage_task_view and row.submitted %}
+                                                <div class="pc-return-box d-none mt-2" id="form-return-box-{{ row.assignment_id }}">
+                                                    <form action="{{ url_for('tasks_bp.return_task_assignment', tid=task.id, assignment_id=row.assignment_id) }}" method="POST" class="d-flex flex-wrap gap-2 align-items-center">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <input type="text" name="return_reason" class="form-control form-control-sm flex-grow-1" placeholder="Nhập lý do yêu cầu đơn vị bổ sung...">
+                                                        <button class="btn btn-sm btn-danger flex-shrink-0" type="submit">Xác nhận gửi</button>
+                                                        <button class="btn btn-sm btn-outline-secondary flex-shrink-0" type="button" data-return-cancel="form-return-box-{{ row.assignment_id }}">Hủy</button>
+                                                    </form>
+                                                </div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="small fw-medium">{{ row.submitter_name }}</div>
+                                                {% if row.user_name and row.user_name != row.submitter_name %}
+                                                <div class="small text-muted">{{ row.user_name }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-center">
+                                                {% if row.submitted %}
+                                                <span class="pc-detail-badge pc-detail-badge-success">{{ row.status_label }}</span>
+                                                {% elif row.status == 'returned' %}
+                                                <span class="pc-detail-badge pc-detail-badge-warning">{{ row.status_label }}</span>
+                                                {% else %}
+                                                <span class="pc-detail-badge pc-detail-badge-neutral">{{ row.status_label }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-end">
+                                                {% if row.has_submission or (can_manage_task_view and row.submitted) %}
+                                                <div class="d-inline-flex flex-wrap justify-content-end gap-1">
+                                                    {% if row.has_submission %}
+                                                    <button type="button" class="pc-btn-inline-action" data-review-open data-item-id="{{ row.drawer_key }}" data-unit-name="{{ row.unit_name }}" title="Xem toàn bộ nội dung biểu mẫu của {{ row.unit_name }}">Xem báo cáo</button>
+                                                    {% endif %}
+                                                    {% if can_manage_task_view and row.submitted %}
+                                                    <button type="button" class="pc-btn-inline-danger" data-return-toggle="form-return-box-{{ row.assignment_id }}">Trả lại</button>
+                                                    {% endif %}
+                                                </div>
+                                                {% else %}
+                                                <span class="small text-muted">—</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
                             </div>
-                        </div>
+                            <div class="d-none text-center text-muted small py-4" id="formMatrixEmptyFilter">Không có đơn vị nào phù hợp với bộ lọc hiện tại.</div>
+                            {% for row in form_rows_matrix %}
+                            <script type="application/json" class="pc-matrix-row-json" data-item-id="{{ row.drawer_key }}">{{ row.review_payload|tojson }}</script>
+                            {% endfor %}
+                            {% else %}
+                            <div class="pc-empty">
+                                <div class="pc-empty-title">Chưa có đơn vị nào</div>
+                                <p class="pc-empty-desc mb-0">Công việc biểu mẫu này hiện chưa có đơn vị hoặc cán bộ nào được phân công.</p>
+                            </div>
+                            {% endif %}
+                        </section>
                     </div>
 
                     {% if can_submit and my_form_assignment %}
+                    {% set my_form_st = ((my_form_assignment.status if my_form_assignment else '') or '')|lower %}
                     <div class="tab-pane fade {% if default_tab == 'form-submit' %}show active{% endif %}" id="pane-form-submit" role="tabpanel" aria-labelledby="tab-form-submit">
-                        <div class="pc-linear-section">
-                            <div class="pc-linear-section-body">
-                                <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-                                    <h2 class="h4 mb-0">Phần việc của tôi</h2>
-                                    <span class="badge bg-info-subtle text-info">{{ detail_context.submit_status_text or status_labels.get((my_form_assignment.status or '').lower(), 'Chưa tiếp nhận') }}</span>
+                        <section class="pc-linear-section">
+                            <div class="pc-linear-toolbar">
+                                <div>
+                                    <h2 class="pc-linear-section-title mb-0">Phần việc cần nộp</h2>
+                                    <div class="pc-linear-section-sub">
+                                        {% if excel_schema %}
+                                        {{ excel_schema.columns|length }} cột biểu mẫu Excel · {% if excel_schema.allow_add_rows %}Có thể thêm/xóa dòng{% else %}Điền trực tiếp theo dòng chỉ tiêu cố định{% endif %}
+                                        {% else %}
+                                        {{ my_form_field_views|length }} trường thông tin được giao
+                                        {% endif %}
+                                    </div>
                                 </div>
-                                {% if detail_context.submit_scope_hint %}
-                                <div class="alert alert-info border mb-3">
-                                    <div class="fw-semibold mb-1">{{ detail_context.submit_scope_label or 'Cách ghi nhận báo cáo' }}</div>
-                                    <div class="small">{{ detail_context.submit_scope_hint }}</div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="pc-detail-badge {% if my_form_st in ['submitted', 'completed'] %}pc-detail-badge-success{% elif my_form_st in ['in_progress', 'received'] %}pc-detail-badge-info{% else %}pc-detail-badge-warning{% endif %}">
+                                        <span class="pc-status-dot" aria-hidden="true"></span>{{ detail_context.submit_status_text or status_labels.get(my_form_st, 'Chưa tiếp nhận') }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <article class="pc-outline-item {% if my_form_st in ['submitted', 'completed'] %}is-done{% endif %}">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                                    <div class="d-flex flex-wrap align-items-center gap-2">
+                                        {% if detail_context.submit_scope_label %}
+                                        <span class="pc-detail-badge pc-detail-badge-info">{{ detail_context.submit_scope_label }}</span>
+                                        {% endif %}
+                                        {% if detail_context.submit_scope_hint %}
+                                        <span class="small text-muted">{{ detail_context.submit_scope_hint }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if my_form_st == 'assigned' %}
+                                    <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="m-0">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="pc-btn pc-btn-secondary btn-sm" type="submit">Tiếp nhận</button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+
+                                {% if my_form_return_reason and my_form_st not in ['submitted', 'completed'] %}
+                                <div class="pc-inline-returned-note mb-3">
+                                    Yêu cầu bổ sung từ người giao: {{ my_form_return_reason }}
                                 </div>
                                 {% endif %}
-                                {% if my_form_assignment.status == 'assigned' %}
-                                <form action="{{ url_for('tasks_bp.update_task_status', tid=task.id) }}" method="POST" class="mb-3">
-                                    <button class="btn btn-outline-primary" type="submit">Tiếp nhận công việc</button>
+
+                                {% if task.form_provider == 'excel' and excel_schema %}
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                                    <div class="d-flex flex-wrap align-items-center gap-2">
+                                        <a class="pc-btn pc-btn-secondary btn-sm" href="{{ url_for('tasks_bp.download_task_excel_template', tid=task.id) }}">
+                                            <i class="fa-solid fa-download me-1"></i>Tải mẫu Excel (.xlsx)
+                                        </a>
+                                        <label class="pc-btn pc-btn-secondary btn-sm mb-0" style="cursor:pointer;">
+                                            <i class="fa-solid fa-file-arrow-up me-1"></i>Nạp từ file .xlsx đã điền
+                                            <input type="file" id="excelUploadPreviewInput" accept=".xlsx" class="d-none">
+                                        </label>
+                                    </div>
+                                    <span class="small text-muted" id="excelUploadStatus"></span>
+                                </div>
+
+                                <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST" enctype="multipart/form-data" id="excelFormSubmitForm">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <textarea class="d-none" name="excel_rows_json" id="excelRowsJsonInput"></textarea>
+                                    <input class="d-none" type="file" name="excel_submission_file" id="excelSubmissionFileInput" accept=".xlsx">
+
+                                    {% if excel_schema.banner_rows %}
+                                    <div class="text-center mb-3">
+                                        {% for banner in excel_schema.banner_rows %}
+                                        <div class="{% if loop.first %}fw-bold{% else %}small text-muted{% endif %}">{{ banner }}</div>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+
+                                    {% set excel_cols = excel_schema.columns or [] %}
+                                    {% set header_rows = excel_schema.header_grid or [] %}
+                                    <div class="table-responsive pc-excel-grid-wrap mb-3">
+                                        <table class="table table-bordered align-middle mb-0 pc-excel-grid" id="pcExcelSubmitGrid">
+                                            <thead>
+                                                {% if header_rows %}
+                                                    {% for h_row in header_rows %}
+                                                    <tr>
+                                                        {% for cell in h_row %}
+                                                        <th colspan="{{ cell.colspan or 1 }}" rowspan="{{ cell.rowspan or 1 }}" class="text-center align-middle">{{ cell.text if cell.text is defined else cell.label }}</th>
+                                                        {% endfor %}
+                                                        {% if loop.first and excel_schema.allow_add_rows %}
+                                                        <th rowspan="{{ header_rows|length }}" style="width: 44px;" aria-label="Xóa dòng"></th>
+                                                        {% endif %}
+                                                    </tr>
+                                                    {% endfor %}
+                                                {% else %}
+                                                <tr>
+                                                    {% for col in excel_cols %}
+                                                    <th class="text-center align-middle">{{ col.label }}</th>
+                                                    {% endfor %}
+                                                    {% if excel_schema.allow_add_rows %}
+                                                    <th style="width: 44px;" aria-label="Xóa dòng"></th>
+                                                    {% endif %}
+                                                </tr>
+                                                {% endif %}
+                                            </thead>
+                                            <tbody id="pcExcelSubmitTbody"></tbody>
+                                            {% if excel_cols|selectattr('type', 'equalto', 'number')|list %}
+                                            <tfoot>
+                                                <tr class="pc-excel-sum-row" id="pcExcelSumRow">
+                                                    {% for col in excel_cols %}
+                                                    <td class="{% if col.type == 'number' %}text-end fw-bold{% elif (excel_schema.assign_row_mode == 'unit_rows' and loop.index0 == excel_schema.unit_col_index) or loop.first %}text-center fw-bold{% endif %}" data-sum-col="{{ loop.index0 }}">
+                                                        {% if (excel_schema.assign_row_mode == 'unit_rows' and loop.index0 == excel_schema.unit_col_index) or (loop.first and col.type != 'number' and excel_schema.assign_row_mode != 'unit_rows') %}
+                                                            {{ excel_schema.summary_label or 'Tổng cộng' }}
+                                                        {% elif col.role == 'formula' %}
+                                                            --
+                                                        {% elif col.type == 'number' and not col.is_percent %}
+                                                            0
+                                                        {% endif %}
+                                                    </td>
+                                                    {% endfor %}
+                                                    {% if excel_schema.allow_add_rows %}
+                                                    <td></td>
+                                                    {% endif %}
+                                                </tr>
+                                            </tfoot>
+                                            {% endif %}
+                                        </table>
+                                    </div>
+
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-1">
+                                        <div class="d-flex flex-wrap align-items-center gap-2">
+                                            {% if excel_schema.allow_add_rows %}
+                                            <button type="button" class="pc-btn pc-btn-secondary btn-sm" id="excelAddRowBtn">
+                                                <i class="fa-solid fa-plus me-1"></i>Thêm dòng
+                                            </button>
+                                            {% endif %}
+                                            <span class="small text-muted">Có thể dán nhiều ô trực tiếp từ Excel (Ctrl+V) hoặc dùng mũi tên / Enter để chuyển ô.</span>
+                                        </div>
+                                        <button class="pc-btn pc-btn-primary" type="submit">
+                                            <i class="fa-solid fa-paper-plane me-1"></i>{% if my_form_st in ['submitted', 'completed'] %}Cập nhật biểu mẫu{% else %}Gửi biểu mẫu{% endif %}
+                                        </button>
+                                    </div>
                                 </form>
-                                {% endif %}
-                                {% if task.form_provider == 'google' %}
-                                <div class="alert alert-light border">
-                                    <div class="fw-semibold mb-2">Biểu mẫu này dùng Google Form thật</div>
-                                    <div class="small text-muted mb-3">Bạn điền biểu mẫu trên Google Form, sau đó quay lại đây để đồng bộ phản hồi vào hệ thống.</div>
+                                {% elif task.form_provider == 'google' %}
+                                <div class="pc-linear-callout mb-3">
+                                    <div class="pc-linear-callout-label">Biểu mẫu Google Form liên kết</div>
+                                    <div class="small text-muted mb-2">Điền biểu mẫu trên Google Form, sau đó bấm đồng bộ để hệ thống ghi nhận kết quả.</div>
                                     {% if my_form_field_views %}
                                     <div class="small text-muted mb-3">
-                                        Hệ thống chỉ ghi nhận {{ my_form_field_views|length }} trường đang được giao cho bạn. Nếu Google Form chung có nhiều câu hỏi hơn, bạn chỉ cần hoàn thành phần của đơn vị mình.
+                                        Hệ thống ghi nhận {{ my_form_field_views|length }} trường được giao cho đơn vị bạn.
                                     </div>
                                     {% endif %}
                                     <div class="d-flex flex-wrap gap-2">
                                         {% if task.google_form_url %}
-                                        <a class="btn btn-primary pc-btn" href="{{ task.google_form_url }}" target="_blank" rel="noopener">Mở Google Form</a>
+                                        <a class="pc-btn pc-btn-primary btn-sm" href="{{ task.google_form_url }}" target="_blank" rel="noopener">
+                                            <i class="fa-solid fa-up-right-from-square me-1"></i>Mở Google Form
+                                        </a>
                                         {% endif %}
-                                        <form action="{{ url_for('tasks_bp.sync_google_form_task', tid=task.id) }}" method="POST">
+                                        <form action="{{ url_for('tasks_bp.sync_google_form_task', tid=task.id) }}" method="POST" class="m-0">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button class="btn btn-outline-secondary" type="submit">Tôi đã gửi, đồng bộ ngay</button>
+                                            <button class="pc-btn pc-btn-secondary btn-sm" type="submit">
+                                                <i class="fa-solid fa-rotate me-1"></i>Tôi đã gửi, đồng bộ ngay
+                                            </button>
                                         </form>
                                     </div>
                                 </div>
                                 {% if not my_form_field_views %}
-                                <div class="alert alert-warning">Hiện chưa có trường biểu mẫu nào được giao cho bạn trong nhiệm vụ này.</div>
+                                <div class="pc-empty">
+                                    <div class="pc-empty-title">Chưa có trường biểu mẫu</div>
+                                    <p class="pc-empty-desc mb-0">Hiện chưa có trường biểu mẫu nào được giao cho bạn trong nhiệm vụ này.</p>
+                                </div>
                                 {% endif %}
                                 {% if my_form_submission %}
-                                <div class="mt-4">
-                                    <h3 class="h6">Phản hồi đã đồng bộ gần nhất</h3>
-                                    {% for field in my_form_field_views %}
-                                    {% set payload_value = my_form_payload.get(field.field_key, '') %}
-                                    <div class="mb-3">
-                                        <div class="small fw-semibold">{{ field.field_label }}</div>
-                                        <div class="small text-muted" style="white-space: pre-wrap;">
-                                            {% if payload_value is iterable and payload_value is not string %}
-                                                {% if payload_value and payload_value[0] is iterable and payload_value[0] is not string %}
-                                                    {% for row in payload_value %}
-                                                        {{ row|join(' | ') }}{% if not loop.last %}<br>{% endif %}
-                                                    {% endfor %}
+                                <div class="mt-3 pt-3 border-top">
+                                    <div class="pc-linear-callout-label mb-2">Phản hồi đã đồng bộ gần nhất</div>
+                                    <div class="d-grid gap-2">
+                                        {% for field in my_form_field_views %}
+                                        {% set payload_value = my_form_payload.get(field.field_key, '') %}
+                                        <div class="pc-matrix-unit-chip">
+                                            <div class="small fw-semibold">{{ field.field_label }}</div>
+                                            <div class="small text-muted mt-1" style="white-space: pre-wrap;">
+                                                {% if payload_value is iterable and payload_value is not string %}
+                                                    {% if payload_value and payload_value[0] is iterable and payload_value[0] is not string %}
+                                                        {% for row in payload_value %}
+                                                            {{ row|join(' | ') }}{% if not loop.last %}<br>{% endif %}
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        {{ payload_value|join(', ') }}
+                                                    {% endif %}
                                                 {% else %}
-                                                    {{ payload_value|join(', ') }}
+                                                    {{ payload_value or 'Chưa có dữ liệu' }}
                                                 {% endif %}
-                                            {% else %}
-                                                {{ payload_value or 'Chưa có dữ liệu' }}
-                                            {% endif %}
+                                            </div>
                                         </div>
+                                        {% endfor %}
                                     </div>
-                                    {% endfor %}
                                 </div>
                                 {% endif %}
                                 {% else %}
                                 {% if my_form_field_views %}
                                 <form action="{{ url_for('tasks_bp.submit_task_report', tid=task.id) }}" method="POST">
-                                    {% for field in my_form_field_views %}
-                                    {% set payload_value = my_form_payload.get(field.field_key, '') %}
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold">{{ field.field_label }}{% if field.is_required %} *{% endif %}</label>
-                                        {% if field.field_type == 'textarea' %}
-                                        <textarea class="form-control" name="form_field_{{ field.field_key }}" rows="4">{{ payload_value if payload_value is string else '' }}</textarea>
-                                        {% elif field.field_type == 'number' %}
-                                        <input class="form-control" type="number" step="any" name="form_field_{{ field.field_key }}" value="{{ payload_value if payload_value is not iterable or payload_value is string else '' }}">
-                                        {% elif field.field_type == 'radio' %}
-                                        <div class="d-grid gap-2">
-                                            {% for choice in field.choices %}
-                                            <label class="d-flex gap-2 align-items-center">
-                                                <input type="radio" name="form_field_{{ field.field_key }}" value="{{ choice }}" {% if payload_value == choice %}checked{% endif %}>
-                                                <span>{{ choice }}</span>
-                                            </label>
-                                            {% endfor %}
-                                        </div>
-                                        {% elif field.field_type == 'checkbox' %}
-                                        <div class="d-grid gap-2">
-                                            {% for choice in field.choices %}
-                                            <label class="d-flex gap-2 align-items-center">
-                                                <input type="checkbox" name="form_field_{{ field.field_key }}" value="{{ choice }}" {% if payload_value is iterable and payload_value is not string and choice in payload_value %}checked{% endif %}>
-                                                <span>{{ choice }}</span>
-                                            </label>
-                                            {% endfor %}
-                                        </div>
-                                        {% elif field.field_type == 'table' %}
-                                        {% set grid_cols = field.columns if field.columns else ['Cột 1', 'Cột 2', 'Cột 3'] %}
-                                        <div class="task-table-grid" data-table-grid data-field-key="{{ field.field_key }}" data-columns="{{ grid_cols|join('||') }}">
-                                            <table class="table table-bordered pc-table table-sm align-middle mb-2">
-                                                <thead scope="col">
-                                                    <tr>
-                                                        {% for col in grid_cols %}
-                                                        <th scope="col">{{ col }}</th>
-                                                        {% endfor %}
-                                                        <th style="width: 60px;" scope="col"></th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {% if payload_value is iterable and payload_value is not string %}
-                                                        {% for row in payload_value %}
-                                                        <tr>
-                                                            {% for idx in range(0, grid_cols|length) %}
-                                                            <td><input class="form-control form-control-sm" value="{{ row[idx] if idx < row|length else '' }}"></td>
-                                                            {% endfor %}
-                                                            <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" data-table-remove-row>×</button></td>
-                                                        </tr>
-                                                        {% endfor %}
-                                                    {% endif %}
-                                                </tbody>
-                                            </table>
-                                            <div class="d-flex flex-wrap gap-2 align-items-center">
-                                                <button type="button" class="btn btn-sm btn-outline-primary" data-table-add-row>Thêm dòng</button>
-                                                <span class="small text-muted">Nhập như bảng tính Excel; mỗi dòng là một hàng dữ liệu.</span>
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <div class="row g-3">
+                                        {% for field in my_form_field_views %}
+                                        {% set payload_value = my_form_payload.get(field.field_key, '') %}
+                                        <div class="col-12">
+                                            <label class="form-label fw-semibold small mb-1">{{ field.field_label }}{% if field.is_required %} <span class="text-danger">*</span>{% endif %}</label>
+                                            {% if field.field_type == 'textarea' %}
+                                            <textarea class="form-control" name="form_field_{{ field.field_key }}" rows="3" placeholder="Nhập nội dung...">{{ payload_value if payload_value is string else '' }}</textarea>
+                                            {% elif field.field_type == 'number' %}
+                                            <input class="form-control" type="number" step="any" name="form_field_{{ field.field_key }}" value="{{ payload_value if payload_value is not iterable or payload_value is string else '' }}" placeholder="Nhập số liệu...">
+                                            {% elif field.field_type == 'radio' %}
+                                            <div class="d-grid gap-2 pt-1">
+                                                {% for choice in field.choices %}
+                                                <label class="d-flex gap-2 align-items-center small">
+                                                    <input class="form-check-input mt-0" type="radio" name="form_field_{{ field.field_key }}" value="{{ choice }}" {% if payload_value == choice %}checked{% endif %}>
+                                                    <span>{{ choice }}</span>
+                                                </label>
+                                                {% endfor %}
                                             </div>
-                                            <textarea class="form-control d-none" name="form_field_{{ field.field_key }}" rows="3"></textarea>
+                                            {% elif field.field_type == 'checkbox' %}
+                                            <div class="d-grid gap-2 pt-1">
+                                                {% for choice in field.choices %}
+                                                <label class="d-flex gap-2 align-items-center small">
+                                                    <input class="form-check-input mt-0" type="checkbox" name="form_field_{{ field.field_key }}" value="{{ choice }}" {% if payload_value is iterable and payload_value is not string and choice in payload_value %}checked{% endif %}>
+                                                    <span>{{ choice }}</span>
+                                                </label>
+                                                {% endfor %}
+                                            </div>
+                                            {% elif field.field_type == 'table' %}
+                                            {% set grid_cols = field.columns if field.columns else ['Cột 1', 'Cột 2', 'Cột 3'] %}
+                                            <div class="task-table-grid" data-table-grid data-field-key="{{ field.field_key }}" data-columns="{{ grid_cols|join('||') }}">
+                                                <div class="table-responsive pc-detail-table-wrap mb-2">
+                                                    <table class="table pc-table pc-linear-table table-sm align-middle mb-0">
+                                                        <thead>
+                                                            <tr>
+                                                                {% for col in grid_cols %}
+                                                                <th scope="col">{{ col }}</th>
+                                                                {% endfor %}
+                                                                <th style="width: 56px;" scope="col"></th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% if payload_value is iterable and payload_value is not string %}
+                                                                {% for row in payload_value %}
+                                                                <tr>
+                                                                    {% for idx in range(0, grid_cols|length) %}
+                                                                    <td><input class="form-control form-control-sm" value="{{ row[idx] if idx < row|length else '' }}"></td>
+                                                                    {% endfor %}
+                                                                    <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" data-table-remove-row aria-label="Xóa dòng">×</button></td>
+                                                                </tr>
+                                                                {% endfor %}
+                                                            {% endif %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                                    <button type="button" class="pc-btn pc-btn-secondary btn-sm" data-table-add-row><i class="fa-solid fa-plus me-1"></i>Thêm dòng</button>
+                                                    <span class="small text-muted">Nhập từng dòng dữ liệu theo các cột đã thiết lập.</span>
+                                                </div>
+                                                <textarea class="form-control d-none" name="form_field_{{ field.field_key }}" rows="3"></textarea>
+                                            </div>
+                                            {% else %}
+                                            <input class="form-control" type="text" name="form_field_{{ field.field_key }}" value="{{ payload_value if payload_value is not iterable or payload_value is string else '' }}" placeholder="Nhập thông tin...">
+                                            {% endif %}
                                         </div>
-                                        {% else %}
-                                        <input class="form-control" type="text" name="form_field_{{ field.field_key }}" value="{{ payload_value if payload_value is not iterable or payload_value is string else '' }}">
-                                        {% endif %}
+                                        {% endfor %}
                                     </div>
-                                    {% endfor %}
-                                    <button class="btn btn-primary pc-btn" type="submit">Gửi biểu mẫu</button>
+                                    <div class="mt-3 pt-2 d-flex justify-content-end">
+                                        <button class="pc-btn pc-btn-primary" type="submit">
+                                            <i class="fa-solid fa-paper-plane me-1"></i>{% if my_form_st in ['submitted', 'completed'] %}Cập nhật biểu mẫu{% else %}Gửi biểu mẫu{% endif %}
+                                        </button>
+                                    </div>
                                 </form>
                                 {% else %}
-                                <div class="alert alert-warning mb-0">Hiện chưa có trường biểu mẫu nào được giao cho bạn trong nhiệm vụ này.</div>
+                                <div class="pc-empty">
+                                    <div class="pc-empty-title">Chưa có trường biểu mẫu</div>
+                                    <p class="pc-empty-desc mb-0">Hiện chưa có trường biểu mẫu nào được giao cho bạn trong nhiệm vụ này.</p>
+                                </div>
                                 {% endif %}
                                 {% endif %}
-                            </div>
-                        </div>
+                            </article>
+                        </section>
                     </div>
                     {% endif %}
                 {% endif %}
     </div>
 
     {% if delivery_contract_groups %}
-    <details class="pc-card pc-detail-scope-card">
+    <details class="pc-linear-callout mt-3 pc-detail-scope-card">
         <summary class="d-flex justify-content-between align-items-center fw-semibold small" style="cursor: pointer;">
             <span><i class="fa-solid fa-sitemap me-2 text-primary"></i>Phạm Vi Đã Phát Hành ({{ delivery_contract_groups|length }} nhóm nộp)</span>
             <span class="text-muted fw-normal">Bấm để xem chi tiết</span>
@@ -1048,7 +1167,7 @@
         <div class="row g-3 mt-2 pt-2 border-top">
             {% for group in delivery_contract_groups %}
             <div class="col-12 col-xl-4">
-                <div class="border rounded-3 p-3 h-100 bg-light-subtle">
+                <div class="pc-matrix-unit-chip h-100">
                     <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
                         <div>
                             <div class="fw-semibold small">{{ group.group_label }}</div>
@@ -1456,22 +1575,25 @@
 
     .pc-linear-search-wrap > i {
         position: absolute;
-        left: 10px;
+        left: 12px;
         top: 50%;
         transform: translateY(-50%);
         font-size: 0.78rem;
         color: var(--pc-text-subtle);
         pointer-events: none;
+        z-index: 2;
     }
 
     .pc-linear-search-wrap .form-control {
-        padding-left: 30px;
+        padding-left: 34px !important;
     }
 
     .pc-linear-filters .form-select {
         width: auto;
         min-width: 170px;
         max-width: 240px;
+        padding-right: 2.25rem;
+        white-space: nowrap;
     }
 
     /* ── Bảng ma trận Linear editorial ── */
@@ -1886,10 +2008,15 @@
 
     /* ── Ngăn kéo trượt xem chi tiết (Slide-over Review Drawer) ── */
     .pc-linear-drawer {
-        width: min(560px, 96vw) !important;
+        width: min(540px, 94vw) !important;
+        max-width: 100vw !important;
+        right: 0 !important;
+        left: auto !important;
         background: var(--pc-bg-card);
         color: var(--pc-text);
-        border-left: 1px solid var(--pc-border);
+        border-right: 0 !important;
+        border-left: 1px solid var(--pc-border) !important;
+        transition: transform 0.08s ease-out !important;
     }
 
     .pc-linear-drawer .offcanvas-header {
@@ -1959,6 +2086,61 @@
         .pc-outline-item {
             padding: 14px;
         }
+    }
+
+    .pc-excel-grid-wrap {
+        border: 1px solid var(--pc-border);
+        border-radius: var(--pc-radius-sm);
+        background: var(--pc-bg-card);
+        overflow: auto;
+    }
+    .pc-excel-grid th,
+    .pc-excel-grid td {
+        border-color: var(--pc-border);
+        padding: 0;
+        font-size: 0.84rem;
+    }
+    .pc-excel-grid thead th {
+        background: var(--pc-bg-subtle);
+        color: var(--pc-text);
+        font-weight: 700;
+        padding: 8px 10px;
+        white-space: normal;
+        min-width: 90px;
+    }
+    .pc-excel-cell-input {
+        width: 100%;
+        min-height: 36px;
+        border: 0;
+        background: transparent;
+        color: var(--pc-text);
+        padding: 6px 8px;
+        font-size: 0.85rem;
+        outline: none;
+    }
+    .pc-excel-cell-input:focus {
+        background: var(--pc-info-bg);
+        box-shadow: inset 0 0 0 2px var(--pc-primary);
+    }
+    .pc-excel-cell-input.is-readonly {
+        background: var(--pc-bg-subtle);
+        color: var(--pc-text-muted);
+        cursor: default;
+    }
+    .pc-excel-cell-input.is-readonly:focus {
+        box-shadow: none;
+        background: var(--pc-bg-subtle);
+    }
+    .pc-excel-sum-row td {
+        background: var(--pc-bg-subtle);
+        color: var(--pc-text);
+        padding: 8px 10px;
+        font-size: 0.85rem;
+    }
+    .pc-drawer-excel-table th,
+    .pc-drawer-excel-table td {
+        font-size: 0.78rem;
+        padding: 4px 6px;
     }
 </style>
 
@@ -2158,6 +2340,43 @@
 })();
 
 (() => {
+    const formSearch = document.getElementById('formMatrixSearch');
+    const formStatus = document.getElementById('formMatrixStatusFilter');
+    const formTable = document.getElementById('formMatrixTable');
+    const formEmpty = document.getElementById('formMatrixEmptyFilter');
+    if (!formTable) return;
+
+    const rows = Array.from(formTable.querySelectorAll('tbody tr[data-form-row]'));
+    function applyFormFilter() {
+        const keyword = (formSearch ? formSearch.value : '').trim().toLowerCase();
+        const selectedStatus = (formStatus ? formStatus.value : '').trim().toLowerCase();
+        let visibleCount = 0;
+
+        rows.forEach((row) => {
+            const rowText = (row.dataset.rowText || '').toLowerCase();
+            const rowStatus = (row.dataset.rowStatus || '').toLowerCase();
+            const matchesKeyword = !keyword || rowText.includes(keyword);
+            const matchesStatus = !selectedStatus || rowStatus === selectedStatus;
+            const show = matchesKeyword && matchesStatus;
+            row.classList.toggle('d-none', !show);
+            if (show) visibleCount += 1;
+        });
+
+        if (formEmpty) {
+            formEmpty.classList.toggle('d-none', visibleCount > 0);
+        }
+        if (typeof window.pcSyncClampToggles === 'function') {
+            window.requestAnimationFrame(window.pcSyncClampToggles);
+        }
+    }
+
+    [formSearch, formStatus].forEach((el) => {
+        if (!el) return;
+        el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', applyFormFilter);
+    });
+})();
+
+(() => {
     // Tự động ẩn/hiện nút "Xem thêm / Thu gọn" chỉ cho nội dung thực sự tràn quá số dòng cho phép
     function syncClampToggles() {
         document.querySelectorAll('[data-clamp-block]').forEach((block) => {
@@ -2235,6 +2454,9 @@
     // Khung đọc báo cáo chi tiết từng đơn vị (bên phải)
     const drawerEl = document.getElementById('outlineReviewDrawer');
     if (!drawerEl) return;
+    if (drawerEl.parentElement !== document.body) {
+        document.body.appendChild(drawerEl);
+    }
     const titleEl = document.getElementById('outlineDrawerItemTitle');
     const metaEl = document.getElementById('outlineDrawerMeta');
     const noteEl = document.getElementById('outlineDrawerItemNote');
@@ -2326,7 +2548,35 @@
             if (entry.submitted) {
                 const box = document.createElement('div');
                 box.className = 'pc-inline-report';
-                if (entry.report_text) {
+                if (entry.excel_table && Array.isArray(entry.excel_table.columns) && (entry.excel_table.rows || []).length) {
+                    const tblWrap = document.createElement('div');
+                    tblWrap.className = 'table-responsive mb-2';
+                    const tbl = document.createElement('table');
+                    tbl.className = 'table table-sm table-bordered mb-0 pc-drawer-excel-table';
+                    const thead = document.createElement('thead');
+                    const hTr = document.createElement('tr');
+                    entry.excel_table.columns.forEach((col) => {
+                        const th = document.createElement('th');
+                        th.textContent = col.label || '';
+                        hTr.appendChild(th);
+                    });
+                    thead.appendChild(hTr);
+                    tbl.appendChild(thead);
+                    const tbody = document.createElement('tbody');
+                    entry.excel_table.rows.forEach((rVals) => {
+                        const tr = document.createElement('tr');
+                        entry.excel_table.columns.forEach((col, cIdx) => {
+                            const td = document.createElement('td');
+                            td.textContent = rVals[cIdx] != null ? String(rVals[cIdx]) : '';
+                            if (col.type === 'number') td.className = 'text-end fw-semibold';
+                            tr.appendChild(td);
+                        });
+                        tbody.appendChild(tr);
+                    });
+                    tbl.appendChild(tbody);
+                    tblWrap.appendChild(tbl);
+                    box.appendChild(tblWrap);
+                } else if (entry.report_text) {
                     const txt = document.createElement('div');
                     txt.className = 'pc-inline-report-text';
                     txt.style.maxHeight = 'none';
@@ -2648,6 +2898,520 @@
         }
         saveSynthesis(editorEl.value);
     });
+})();
+</script>
+{% endif %}
+
+{% if excel_schema and can_submit and my_form_assignment %}
+<script>
+(() => {
+    const schema = {{ excel_schema | tojson }};
+    const initialRows = {{ (my_excel_rows or []) | tojson }};
+    const gridForm = document.getElementById('excelFormSubmitForm');
+    const tbody = document.getElementById('pcExcelSubmitTbody');
+    const rowsJsonInput = document.getElementById('excelRowsJsonInput');
+    const addRowBtn = document.getElementById('excelAddRowBtn');
+    const uploadInput = document.getElementById('excelUploadPreviewInput');
+    const submissionFileInput = document.getElementById('excelSubmissionFileInput');
+    const uploadStatus = document.getElementById('excelUploadStatus');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const uploadUrl = {{ url_for('tasks_bp.preview_task_excel_submission_upload', tid=task.id) | tojson }};
+    if (!gridForm || !tbody) return;
+
+    const cols = schema.columns || [];
+    const allowAddRows = Boolean(schema.allow_add_rows);
+    const isUnitRowsMode = Boolean(schema.assign_row_mode === 'unit_rows' && schema.unit_col_index != null);
+    const unitColIdx = isUnitRowsMode ? Number(schema.unit_col_index) : -1;
+    const fixedUnitLabel = isUnitRowsMode && initialRows.length && initialRows[0][unitColIdx]
+        ? String(initialRows[0][unitColIdx])
+        : '';
+
+    const colLetterToIdx = {};
+    cols.forEach((col, cIdx) => {
+        if (col.col_letter) colLetterToIdx[String(col.col_letter).toUpperCase()] = cIdx;
+    });
+
+    function letterToColNum(letter) {
+        let val = 0;
+        for (const ch of String(letter || '').toUpperCase()) {
+            if (ch >= 'A' && ch <= 'Z') val = val * 26 + (ch.charCodeAt(0) - 64);
+        }
+        return val;
+    }
+
+    function parseNum(raw) {
+        const s = String(raw == null ? '' : raw).trim().replace(/\s+/g, '');
+        if (!s) return null;
+        let normalized = s.endsWith('%') ? s.slice(0, -1).trim() : s;
+        if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(normalized)) {
+            normalized = normalized.replace(/\./g, '').replace(',', '.');
+        } else if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(normalized)) {
+            normalized = normalized.replace(/,/g, '');
+        } else {
+            normalized = normalized.replace(',', '.');
+        }
+        const n = Number(normalized);
+        return Number.isFinite(n) ? n : null;
+    }
+
+    function formatNum(n) {
+        if (!Number.isFinite(n)) return '0';
+        if (Math.abs(n) < 1e-12) n = 0;
+        return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(4)));
+    }
+
+    function formatFormulaDisplay(num, col) {
+        if (!Number.isFinite(num)) return '';
+        if (Math.abs(num) < 1e-12) num = 0;
+        if (col.is_percent) {
+            const dec = col.percent_decimals != null ? Number(col.percent_decimals) : 1;
+            return `${(num * 100).toFixed(dec)}%`;
+        }
+        return formatNum(num);
+    }
+
+    function evalRowFormula(formulaTpl, rowValues) {
+        let tpl = String(formulaTpl || '').trim();
+        if (!tpl) return null;
+        if (tpl.startsWith('=')) tpl = tpl.slice(1).trim();
+        if (!tpl) return null;
+
+        const tokens = [];
+        let pos = 0;
+        while (pos < tpl.length) {
+            const ch = tpl[pos];
+            if (/\s/.test(ch)) { pos += 1; continue; }
+            const two = tpl.slice(pos, pos + 2);
+            if (two === '<=' || two === '>=' || two === '<>' || two === '!=') {
+                tokens.push(['OP', two]);
+                pos += 2;
+                continue;
+            }
+            if ('+-*/(),:<>='.includes(ch)) {
+                tokens.push(['+-*/<>='.includes(ch) ? 'OP' : ch, ch]);
+                pos += 1;
+                continue;
+            }
+            if (/\d/.test(ch) || (ch === '.' && /\d/.test(tpl[pos + 1] || ''))) {
+                const m = tpl.slice(pos).match(/^\d+(?:\.\d+)?/);
+                tokens.push(['NUM', Number(m[0])]);
+                pos += m[0].length;
+                continue;
+            }
+            const refMatch = tpl.slice(pos).match(/^\$?([A-Za-z]{1,3})\$?(?:\{r\}|\{sr\}|\d+)?/);
+            if (refMatch) {
+                const ident = refMatch[1].toUpperCase();
+                const after = pos + refMatch[0].length;
+                if (tpl[after] === '(') {
+                    tokens.push(['FUNC', ident]);
+                } else {
+                    tokens.push(['REF', ident]);
+                }
+                pos = after;
+                continue;
+            }
+            return null;
+        }
+
+        let ptr = 0;
+        const peek = () => tokens[ptr] || null;
+        const take = () => tokens[ptr++];
+        const cellNum = (cIdx) => {
+            if (cIdx == null || cIdx < 0 || cIdx >= rowValues.length) return 0;
+            const n = parseNum(rowValues[cIdx]);
+            return n === null ? 0 : n;
+        };
+        const rangeNums = (sLet, eLet) => {
+            let sNum = letterToColNum(sLet);
+            let eNum = letterToColNum(eLet);
+            if (sNum > eNum) [sNum, eNum] = [eNum, sNum];
+            const out = [];
+            cols.forEach((col, idx) => {
+                const cNum = letterToColNum(col.col_letter);
+                if (cNum >= sNum && cNum <= eNum) {
+                    const n = parseNum(rowValues[idx]);
+                    if (n !== null) out.push(n);
+                }
+            });
+            return out;
+        };
+
+        function parseExpr() { return parseCmp(); }
+        function parseCmp() {
+            let left = parseAdd();
+            while (peek() && peek()[0] === 'OP' && ['=', '<>', '!=', '<', '<=', '>', '>='].includes(peek()[1])) {
+                const op = take()[1];
+                const right = parseAdd();
+                if (left === null || right === null) left = 0;
+                else if (op === '=') left = Math.abs(left - right) < 1e-12 ? 1 : 0;
+                else if (op === '<>' || op === '!=') left = Math.abs(left - right) >= 1e-12 ? 1 : 0;
+                else if (op === '<') left = left < right ? 1 : 0;
+                else if (op === '<=') left = left <= right ? 1 : 0;
+                else if (op === '>') left = left > right ? 1 : 0;
+                else if (op === '>=') left = left >= right ? 1 : 0;
+            }
+            return left;
+        }
+        function parseAdd() {
+            let left = parseMul();
+            while (peek() && peek()[0] === 'OP' && (peek()[1] === '+' || peek()[1] === '-')) {
+                const op = take()[1];
+                const right = parseMul();
+                if (left === null || right === null) return null;
+                left = op === '+' ? left + right : left - right;
+            }
+            return left;
+        }
+        function parseMul() {
+            let left = parseUnary();
+            while (peek() && peek()[0] === 'OP' && (peek()[1] === '*' || peek()[1] === '/')) {
+                const op = take()[1];
+                const right = parseUnary();
+                if (left === null || right === null) return null;
+                if (op === '/') {
+                    if (Math.abs(right) < 1e-12) return null;
+                    left = left / right;
+                } else {
+                    left = left * right;
+                }
+            }
+            return left;
+        }
+        function parseUnary() {
+            if (peek() && peek()[0] === 'OP' && (peek()[1] === '+' || peek()[1] === '-')) {
+                const op = take()[1];
+                const val = parseUnary();
+                return val === null ? null : (op === '-' ? -val : val);
+            }
+            return parsePrimary();
+        }
+        function collectArgs() {
+            const args = [];
+            if (peek() && peek()[0] === ')') { take(); return args; }
+            while (ptr < tokens.length) {
+                if (ptr + 2 < tokens.length && tokens[ptr][0] === 'REF' && tokens[ptr + 1][0] === ':' && tokens[ptr + 2][0] === 'REF') {
+                    const sLet = take()[1]; take(); const eLet = take()[1];
+                    args.push(...rangeNums(sLet, eLet));
+                } else {
+                    args.push(parseExpr());
+                }
+                if (peek() && peek()[0] === ',') { take(); continue; }
+                if (peek() && peek()[0] === ')') { take(); break; }
+                break;
+            }
+            return args;
+        }
+        function parsePrimary() {
+            const tok = peek();
+            if (!tok) return null;
+            if (tok[0] === 'NUM') { take(); return tok[1]; }
+            if (tok[0] === 'REF') {
+                take();
+                return tok[1] in colLetterToIdx ? cellNum(colLetterToIdx[tok[1]]) : null;
+            }
+            if (tok[0] === 'FUNC') {
+                const fn = take()[1];
+                if (!peek() || peek()[0] !== '(') return null;
+                take();
+                const args = collectArgs();
+                const nums = args.filter((a) => a !== null && Number.isFinite(a));
+                if (fn === 'SUM') return nums.reduce((a, b) => a + b, 0);
+                if (fn === 'AVERAGE' || fn === 'AVG') return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+                if (fn === 'MIN') return nums.length ? Math.min(...nums) : null;
+                if (fn === 'MAX') return nums.length ? Math.max(...nums) : null;
+                if (fn === 'COUNT') return nums.length;
+                if (fn === 'ABS') return nums.length ? Math.abs(nums[0]) : null;
+                if (fn === 'ROUND') return nums.length ? Number(nums[0].toFixed(nums.length > 1 ? nums[1] : 0)) : null;
+                if (fn === 'IF') return args[0] ? (args[1] ?? 0) : (args[2] ?? 0);
+                return null;
+            }
+            if (tok[0] === '(') {
+                take();
+                const v = parseExpr();
+                if (peek() && peek()[0] === ')') take();
+                return v;
+            }
+            return null;
+        }
+        const out = parseExpr();
+        return out !== null && Number.isFinite(out) && ptr === tokens.length ? out : null;
+    }
+
+    function recalculateRowFormulas(tr) {
+        if (!tr) return;
+        const rowVals = cols.map((col, cIdx) => {
+            const inp = tr.querySelector(`input[data-col-idx="${cIdx}"]`);
+            return inp ? (inp.dataset.rawFormulaVal || inp.value || '') : '';
+        });
+        cols.forEach((col, cIdx) => {
+            if (col.role !== 'formula' || !col.formula) return;
+            const val = evalRowFormula(col.formula, rowVals);
+            const inp = tr.querySelector(`input[data-col-idx="${cIdx}"]`);
+            if (!inp) return;
+            if (val === null) {
+                inp.value = '';
+                inp.dataset.rawFormulaVal = '';
+            } else {
+                rowVals[cIdx] = String(val);
+                inp.dataset.rawFormulaVal = String(val);
+                inp.value = formatFormulaDisplay(val, col);
+            }
+        });
+    }
+
+    function recalculateSums() {
+        tbody.querySelectorAll('tr').forEach((tr) => recalculateRowFormulas(tr));
+        const sumVec = cols.map(() => null);
+        cols.forEach((col, cIdx) => {
+            if (col.type !== 'number' || col.role === 'formula' || col.is_percent) return;
+            let total = 0;
+            let hasAny = false;
+            tbody.querySelectorAll('tr').forEach((tr) => {
+                const inp = tr.querySelector(`input[data-col-idx="${cIdx}"]`);
+                const val = parseNum(inp?.value);
+                if (val !== null) {
+                    total += val;
+                    hasAny = true;
+                }
+            });
+            sumVec[cIdx] = hasAny ? String(total) : '0';
+            const sumCell = document.querySelector(`#pcExcelSumRow [data-sum-col="${cIdx}"]`);
+            if (sumCell) sumCell.textContent = formatNum(total);
+        });
+        cols.forEach((col, cIdx) => {
+            if (col.role !== 'formula' || !col.formula) return;
+            const sumCell = document.querySelector(`#pcExcelSumRow [data-sum-col="${cIdx}"]`);
+            if (!sumCell) return;
+            const fVal = evalRowFormula(col.formula, sumVec);
+            sumCell.textContent = fVal === null ? '--' : formatFormulaDisplay(fVal, col);
+        });
+    }
+
+    function renumberSttRows() {
+        if (!allowAddRows) return;
+        Array.from(tbody.querySelectorAll('tr')).forEach((tr, rIdx) => {
+            cols.forEach((col, cIdx) => {
+                if (col.is_stt) {
+                    const inp = tr.querySelector(`input[data-col-idx="${cIdx}"]`);
+                    if (inp) inp.value = String(rIdx + 1);
+                }
+            });
+        });
+    }
+
+    function clearStaleUploadedFile() {
+        if (submissionFileInput) submissionFileInput.value = '';
+    }
+
+    function makeRowElement(rowValues = []) {
+        const tr = document.createElement('tr');
+        cols.forEach((col, cIdx) => {
+            const td = document.createElement('td');
+            const inp = document.createElement('input');
+            const isFormula = col.role === 'formula';
+            const isUnitLocked = isUnitRowsMode && cIdx === unitColIdx;
+            const isRo = Boolean(col.readonly || col.is_stt || isFormula || isUnitLocked);
+            inp.type = col.data_type === 'date' && !isRo ? 'date' : 'text';
+            if (col.type === 'number' && !isRo) inp.setAttribute('inputmode', 'decimal');
+            inp.className = 'pc-excel-cell-input' +
+                (isRo ? ' is-readonly' : '') +
+                (col.is_stt ? ' text-center' : (col.type === 'number' ? ' text-end fw-semibold' : ''));
+            inp.dataset.colIdx = String(cIdx);
+            const rawVal = rowValues[cIdx] != null ? String(rowValues[cIdx]) : '';
+            if (isFormula && rawVal !== '') {
+                const n = parseNum(rawVal);
+                inp.dataset.rawFormulaVal = n !== null ? String(n) : '';
+                inp.value = n !== null ? formatFormulaDisplay(n, col) : rawVal;
+                inp.title = col.formula || '';
+            } else {
+                inp.value = isUnitLocked && !rawVal && fixedUnitLabel ? fixedUnitLabel : rawVal;
+            }
+            if (isRo) {
+                inp.readOnly = true;
+                inp.tabIndex = -1;
+            } else {
+                inp.addEventListener('input', () => {
+                    clearStaleUploadedFile();
+                    recalculateSums();
+                });
+            }
+            td.appendChild(inp);
+            tr.appendChild(td);
+        });
+        if (allowAddRows) {
+            const actTd = document.createElement('td');
+            actTd.className = 'text-center px-1';
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'btn btn-sm btn-outline-danger py-0 px-2';
+            delBtn.title = 'Xóa dòng';
+            delBtn.textContent = '×';
+            delBtn.addEventListener('click', () => {
+                if (tbody.querySelectorAll('tr').length <= 1) {
+                    tr.querySelectorAll('input:not([readonly])').forEach((i) => { i.value = ''; });
+                } else {
+                    tr.remove();
+                }
+                renumberSttRows();
+                clearStaleUploadedFile();
+                recalculateSums();
+            });
+            actTd.appendChild(delBtn);
+            tr.appendChild(actTd);
+        }
+        return tr;
+    }
+
+    function renderGridRows(rows) {
+        tbody.innerHTML = '';
+        const list = Array.isArray(rows) && rows.length
+            ? rows
+            : [cols.map((c, idx) => (c.is_stt ? '1' : (isUnitRowsMode && idx === unitColIdx ? fixedUnitLabel : '')))];
+        list.forEach((rowVals) => {
+            tbody.appendChild(makeRowElement(rowVals));
+        });
+        renumberSttRows();
+        recalculateSums();
+    }
+
+    function readGridRows() {
+        return Array.from(tbody.querySelectorAll('tr')).map((tr) =>
+            cols.map((col, cIdx) => {
+                const inp = tr.querySelector(`input[data-col-idx="${cIdx}"]`);
+                if (!inp) return '';
+                if (col.role === 'formula') return inp.dataset.rawFormulaVal || '';
+                return inp.value || '';
+            })
+        );
+    }
+
+    addRowBtn?.addEventListener('click', () => {
+        const blank = cols.map((c, idx) => (
+            c.is_stt
+                ? String(tbody.querySelectorAll('tr').length + 1)
+                : (isUnitRowsMode && idx === unitColIdx ? fixedUnitLabel : '')
+        ));
+        const newTr = makeRowElement(blank);
+        tbody.appendChild(newTr);
+        renumberSttRows();
+        clearStaleUploadedFile();
+        recalculateSums();
+        newTr.querySelector('input:not([readonly])')?.focus();
+    });
+
+    tbody.addEventListener('keydown', (e) => {
+        const inp = e.target.closest('input.pc-excel-cell-input');
+        if (!inp) return;
+        const tr = inp.closest('tr');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const rIdx = rows.indexOf(tr);
+        const cIdx = Number(inp.dataset.colIdx);
+
+        if (e.key === 'Enter' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (rIdx + 1 < rows.length) {
+                rows[rIdx + 1].querySelector(`input[data-col-idx="${cIdx}"]`)?.focus();
+            } else if (e.key === 'Enter' && allowAddRows) {
+                addRowBtn?.click();
+                tbody.querySelectorAll('tr')[rows.length]?.querySelector(`input[data-col-idx="${cIdx}"]`)?.focus();
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (rIdx > 0) rows[rIdx - 1].querySelector(`input[data-col-idx="${cIdx}"]`)?.focus();
+        } else if (e.key === 'ArrowRight' && inp.selectionEnd === inp.value.length) {
+            for (let nextC = cIdx + 1; nextC < cols.length; nextC++) {
+                const target = tr.querySelector(`input[data-col-idx="${nextC}"]:not([readonly])`);
+                if (target) { e.preventDefault(); target.focus(); break; }
+            }
+        } else if (e.key === 'ArrowLeft' && inp.selectionStart === 0) {
+            for (let prevC = cIdx - 1; prevC >= 0; prevC--) {
+                const target = tr.querySelector(`input[data-col-idx="${prevC}"]:not([readonly])`);
+                if (target) { e.preventDefault(); target.focus(); break; }
+            }
+        }
+    });
+
+    tbody.addEventListener('paste', (e) => {
+        const inp = e.target.closest('input.pc-excel-cell-input');
+        if (!inp || inp.readOnly) return;
+        const text = (e.clipboardData || window.clipboardData)?.getData('text');
+        if (!text || (!text.includes('\t') && !text.includes('\n'))) return;
+        e.preventDefault();
+
+        const rawLines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+        if (rawLines.length > 1 && rawLines[rawLines.length - 1] === '') rawLines.pop();
+        const matrix = rawLines.map((line) => line.split('\t'));
+
+        const startTr = inp.closest('tr');
+        const startRow = Array.from(tbody.querySelectorAll('tr')).indexOf(startTr);
+        const startCol = Number(inp.dataset.colIdx);
+
+        matrix.forEach((pastedRow, rOff) => {
+            const targetRowIdx = startRow + rOff;
+            while (tbody.querySelectorAll('tr').length <= targetRowIdx) {
+                if (!allowAddRows) return;
+                tbody.appendChild(makeRowElement(cols.map(() => '')));
+            }
+            const targetTr = tbody.querySelectorAll('tr')[targetRowIdx];
+            if (!targetTr) return;
+            pastedRow.forEach((val, cOff) => {
+                const targetCol = startCol + cOff;
+                if (targetCol >= cols.length) return;
+                const cellInp = targetTr.querySelector(`input[data-col-idx="${targetCol}"]`);
+                if (cellInp && !cellInp.readOnly) {
+                    cellInp.value = val.trim();
+                }
+            });
+        });
+
+        renumberSttRows();
+        clearStaleUploadedFile();
+        recalculateSums();
+    });
+
+    uploadInput?.addEventListener('change', async () => {
+        const file = uploadInput.files?.[0];
+        if (!file) return;
+        if (uploadStatus) {
+            uploadStatus.textContent = 'Đang đọc dữ liệu từ file Excel...';
+            uploadStatus.className = 'small text-muted';
+        }
+        const fd = new FormData();
+        fd.append('excel_file', file);
+        try {
+            const res = await fetch(uploadUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'X-CSRF-Token': csrfToken },
+                body: fd,
+            });
+            const data = await res.json();
+            if (!res.ok || !data?.ok) {
+                throw new Error(data?.error || 'Không đọc được file Excel.');
+            }
+            renderGridRows(data.rows || []);
+            if (submissionFileInput && typeof DataTransfer !== 'undefined') {
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                submissionFileInput.files = dt.files;
+            }
+            if (uploadStatus) {
+                uploadStatus.textContent = `Đã nạp ${(data.rows || []).length} dòng từ "${file.name}". Bấm Gửi biểu mẫu để hoàn tất.`;
+                uploadStatus.className = 'small text-success fw-semibold';
+            }
+        } catch (err) {
+            if (uploadStatus) {
+                uploadStatus.textContent = err.message || 'Không nạp được file Excel.';
+                uploadStatus.className = 'small text-danger fw-semibold';
+            }
+        }
+    });
+
+    gridForm.addEventListener('submit', () => {
+        if (rowsJsonInput) rowsJsonInput.value = JSON.stringify(readGridRows());
+    });
+
+    renderGridRows(initialRows);
 })();
 </script>
 {% endif %}
