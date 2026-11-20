@@ -9,6 +9,7 @@ Hỗ trợ:
 import io
 import json
 import os
+import re
 import uuid
 from datetime import date, datetime, timedelta
 
@@ -140,6 +141,58 @@ def _parse_extra_json(raw):
         return val if isinstance(val, dict) else {}
     except Exception:
         return {}
+
+
+def _parse_positive_int_order(val):
+    """Phân tích số thứ tự nguyên không âm từ giá trị ô Excel/extra."""
+    if val is None or isinstance(val, bool):
+        return None
+    if isinstance(val, int):
+        return val if val >= 0 else None
+    if isinstance(val, float):
+        return int(val) if val >= 0 else None
+    s = str(val).strip()
+    if not s:
+        return None
+    m = re.fullmatch(r"(\d+)(?:\.0+)?\.?", s)
+    return int(m.group(1)) if m else None
+
+
+def _extract_dossier_source_order(extra):
+    """Lấy thứ tự dòng gốc theo file Excel/nguồn nhập (ưu tiên source_row_index, sau đó cột STT)."""
+    if not isinstance(extra, dict):
+        return None
+    row_idx = _parse_positive_int_order(extra.get("source_row_index"))
+    if row_idx is not None:
+        return row_idx
+    stt_val = _parse_positive_int_order(extra.get("stt"))
+    if stt_val is not None:
+        return stt_val
+    headers = extra.get("source_headers")
+    cells = extra.get("row_cells")
+    if isinstance(headers, list) and isinstance(cells, list):
+        for i, hdr in enumerate(headers):
+            if i < len(cells) and _norm_vn(hdr) in ("stt", "tt", "so tt", "so thu tu", "#"):
+                parsed = _parse_positive_int_order(cells[i])
+                if parsed is not None:
+                    return parsed
+                break
+    return None
+
+
+def _dossier_sort_key(dossier, extra=None):
+    """Sắp xếp danh sách hồ sơ giữ đúng thứ tự gốc từ file Excel/nguồn nhập; hồ sơ thủ công xếp theo hạn trả."""
+    ex = extra if isinstance(extra, dict) else _parse_extra_json(dossier.extra_json)
+    status_rank = 1 if dossier.trang_thai == "da_tra" else 0
+    source_order = _extract_dossier_source_order(ex)
+    is_imported = bool((dossier.source_type or "manual") != "manual" or source_order is not None)
+    if is_imported:
+        rep_ord = -(dossier.report_date.toordinal()) if dossier.report_date else 0
+        if source_order is not None:
+            return (status_rank, 0, rep_ord, 0, source_order, dossier.id or 0)
+        return (status_rank, 0, rep_ord, 1, dossier.id or 0, 0)
+    han_ord = dossier.han_tra.toordinal() if dossier.han_tra else 9999999
+    return (status_rank, 1, han_ord, 0, -(dossier.id or 0), 0)
 
 
 def _is_ct10_overdue(dossier, extra=None):
@@ -388,11 +441,11 @@ def api_list_dossiers():
         state_filter = ""
 
     # Tính toàn bộ thống kê (quá hạn / sắp đến hạn / đang xử lý / đã hoàn thành) theo ĐÚNG phạm vi lĩnh vực + bộ lọc hiện tại
-    scoped_rows = q.order_by(Dossier.trang_thai.asc(), Dossier.han_tra.asc(), Dossier.id.desc()).all()
+    scoped_rows = q.order_by(Dossier.id.asc()).all()
 
     today = date.today()
     counts = {"overdue": 0, "soon": 0, "pending": 0, "done": 0}
-    result = []
+    sortable_result = []
     for d in scoped_rows:
         item = _serialize_dossier(d, today, is_manager, current_user, uid)
         counts[item["state"]] += 1
@@ -401,7 +454,9 @@ def api_list_dossiers():
                 continue
         elif status_filter != "all" and d.trang_thai != status_filter:
             continue
-        result.append(item)
+        sortable_result.append((_dossier_sort_key(d, item.get("extra")), item))
+    sortable_result.sort(key=lambda pair: pair[0])
+    result = [item for _, item in sortable_result]
 
     units_list = sorted(
         [{"value": k, "label": v} for k, v in unit_options_map.items()],
@@ -599,7 +654,7 @@ def api_bulk_import_dossiers():
         "khac": "khac",
     }
 
-    for raw_rec in records:
+    for rec_pos, raw_rec in enumerate(records, start=1):
         if not isinstance(raw_rec, dict):
             skipped += 1
             continue
@@ -645,7 +700,9 @@ def api_bulk_import_dossiers():
         ngay_tn_d = _parse_iso_or_vn_date(raw_rec.get("ngay_tiep_nhan"))
         han_tra_d = _parse_iso_or_vn_date(raw_rec.get("han_tra")) or rep_d
         has_dl = bool(raw_rec.get("has_deadline"))
-        extra_dict = raw_rec.get("extra") if isinstance(raw_rec.get("extra"), dict) else {}
+        extra_dict = dict(raw_rec.get("extra")) if isinstance(raw_rec.get("extra"), dict) else {}
+        if _parse_positive_int_order(extra_dict.get("source_row_index")) is None:
+            extra_dict["source_row_index"] = rec_pos
         extra_str = json.dumps(extra_dict, ensure_ascii=False) if extra_dict else None
         src_status = (raw_rec.get("trang_thai_nguon") or "").strip()[:150]
         rec_status = "da_tra" if raw_rec.get("trang_thai") == "da_tra" else "dang_xu_ly"
@@ -998,8 +1055,9 @@ def api_export_dossiers():
     if not is_manager:
         q = _scope_dossier_query(q, current_user, uid)
 
+    valid_tabs = get_valid_dossier_tabs()
     category_tab = (request.args.get("category_tab") or "").strip()
-    if category_tab and category_tab != "all" and category_tab in VALID_TABS:
+    if category_tab and category_tab != "all" and category_tab in valid_tabs:
         q = q.filter(Dossier.category_tab == category_tab)
     status_filter = (request.args.get("trang_thai") or "").strip()
     if status_filter:
@@ -1008,7 +1066,9 @@ def api_export_dossiers():
     if unit_filter:
         q = q.filter(db.or_(Dossier.unit_code == unit_filter, Dossier.unit_area == unit_filter, Dossier.unit_key == unit_filter))
 
-    rows = q.order_by(Dossier.category_tab.asc(), Dossier.unit_area.asc(), Dossier.han_tra.asc()).all()
+    raw_rows = q.order_by(Dossier.id.asc()).all()
+    rows_with_extra = [(d, _parse_extra_json(d.extra_json)) for d in raw_rows]
+    rows_with_extra.sort(key=lambda pair: ((pair[0].category_tab or "khac"), _dossier_sort_key(pair[0], pair[1])))
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -1043,11 +1103,13 @@ def api_export_dossiers():
         cell.font = hdr_font
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-    for idx, d in enumerate(rows, start=1):
+    single_tab_export = bool(category_tab and category_tab != "all")
+    for idx, (d, ex) in enumerate(rows_with_extra, start=1):
         has_dl = True if d.has_deadline is None else bool(d.has_deadline)
+        stt_cell = (ex.get("stt") or idx) if single_tab_export else idx
         ws.append(
             [
-                idx,
+                stt_cell,
                 tab_labels.get(d.category_tab or "khac", "Khác"),
                 d.so_ho_so or d.ma_ho_so,
                 d.unit_area or "",

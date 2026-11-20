@@ -2061,7 +2061,8 @@
     tbody.innerHTML = list.map((d, index) => {
       const checked = selectedIds.has(d.id) ? 'checked' : '';
       const chkCell = `<td class="text-center"><input type="checkbox" class="form-check-input row-chk" value="${d.id}" ${checked} onchange="toggleRowSelect(${d.id}, this.checked)"></td>`;
-      const idxCell = `<td class="text-center text-muted fw-semibold">${index + 1}</td>`;
+      const rowStt = (activeTab !== 'all' && d && d.extra && d.extra.stt) ? String(d.extra.stt) : String(index + 1);
+      const idxCell = `<td class="text-center text-muted fw-semibold dossier-col-stt">${escapeHtml(rowStt)}</td>`;
 
       if (useDynamicSourceTable) {
         const rowCells = (normalizedRows[index] && normalizedRows[index].cells) || [];

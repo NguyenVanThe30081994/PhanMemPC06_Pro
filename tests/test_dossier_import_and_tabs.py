@@ -803,3 +803,108 @@ class DossierImportAndTabsTests(unittest.TestCase):
                 c_item = db.session.get(CategoryItem, custom_tab_id)
                 if c_item:
                     safe_delete_category_item(c_item)
+
+    def test_excel_row_order_and_stt_preserved_in_list_and_export(self):
+        """Thứ tự dòng và STT trên /dossiers & file export phải giữ nguyên đúng thứ tự file Excel."""
+        ct10_custom_order = _xlsx_bytes({
+            "Thống kê phiếu xác minh CT10": {
+                "rows": [
+                    ["THỐNG KÊ PHIẾU XÁC MINH CT10 NGÀY 20/11/2026"],
+                    ["STT", "Đơn vị", "Lập phiếu xác minh", None, None, None, None, None, "Trả lời xác minh", None, None, None, None, None, "Quá hạn chưa trả lời"],
+                    [None, None, "Tổng", "Hoàn thành lập phiếu", "Chờ phê duyệt", "T.CA trả lại", "Chờ trả lời", "Đơn vị nhận đã trả lời xác minh", "Tổng", "Chờ trả lời", "Đang trả lời", "Chờ phê duyệt", "T.CA trả kết quả", "Đã trả kết quả", None],
+                    [1, "Xã Đồng Yên", 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0],
+                    [2, "Xã Yên Sơn", 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0],
+                    [3, "Phường An Tường Test", 1, 0, 0, 0, 1, 0, 3, 3, 0, 0, 0, 0, 0],
+                    [4, "Phường Bình Thuận Test", 0, 0, 0, 0, 0, 0, 2, 1, 1, 0, 0, 0, 1],
+                ],
+                "merges": ["A1:O1", "C2:H2", "I2:N2"],
+            }
+        })
+
+        self._login_as(self.admin_uid)
+        with app.app_context():
+            parsed = parse_dossier_upload(file_bytes=ct10_custom_order, filename="CT10_order.xlsx")
+            self.assertTrue(parsed["ok"])
+            self.assertEqual([r["extra"]["source_row_index"] for r in parsed["records"]], [1, 2, 3, 4])
+            self.assertEqual([r["extra"]["stt"] for r in parsed["records"]], ["1", "2", "3", "4"])
+
+        imp = self.client.post(
+            "/api/dossiers/bulk-import",
+            json={
+                "category_tab": "ct10",
+                "report_date": "2026-11-20",
+                "source_type": "excel",
+                "source_name": "CT10_order.xlsx",
+                "records": parsed["records"],
+            },
+            headers={"X-CSRF-Token": "test-csrf-token"},
+        )
+        self.assertEqual(imp.status_code, 200)
+        self.assertEqual(imp.get_json()["created"], 4)
+
+        # GET /api/dossiers giữ đúng thứ tự 1 -> 2 -> 3 -> 4 từ Excel (không đảo ngược 4 -> 3 -> 2 -> 1)
+        listed = self.client.get("/api/dossiers?category_tab=ct10&trang_thai=dang_xu_ly").get_json()
+        self.assertEqual(
+            [d["unit_area"] for d in listed["dossiers"]],
+            ["Xã Đồng Yên", "Xã Yên Sơn", "Phường An Tường Test", "Phường Bình Thuận Test"],
+        )
+        self.assertEqual([d["extra"]["stt"] for d in listed["dossiers"]], ["1", "2", "3", "4"])
+
+        # Export Excel cũng giữ đúng thứ tự và STT gốc
+        exp = self.client.get("/api/dossiers/export?category_tab=ct10&trang_thai=dang_xu_ly")
+        self.assertEqual(exp.status_code, 200)
+        wb_out = openpyxl.load_workbook(io.BytesIO(exp.data))
+        ws_out = wb_out.active
+        exported_units = [ws_out.cell(r, 4).value for r in range(3, 7)]
+        exported_stts = [str(ws_out.cell(r, 1).value) for r in range(3, 7)]
+        self.assertEqual(exported_units, ["Xã Đồng Yên", "Xã Yên Sơn", "Phường An Tường Test", "Phường Bình Thuận Test"])
+        self.assertEqual(exported_stts, ["1", "2", "3", "4"])
+
+        # Dữ liệu cũ đã lưu trong DB (không có source_row_index, chỉ có extra.stt) vẫn xếp tăng dần theo STT Excel
+        with app.app_context():
+            Dossier.query.delete()
+            rep = date(2026, 11, 20)
+            legacy_rows = [
+                Dossier(
+                    ma_ho_so="CT10-117",
+                    so_ho_so="CT10-LEGACY-117",
+                    category_tab="ct10",
+                    loai="xac-thuc",
+                    han_tra=rep,
+                    report_date=rep,
+                    trang_thai="dang_xu_ly",
+                    unit_area="Xã Yên Sơn",
+                    source_type="excel",
+                    extra_json=json.dumps({"stt": "117"}, ensure_ascii=False),
+                ),
+                Dossier(
+                    ma_ho_so="CT10-118",
+                    so_ho_so="CT10-LEGACY-118",
+                    category_tab="ct10",
+                    loai="xac-thuc",
+                    han_tra=rep,
+                    report_date=rep,
+                    trang_thai="dang_xu_ly",
+                    unit_area="Xã Yên Thành",
+                    source_type="excel",
+                    extra_json=json.dumps({"stt": "118"}, ensure_ascii=False),
+                ),
+                Dossier(
+                    ma_ho_so="CT10-124",
+                    so_ho_so="CT10-LEGACY-124",
+                    category_tab="ct10",
+                    loai="xac-thuc",
+                    han_tra=rep,
+                    report_date=rep,
+                    trang_thai="dang_xu_ly",
+                    unit_area="Xã Đồng Yên",
+                    source_type="excel",
+                    extra_json=json.dumps({"stt": "124"}, ensure_ascii=False),
+                ),
+            ]
+            db.session.add_all(legacy_rows)
+            db.session.commit()
+
+        legacy_listed = self.client.get("/api/dossiers?category_tab=ct10&trang_thai=dang_xu_ly").get_json()
+        self.assertEqual([d["extra"]["stt"] for d in legacy_listed["dossiers"]], ["117", "118", "124"])
+        self.assertEqual([d["unit_area"] for d in legacy_listed["dossiers"]], ["Xã Yên Sơn", "Xã Yên Thành", "Xã Đồng Yên"])

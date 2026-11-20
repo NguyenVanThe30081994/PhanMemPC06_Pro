@@ -1577,6 +1577,7 @@ def _parse_tam_tru_grid(grid, filename, report_date, resolve_unit, scan_meta=Non
             "raw_row": raw_row,
             "extra": {
                 "stt": first_txt,
+                "source_row_index": len(records) + 1,
                 "ngay_nop_raw": ngay_nop_raw,
                 "ngay_tiep_nhan_raw": ngay_tn_raw,
                 "han_tra_raw": han_raw,
@@ -1697,6 +1698,7 @@ def _parse_thuong_tru_grid(grid, filename, report_date, resolve_unit, scan_meta=
             "raw_row": raw_row,
             "extra": {
                 "stt": first_txt,
+                "source_row_index": len(records) + 1,
                 "ngay_nop_raw": ngay_nop_raw,
                 "ngay_tiep_nhan_raw": ngay_tn_raw,
                 "han_tra_raw": han_raw,
@@ -1729,6 +1731,17 @@ def _parse_ct10_grid(grid, filename, report_date, resolve_unit, scan_meta=None):
         if "don vi" in _norm_vn(c):
             unit_col = i
             break
+
+    stt_col = None
+    for row_scan in (tier1, tier2):
+        for i, c in enumerate(row_scan):
+            if _norm_vn(c) in ("stt", "tt", "so tt", "so thu tu"):
+                stt_col = i
+                break
+        if stt_col is not None:
+            break
+    if stt_col is None and unit_col > 0:
+        stt_col = 0
 
     col_indices = {}
     last_group = ""
@@ -1781,8 +1794,8 @@ def _parse_ct10_grid(grid, filename, report_date, resolve_unit, scan_meta=None):
     ncols_raw = len(exact_hdr_labels) or ncols
     table_title = _pick_table_title(grid[:hdr_idx])
     meta_col_map = {"unit_name": unit_col}
-    if unit_col > 0:
-        meta_col_map["stt"] = 0
+    if stt_col is not None:
+        meta_col_map["stt"] = stt_col
     col_widths, col_ratios = _attach_scan_layout_meta(
         scan_meta,
         grid,
@@ -1806,7 +1819,7 @@ def _parse_ct10_grid(grid, filename, report_date, resolve_unit, scan_meta=None):
             continue
 
         raw_row = [_col_val(row, ci) for ci in range(ncols_raw)]
-        stt_raw = _col_val(row, 0) if unit_col > 0 else ""
+        stt_raw = _col_val(row, stt_col) if stt_col is not None else ""
 
         m = {k: _parse_int(_col_val(row, idx), 0) for k, idx in col_indices.items()}
         lap_pending = m.get("lap_hoan_thanh", 0) + m.get("lap_cho_pd", 0) + m.get("lap_tra_lai", 0) + m.get("lap_cho_tl", 0)
@@ -1855,6 +1868,7 @@ def _parse_ct10_grid(grid, filename, report_date, resolve_unit, scan_meta=None):
             "raw_row": raw_row,
             "extra": {
                 "stt": stt_raw,
+                "source_row_index": len(records) + 1,
                 "lap_tong": m.get("lap_tong", 0),
                 "lap_hoan_thanh": m.get("lap_hoan_thanh", 0),
                 "lap_cho_pd": m.get("lap_cho_pd", 0),
@@ -1904,6 +1918,17 @@ def _parse_tich_hop_grid(grid, sheet_name, filename, report_date, resolve_unit):
         else:
             continue
         break
+
+    stt_col = None
+    for row_scan in (tier1, tier2):
+        for i, c in enumerate(row_scan):
+            if _norm_vn(c) in ("stt", "tt", "so tt", "so thu tu"):
+                stt_col = i
+                break
+        if stt_col is not None:
+            break
+    if stt_col is None and unit_col > 0:
+        stt_col = 0
 
     ncols = max([len(r) for r in grid[hdr_idx:data_start + 5]] + [1])
     col_defs = []
@@ -2047,6 +2072,8 @@ def _parse_tich_hop_grid(grid, sheet_name, filename, report_date, resolve_unit):
             "is_pending": pending_total > 0,
             "include": pending_total > 0 or (len(distinct_groups) <= 1),
             "extra": {
+                "stt": _col_val(row, stt_col) if stt_col is not None else "",
+                "source_row_index": len(records) + 1,
                 "group_name": primary_group,
                 "sheet_name": sheet_name or "",
                 "nk_ref": nk_ref,
@@ -2102,6 +2129,17 @@ def _parse_lam_sach_grid(grid, filename, report_date, resolve_unit):
         if any(k in nc for k in ["don vi", "dia ban", "cong an xa", "xa/phuong", "phuong/xa"]):
             unit_col = i
             break
+
+    stt_col = None
+    for row_scan in (headers, tier2):
+        for i, c in enumerate(row_scan):
+            if _norm_vn(c) in ("stt", "tt", "so tt", "so thu tu"):
+                stt_col = i
+                break
+        if stt_col is not None:
+            break
+    if stt_col is None and unit_col > 0:
+        stt_col = 0
 
     col_meta = []
     ncols = max([len(headers)] + [len(r) for r in grid[data_start:data_start + 5]] + [1])
@@ -2206,6 +2244,8 @@ def _parse_lam_sach_grid(grid, filename, report_date, resolve_unit):
             "is_pending": is_pending,
             "include": is_pending,
             "extra": {
+                "stt": _col_val(row, stt_col) if stt_col is not None else "",
+                "source_row_index": len(records) + 1,
                 "chi_tieu": indicator_title[:240],
                 "tong_so": target_total,
                 "da_lam_sach": done_total,
@@ -2310,6 +2350,7 @@ def _parse_generic_grid(grid, filename, report_date, resolve_unit, scan_meta=Non
             "raw_row": raw_row,
             "extra": {
                 "stt": first_txt,
+                "source_row_index": len(records) + 1,
                 "ngay_nop_raw": ngay_nop_raw,
                 "ngay_tiep_nhan_raw": tn_raw,
                 "han_tra_raw": han_raw,
