@@ -30,6 +30,7 @@ from datetime import datetime, timedelta
 from werkzeug.exceptions import HTTPException
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import DisconnectionError
 from models import db, AppRole, DocumentLib, NewsDoc, NotificationDoc, User
 from storage import bootstrap_storage, build_storage_layout
 from security_utils.runtime_security import (
@@ -67,7 +68,6 @@ app = Flask(__name__,
             root_path=basedir, 
             template_folder=TEMPLATE_DIR, 
             static_folder=STATIC_DIR)
-app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 # Import config
 try:
@@ -145,6 +145,7 @@ except ImportError:
 SECRET_KEY = ensure_persistent_secret_key(storage_layout['data_root'], SECRET_KEY)
 app.secret_key = SECRET_KEY
 app.config['SECRET_KEY'] = SECRET_KEY
+app.config['TEMPLATES_AUTO_RELOAD'] = bool(DEBUG)
 app.config['JSON_AS_ASCII'] = False  # Giữ nguyên tiếng Việt trong jsonify()
 app.config['PC06_DATA_ROOT'] = storage_layout['data_root']
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -224,9 +225,13 @@ engine_options = {
 if storage_layout['DATABASE_URI'].startswith(('mysql+pymysql://', 'mariadb+pymysql://')):
     engine_options.update(
         {
-            'pool_recycle': 3600,
+            'pool_recycle': 240,
+            'pool_size': 5,
+            'max_overflow': 5,
+            'pool_timeout': 15,
             'connect_args': {
                 'charset': 'utf8mb4',
+                'connect_timeout': 10,
                 'init_command': "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
             },
         }
@@ -238,7 +243,8 @@ for folder in [UPLOAD_FOLDER, TASK_FOLDER, LIB_FOLDER, BACKUP_FOLDER, TMP_FOLDER
 
 
 @event.listens_for(Engine, 'connect')
-def _set_sqlite_pragmas(dbapi_connection, _connection_record):
+def _on_db_connect(dbapi_connection, connection_record):
+    connection_record.info['pid'] = os.getpid()
     if not isinstance(dbapi_connection, sqlite3.Connection):
         return
     cursor = dbapi_connection.cursor()
@@ -249,6 +255,18 @@ def _set_sqlite_pragmas(dbapi_connection, _connection_record):
         cursor.execute('PRAGMA journal_mode=PERSIST')
     finally:
         cursor.close()
+
+
+@event.listens_for(Engine, 'checkout')
+def _guard_db_checkout_after_fork(dbapi_connection, connection_record, connection_proxy):
+    """Chống chia sẻ socket MySQL sau khi LiteSpeed/Passenger fork() worker con."""
+    pid = os.getpid()
+    if connection_record.info.get('pid') != pid:
+        connection_record.dbapi_connection = connection_proxy.dbapi_connection = None
+        raise DisconnectionError(
+            f"Connection record belongs to pid {connection_record.info.get('pid')}, "
+            f"attempting to check out in pid {pid}"
+        )
 
 # Security Headers Configuration
 def _request_is_secure():
@@ -389,10 +407,31 @@ def check_rate_limit():
 db.init_app(app)
 
 with app.app_context():
-    try: 
+    try:
         init_db(app)
-    except Exception as e: 
+    except Exception as e:
         print(f"Startup DB Error: {e}")
+    finally:
+        # Đóng sạch pool kết nối trước khi LiteSpeed/Passenger fork() các worker con
+        # để tránh nhiều tiến trình dùng chung 1 socket MySQL (lỗi 2013 Lost connection).
+        try:
+            db.session.remove()
+            db.engine.dispose()
+        except Exception:
+            pass
+
+
+def _dispose_db_pool_in_child():
+    try:
+        with app.app_context():
+            db.session.remove()
+            db.engine.dispose(close=False)
+    except Exception:
+        pass
+
+
+if hasattr(os, 'register_at_fork'):
+    os.register_at_fork(after_in_child=_dispose_db_pool_in_child)
 
 from routes.auth import auth_bp
 from routes.admin import admin_bp
@@ -698,10 +737,34 @@ def camel_to_kebab(s):
     import re
     return re.sub(r'(?<!^)(?=[A-Z])', '-', s).lower()
 
+def _excel_col_letter(col_idx):
+    """Chuyển chỉ số cột 1-based sang chữ cái Excel (A, B, ..., AA) không cần import openpyxl mỗi request."""
+    try:
+        n = int(col_idx)
+    except (TypeError, ValueError):
+        return ''
+    if n < 1:
+        return ''
+    chars = []
+    while n > 0:
+        n, rem = divmod(n - 1, 26)
+        chars.append(chr(65 + rem))
+    return ''.join(reversed(chars))
+
+
 @app.context_processor
 def utility_processor():
-    from openpyxl.utils import get_column_letter
-    return dict(col_letter_func=get_column_letter)
+    return dict(col_letter_func=_excel_col_letter)
+
+
+@app.teardown_request
+def _cleanup_db_session(exception=None):
+    if exception is not None:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
 
 # --- ERROR HANDLERS ---
 @app.errorhandler(404)
@@ -710,6 +773,10 @@ def page_not_found(e):
 
 @app.errorhandler(500)
 def internal_server_error(e):
+    try:
+        db.session.rollback()
+    except Exception:
+        pass
     app.logger.error(f"500 Error: {str(e)}")
     return render_template('500.html'), 500
 
@@ -723,6 +790,10 @@ def handle_http_exception(e):
 # Global exception handler - logs ALL errors
 @app.errorhandler(Exception)
 def handle_exception(e):
+    try:
+        db.session.rollback()
+    except Exception:
+        pass
     app.logger.error(f"Unhandled Exception: {str(e)}", exc_info=True)
     return render_template('500.html'), 500
 

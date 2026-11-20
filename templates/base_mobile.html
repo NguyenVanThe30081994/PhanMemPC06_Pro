@@ -827,7 +827,7 @@
                 }
             } catch (e) {}
         }
-        setInterval(checkMobileNotif, 10000);
+        setInterval(() => { if (!document.hidden) checkMobileNotif(); }, 60000);
         checkMobileNotif();
         
         // Save/restore sidebar scroll position

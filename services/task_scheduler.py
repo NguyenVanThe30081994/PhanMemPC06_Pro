@@ -26,11 +26,16 @@ _DEFAULT_WATCHDOG_HOUR_INTERVAL = int(os.environ.get("PC06_WATCHDOG_HOURS", "1")
 
 
 def task_scheduler_enabled():
-    """Cờ bật/tắt scheduler (mặc định bật). Luôn tắt trong test/CI."""
+    """Cờ bật/tắt scheduler. Luôn tắt trong test/CI và tắt mặc định dưới Passenger/lswsgi pre-fork
+    (tránh fork tiến trình đa luồng và nhân bản job trên nhiều worker; bật thủ công bằng PC06_TASK_SCHEDULER=1)."""
     if os.environ.get("FLASK_ENV") == "testing":
         return False
-    raw = os.environ.get("PC06_TASK_SCHEDULER", "1").strip().lower()
-    return raw not in {"0", "false", "no", "off"}
+    explicit = os.environ.get("PC06_TASK_SCHEDULER")
+    if explicit is not None and explicit.strip() != "":
+        return explicit.strip().lower() not in {"0", "false", "no", "off"}
+    if os.environ.get("PC06_PASSENGER") == "1":
+        return False
+    return True
 
 
 def start_task_scheduler(app):

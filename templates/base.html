@@ -1412,7 +1412,7 @@
                 }
             } catch (e) { console.error("Poll Error:", e); }
         }
-        setInterval(() => { if (!document.hidden) checkUpdates(); }, 10000);
+        setInterval(() => { if (!document.hidden) checkUpdates(); }, 60000);
         if (!document.hidden) checkUpdates();
         document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdates(); });
 
